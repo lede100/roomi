@@ -823,6 +823,7 @@
           <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter</button>
           <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动</button>
           <button class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
+          <button class="preset-btn" data-url="https://opencode.ai/zen/v1" data-zenfree="1">OpenCode 免费</button>
         </div>
         <div class="field">
           <label>API Base URL（兼容 OpenAI 格式）</label>
@@ -1846,6 +1847,121 @@ ${memoryBlock}${summaryBlock}
     updateVisionBtnState();
   }
 
+  // ---- OpenCode Zen Free Tier (keyless; gated by a client fingerprint) ----
+  const ZEN_FREE_BASE = 'https://opencode.ai/zen/v1';
+  const ZEN_UA = 'opencode/1.18.32';
+  const ZEN_SESSION_STORE = 'roomi_zen_session_v1';
+
+  function isZenFreeBase(url) {
+    return String(url || '').trim().replace(/\/+$/, '') === ZEN_FREE_BASE;
+  }
+
+  function zenSessionIds() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ZEN_SESSION_STORE) || 'null');
+      if (saved && saved.u && saved.s) return saved;
+    } catch {}
+    const rand = (chars, n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const ids = {
+      u: (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.floor(Math.random() * 16);
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+          }),
+      s: 'ses_' + Date.now().toString(16).padStart(12, '0').slice(-12)
+        + rand('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 14)
+    };
+    try { localStorage.setItem(ZEN_SESSION_STORE, JSON.stringify(ids)); } catch {}
+    return ids;
+  }
+
+  function zenHeaders() {
+    const ids = zenSessionIds();
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer public',
+      'User-Agent': ZEN_UA,
+      'X-Session-ID': ids.u,
+      'x-opencode-session': ids.s,
+      'x-opencode-client': 'cli'
+    };
+  }
+
+  function zenCostAllZero(node) {
+    if (node === null || node === undefined) return true;
+    if (typeof node === 'number') return node === 0;
+    if (Array.isArray(node)) return node.every(zenCostAllZero);
+    if (typeof node === 'object') return Object.values(node).every(zenCostAllZero);
+    return true;
+  }
+
+  // A Zen model is free when every price in its cost object is zero;
+  // entries without cost data fall back to the "-free" id suffix.
+  function zenModelIsFree(item) {
+    if (!item || typeof item !== 'object') return false;
+    if (item.cost !== undefined && item.cost !== null) return zenCostAllZero(item.cost);
+    return String(item.id || '').endsWith('-free');
+  }
+
+  function zenLooksLikeClientGate(text) {
+    return /FreeTierError|MissingSessionID|can only be used/.test(String(text || ''));
+  }
+
+  const ZEN_READ_TOOL = {
+    type: 'function',
+    function: {
+      name: 'read',
+      description: 'Read a file',
+      parameters: { type: 'object', properties: { path: { type: 'string' } } }
+    }
+  };
+
+  function zenWithReadTool(bodyObj) {
+    const tools = Array.isArray(bodyObj.tools) ? bodyObj.tools : [];
+    if (tools.some(t => t && ((t.function && t.function.name === 'read') || t.name === 'read'))) return null;
+    return { ...bodyObj, tools: [...tools, ZEN_READ_TOOL] };
+  }
+
+  // Sends a request through Capacitor's native HTTP stack on device (full
+  // header control incl. User-Agent, no CORS), falling back to fetch in a
+  // plain browser. Always resolves to { status, text }.
+  async function zenHttp(method, url, bodyObj, signal) {
+    const capHttp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && capHttp) {
+      const res = await capHttp.request({
+        url,
+        method,
+        headers: zenHeaders(),
+        data: bodyObj,
+        connectTimeout: 30000,
+        readTimeout: 300000
+      });
+      const text = typeof res.data === 'string' ? res.data : JSON.stringify(res.data ?? '');
+      return { status: res.status, text };
+    }
+    const res = await fetch(url, {
+      method,
+      signal,
+      headers: zenHeaders(),
+      body: bodyObj ? JSON.stringify(bodyObj) : undefined
+    });
+    return { status: res.status, text: await res.text().catch(() => '') };
+  }
+
+  // Chat call with one adaptive retry: some gate variants also demand
+  // opencode's canonical "read" tool in the request body.
+  async function zenChatCompletions(url, bodyObj, signal) {
+    let r = await zenHttp('POST', url, bodyObj, signal);
+    if (r.status === 403 && zenLooksLikeClientGate(r.text)) {
+      const patched = zenWithReadTool(bodyObj);
+      if (patched) {
+        r = await zenHttp('POST', url, patched, signal);
+      }
+    }
+    return r;
+  }
+
   async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
     const { baseUrl, apiKey, model, stream } = state.settings;
     if (!baseUrl.trim() || !model.trim()) {
@@ -1862,6 +1978,26 @@ ${memoryBlock}${summaryBlock}
     ];
 
     activeAbortController = new AbortController();
+
+    if (isZenFreeBase(baseUrl)) {
+      const r = await zenChatCompletions(url, {
+        model: model.trim(),
+        temperature: 0.85,
+        stream: false,
+        messages
+      }, activeAbortController.signal);
+      if (r.status < 200 || r.status >= 300) {
+        throw new Error(`HTTP ${r.status} ${r.text.slice(0, 160)}`);
+      }
+      try {
+        const json = JSON.parse(r.text);
+        return json.choices?.[0]?.message?.content || '刚才走神了，再跟我说一遍？';
+      } catch {
+        const sseText = extractSseLines(r.text.split(/\r?\n/));
+        return sseText || '刚才走神了，再跟我说一遍？';
+      }
+    }
+
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
 
@@ -1994,21 +2130,29 @@ ${chunk.slice(0, 4200)}
 请严格只输出一个 JSON 对象，格式如下：
 {"summary":"250字以内的连贯前情摘要，保留关键事件、情绪变化和未完成约定","facts":[{"key":"简短标签(如作息/喜好/约定)","value":"客观具体的长期事实"}]}`;
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify({
-          model: model.trim(),
-          temperature: 0.2,
-          stream: false,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const compressBody = {
+        model: model.trim(),
+        temperature: 0.2,
+        stream: false,
+        messages: [{ role: 'user', content: prompt }]
+      };
+      let json;
+      if (isZenFreeBase(baseUrl)) {
+        const r = await zenChatCompletions(url, compressBody);
+        if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}`);
+        json = JSON.parse(r.text);
+      } else {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`
+          },
+          body: JSON.stringify(compressBody)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        json = await res.json();
+      }
       const raw = json.choices?.[0]?.message?.content || '';
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('摘要格式解析失败');
@@ -2686,19 +2830,30 @@ ${chunk.slice(0, 4200)}
     fetchModelsBtn.textContent = '检测中…';
     setModelStatus('正在查询 /models 接口…');
     try {
-      const res = await fetch(`${base}/models`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${key}` }
-      });
-      if (mySeq !== detectSeq) return;
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} ${errText.slice(0, 80)}`);
+      let json;
+      if (isZenFreeBase(base)) {
+        const r = await zenHttp('GET', `${base}/models`);
+        if (mySeq !== detectSeq) return;
+        if (r.status < 200 || r.status >= 300) {
+          throw new Error(`HTTP ${r.status} ${r.text.slice(0, 80)}`);
+        }
+        json = JSON.parse(r.text);
+      } else {
+        const res = await fetch(`${base}/models`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        if (mySeq !== detectSeq) return;
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          throw new Error(`HTTP ${res.status} ${errText.slice(0, 80)}`);
+        }
+        json = await res.json();
       }
-      const json = await res.json();
       if (mySeq !== detectSeq) return;
       const rawList = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
-      const ids = [...new Set(rawList.map(item => (typeof item === 'string' ? item : item?.id || item?.name)).filter(Boolean))].sort();
+      const visibleList = isZenFreeBase(base) ? rawList.filter(zenModelIsFree) : rawList;
+      const ids = [...new Set(visibleList.map(item => (typeof item === 'string' ? item : item?.id || item?.name)).filter(Boolean))].sort();
       if (!ids.length) {
         detectedModels = [];
         renderModelSuggestions();
@@ -2711,7 +2866,7 @@ ${chunk.slice(0, 4200)}
         const preferred = ids.find(id => /chat|deepseek|gpt|claude|gemini|qwen/i.test(id)) || ids[0];
         cfgModel.value = autoPickIfDefault ? preferred : '';
       }
-      setModelStatus(`✓ 已检测到 ${ids.length} 个模型${ids.length > 60 ? '（输入关键词可筛选）' : '，点击下方即可选用'}`, 'ok');
+      setModelStatus(`✓ 已检测到 ${ids.length} 个模型${isZenFreeBase(base) ? '（OpenCode Zen 免费通道，仅列免费模型）' : (ids.length > 60 ? '（输入关键词可筛选）' : '，点击下方即可选用')}`, 'ok');
       renderModelSuggestions('');
     } catch (err) {
       if (mySeq !== detectSeq) return;
@@ -2837,6 +2992,12 @@ ${chunk.slice(0, 4200)}
       cfgModel.value = '';
       detectedModels = [];
       renderModelSuggestions();
+      if (btn.dataset.zenfree) {
+        cfgApiKey.value = 'public';
+        setModelStatus('OpenCode Zen 免费通道：无需真实 Key（已自动填入 public），正在检测免费模型…');
+        detectAvailableModels(true);
+        return;
+      }
       if (cfgApiKey.value.trim()) {
         detectAvailableModels(true);
       } else {
