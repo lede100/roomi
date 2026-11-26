@@ -732,6 +732,72 @@
   .sub-card .field { margin-bottom: 9px; }
   .sub-card .field:last-child { margin-bottom: 0; }
   .sub-card input, .sub-card select { background: var(--surface); }
+
+  /* Quick Header Character Switcher */
+  .companion-switcher {
+    display: inline-flex; align-items: center; gap: 9px;
+    border: none; background: transparent; padding: 2px 6px 2px 2px;
+    border-radius: 999px; cursor: pointer; text-align: left;
+    transition: background 0.16s; font-family: inherit;
+  }
+  .companion-switcher:hover { background: var(--surface-muted); }
+  .char-caret { font-size: 10px; color: var(--text-muted); margin-left: 1px; }
+  .char-quick-menu {
+    position: absolute; top: calc(58px + var(--safe-top)); left: 12px;
+    min-width: 210px; max-width: 270px; z-index: 48;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 16px; box-shadow: var(--shadow-float);
+    padding: 6px;
+    opacity: 0; visibility: hidden; transform: translateY(-6px); pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  }
+  .char-quick-menu.show {
+    opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto;
+  }
+  .char-quick-item {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px; border: none; border-radius: 11px; background: transparent;
+    color: var(--text); font-size: 13px; cursor: pointer; text-align: left; font-family: inherit;
+  }
+  .char-quick-item:hover { background: var(--bg-sub); }
+  .char-quick-item.active { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+  .char-quick-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .char-quick-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+  /* Tap-to-Show Bubble Actions */
+  .msg-actions {
+    display: none; align-items: center; gap: 6px; margin-top: 5px;
+  }
+  .msg-row.ai .msg-actions { margin-left: 35px; }
+  .msg-row.user .msg-actions { justify-content: flex-end; }
+  .msg-row.show-actions .msg-actions { display: flex; }
+  .msg-act-btn {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .msg-act-btn:hover { border-color: var(--blue-border); color: var(--blue); background: var(--blue-soft); }
+  .msg-act-btn.danger:hover { border-color: #fecaca; color: var(--red); background: #fef2f2; }
+
+  /* Memory Inline Edit & Pin */
+  .mem-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .mem-pin-btn.pinned { color: var(--blue); border-color: var(--blue-border); background: var(--blue-soft); }
+  .mem-edit-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .mem-edit-inputs { display: flex; gap: 6px; }
+  .mem-edit-inputs input {
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    border-radius: 8px; padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none;
+  }
+  .mem-edit-inputs input:focus { border-color: var(--blue); }
+
+  /* Collapsible Key Help */
+  .key-help {
+    margin-top: 6px; border-radius: 10px; background: var(--bg-sub); border: 1px solid var(--border);
+    padding: 6px 10px; font-size: 11.5px; color: var(--text-2);
+  }
+  .key-help summary { cursor: pointer; color: var(--blue); font-weight: 500; user-select: none; }
+  .key-help-body { margin-top: 7px; line-height: 1.55; color: var(--text-muted); }
+  .key-help-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -740,18 +806,21 @@
   <header class="header">
     <div class="header-top">
       <div class="companion-info">
-        <div class="avatar" id="avatarText">澈</div>
-        <div class="companion-meta">
-          <div class="companion-name-row">
-            <span class="companion-name" id="companionNameDisplay">林澈</span>
-            <button type="button" class="mode-badge guide" id="modeBadge" title="点击去填 API Key">去填 Key · 演示中</button>
+        <button type="button" class="companion-switcher" id="companionSwitcherBtn" title="点击切换伴侣">
+          <div class="avatar" id="avatarText">澈</div>
+          <div class="companion-meta">
+            <div class="companion-name-row">
+              <span class="companion-name" id="companionNameDisplay">林澈</span>
+              <span class="char-caret">▾</span>
+            </div>
+            <div class="companion-sub">
+              <span class="heart-pill" id="affectionDisplay">♥ 68</span>
+              <span>·</span>
+              <span id="moodDisplay">在线等你</span>
+            </div>
           </div>
-          <div class="companion-sub">
-            <span class="heart-pill" id="affectionDisplay">♥ 68</span>
-            <span>·</span>
-            <span id="moodDisplay">在线等你</span>
-          </div>
-        </div>
+        </button>
+        <button type="button" class="mode-badge guide" id="modeBadge" title="点击去填 API Key">去填 Key · 演示中</button>
       </div>
       <div style="display:flex;align-items:center;gap:4px;">
         <button class="icon-btn" id="quickThemeBtn" title="切换白蓝/暖纸主题" aria-label="切换主题">
@@ -781,6 +850,9 @@
       </button>
     </div>
   </header>
+
+  <!-- Quick Character Switcher Popover -->
+  <div class="char-quick-menu" id="charQuickMenu"></div>
 
   <!-- Floating Reply Toast -->
   <div class="floating-banner" id="floatingBanner">
@@ -884,6 +956,7 @@
             <button type="button" class="about-link" id="importCharBtn">导入角色卡</button>
             <input type="file" id="importCharInput" accept="application/json" style="display:none" />
             <button type="button" class="about-link" id="exportCharBtn">导出当前角色</button>
+            <button type="button" class="about-link" id="clearCurrentChatBtn">清空当前聊天</button>
             <button type="button" class="about-link" id="deleteCharBtn" style="color:var(--red);display:none;">删除当前</button>
           </div>
           <div class="char-create-panel" id="charCreatePanel">
@@ -909,11 +982,8 @@
           <div class="model-status" id="aiPersonaStatus"></div>
         </div>
         <div class="field">
-          <label>界面风格</label>
-          <div class="presets" id="themePicker" style="margin-bottom:4px;">
-            <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
-            <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
-          </div>
+          <label>外貌锚点（可选，连拍自拍时保持长相穿搭一致）</label>
+          <input id="cfgAppearance" type="text" placeholder="例：东亚女生，齐肩微卷黑发，暖色调日常针织衫" />
         </div>
         <div class="toggle-row">
           <span>点击小组件时，让 TA 实时回应</span>
@@ -968,11 +1038,25 @@
         <div class="field">
           <label>API Key（留空为离线演示模式）</label>
           <input id="cfgApiKey" type="password" placeholder="sk-..." />
+          <details class="key-help">
+            <summary>不会申请 Key？点这里直达官方控制台</summary>
+            <div class="key-help-body">
+              去下面任意平台注册后创建 API Key，回来选中对应服务商并粘贴进来就行（新用户一般带免费额度或几块钱就能用很久）：
+              <div class="key-help-links">
+                <button type="button" class="about-link" data-ext-url="https://platform.deepseek.com/api_keys">DeepSeek 控制台 →</button>
+                <button type="button" class="about-link" data-ext-url="https://open.bigmodel.cn/usercenter/apikeys">智谱 GLM 控制台 →</button>
+                <button type="button" class="about-link" data-ext-url="https://cloud.siliconflow.cn/account/ak">硅基流动控制台 →</button>
+              </div>
+            </div>
+          </details>
         </div>
         <div class="field">
           <div class="field-label-row">
             <label for="cfgModel">模型名称</label>
-            <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测模型</button>
+            <div style="display:flex;gap:5px;">
+              <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测模型</button>
+              <button type="button" class="detect-btn" id="testConnBtn">⚡ 测通对话</button>
+            </div>
           </div>
           <input id="cfgModel" type="text" placeholder="填入 Key 后自动检测，或手动输入" autocomplete="off" />
           <div class="model-status" id="modelStatus"></div>
@@ -994,7 +1078,10 @@
               <input id="cfgImgBaseUrl" type="text" placeholder="https://api.openai.com/v1" />
             </div>
             <div class="field">
-              <label id="imgKeyLabel">魔搭访问令牌（Access Token）</label>
+              <div class="field-label-row">
+                <label id="imgKeyLabel" for="cfgImgApiKey">魔搭访问令牌（Access Token）</label>
+                <button type="button" class="about-link" id="msTokenHelpLink" data-ext-url="https://modelscope.cn/my/myaccesstoken" style="font-size:10.5px;padding:2px 8px;">去领魔搭 Token →</button>
+              </div>
               <input id="cfgImgApiKey" type="password" placeholder="ms-..." />
             </div>
             <div class="field">
@@ -1263,7 +1350,7 @@
       name: '新伙伴',
       avatarColor: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
       persona: '你是用户的专属伴侣，说话自然像微信日常聊天，口语短句为主，绝不说教、不用列表腔。',
-      greeting: ['嗨，我来报道了～你希望我是什么性格，去设置里告诉我呀。']
+      greeting: ['嗨，我来报道啦～以后就在这里陪你聊了。']
     }
   };
 
@@ -1277,13 +1364,15 @@
     const rawMsgs = Array.isArray(opts.messages)
       ? opts.messages.filter(m => m && !m.imgPending)
       : (Array.isArray(opts.greeting)
-          ? opts.greeting.map(t => ({ role: 'assistant', text: t }))
-          : [{ role: 'assistant', text: `你好呀，我是${name}，以后就在这里陪你了。` }]);
+          ? opts.greeting.map(t => ({ role: 'assistant', text: t, isStarter: true }))
+          : [{ role: 'assistant', text: `你好呀，我是${name}，以后就在这里陪你了。`, isStarter: true }]);
     return {
       id,
       name,
       persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
+      appearance: String(opts.appearance || '').trim(),
       avatarColor: opts.avatarColor || '',
+      lastActiveAt: Number(opts.lastActiveAt) || Date.now(),
       affection: typeof opts.affection === 'number' ? opts.affection : 68,
       mood: opts.mood || '在线等你',
       memories: Array.isArray(opts.memories) ? opts.memories : [],
@@ -1310,6 +1399,7 @@
         model: '',
         name: firstChar.name,
         persona: firstChar.persona,
+        appearance: firstChar.appearance,
         autoReact: true,
         stream: true,
         maxContextChars: 3600,
@@ -1340,6 +1430,7 @@
   let bannerTimer = null;
   let saveTimer = null;
   let keyGuideDismissedSession = false;
+  let lastReplyTurnGapHint = '';
   const iframeRegistry = new Map();
 
   let pendingEventQueue = [];
@@ -1355,6 +1446,7 @@
     if (!active) return;
     active.name = state.settings.name || active.name || '林澈';
     active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
+    active.appearance = state.settings.appearance || '';
     active.affection = state.affection;
     active.mood = state.mood;
     active.memories = Array.isArray(state.memories) ? state.memories : [];
@@ -1370,6 +1462,7 @@
     state.activeCharId = char.id;
     state.settings.name = char.name || '林澈';
     state.settings.persona = char.persona || DEFAULT_PERSONA;
+    state.settings.appearance = char.appearance || '';
     state.affection = typeof char.affection === 'number' ? char.affection : 68;
     state.mood = char.mood || '在线等你';
     state.memories = Array.isArray(char.memories) ? char.memories : [];
@@ -1391,6 +1484,7 @@
         id: 'char_linche',
         name: mergedSettings.name || '林澈',
         persona: mergedSettings.persona || DEFAULT_PERSONA,
+        appearance: mergedSettings.appearance || '',
         affection: typeof raw?.affection === 'number' ? raw.affection : 68,
         mood: raw?.mood || '在线等你',
         memories: Array.isArray(raw?.memories) ? raw.memories : [],
@@ -1429,6 +1523,7 @@
     next.activeCharId = active.id;
     next.settings.name = active.name;
     next.settings.persona = active.persona;
+    next.settings.appearance = active.appearance || '';
     next.affection = active.affection;
     next.mood = active.mood;
     next.memories = active.memories;
@@ -1585,6 +1680,68 @@
   }, { passive: true });
 
   // ---- Header & Chat Rendering ----
+  const charQuickMenu = document.getElementById('charQuickMenu');
+  const companionSwitcherBtn = document.getElementById('companionSwitcherBtn');
+
+  function renderQuickCharMenu() {
+    if (!charQuickMenu) return;
+    const chars = Array.isArray(state.characters) ? state.characters : [];
+    charQuickMenu.innerHTML = '';
+    chars.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'char-quick-item' + (c.id === state.activeCharId ? ' active' : '');
+      const left = document.createElement('span');
+      left.className = 'char-quick-left';
+      const dot = document.createElement('span');
+      dot.className = 'char-pill-dot';
+      if (c.avatarColor) dot.style.background = c.avatarColor;
+      dot.textContent = (c.name || '林').slice(-1);
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = c.name || '未命名';
+      left.appendChild(dot);
+      left.appendChild(nameSpan);
+      const mark = document.createElement('span');
+      mark.textContent = c.id === state.activeCharId ? '✓' : '';
+      mark.style.fontSize = '12px';
+      btn.appendChild(left);
+      btn.appendChild(mark);
+      btn.onclick = () => {
+        charQuickMenu.classList.remove('show');
+        switchCharacter(c.id);
+      };
+      charQuickMenu.appendChild(btn);
+    });
+    const div = document.createElement('div');
+    div.className = 'char-quick-divider';
+    charQuickMenu.appendChild(div);
+    const manageBtn = document.createElement('button');
+    manageBtn.type = 'button';
+    manageBtn.className = 'char-quick-item';
+    manageBtn.innerHTML = `<span style="color:var(--blue);font-weight:500;">+ 新建 / 管理伴侣角色</span>`;
+    manageBtn.onclick = () => {
+      charQuickMenu.classList.remove('show');
+      openSettingsTo('companion', false);
+      charCreatePanel.classList.add('show');
+    };
+    charQuickMenu.appendChild(manageBtn);
+  }
+
+  companionSwitcherBtn.onclick = e => {
+    e.stopPropagation();
+    const willOpen = !charQuickMenu.classList.contains('show');
+    if (willOpen) renderQuickCharMenu();
+    charQuickMenu.classList.toggle('show', willOpen);
+  };
+  document.addEventListener('click', e => {
+    if (charQuickMenu.classList.contains('show') && !charQuickMenu.contains(e.target) && !companionSwitcherBtn.contains(e.target)) {
+      charQuickMenu.classList.remove('show');
+    }
+    if (!e.target.closest('.msg-row')) {
+      chatScroll.querySelectorAll('.msg-row.show-actions').forEach(r => r.classList.remove('show-actions'));
+    }
+  });
+
   function renderHeader() {
     const activeChar = getActiveCharacter();
     const name = state.settings.name || activeChar?.name || '林澈';
@@ -1623,7 +1780,8 @@
     img.className = 'bubble-img';
     img.src = imageUrl;
     img.alt = '图片';
-    img.onclick = () => {
+    img.onclick = e => {
+      e.stopPropagation();
       document.getElementById('imgLightboxSrc').src = imageUrl;
       document.getElementById('imgLightbox').classList.add('show');
     };
@@ -1634,6 +1792,91 @@
       span.textContent = text;
       bubble.appendChild(span);
     }
+  }
+
+  async function regenerateFromMessage(msgObj) {
+    if (isBusy) return;
+    const idx = state.messages.indexOf(msgObj);
+    if (idx < 0) return;
+    // Find latest user/event trigger before idx
+    let triggerIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (state.messages[i]?.role === 'user' || state.messages[i]?.role === 'event') {
+        triggerIdx = i;
+        break;
+      }
+    }
+    if (triggerIdx < 0) {
+      showWarn('开场白前面没有你的提问，直接发一句话试试吧', true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2400);
+      return;
+    }
+    const triggerMsg = state.messages[triggerIdx];
+    state.messages.splice(triggerIdx + 1);
+    if (state.summarizedCount > state.messages.length) state.summarizedCount = state.messages.length;
+    scheduleSave();
+    renderChat(true);
+    await triggerCompanionReply(triggerMsg.text || '', triggerMsg.role === 'event', Boolean(triggerMsg.image));
+  }
+
+  function attachMsgActions(row, bubble, m) {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+
+    if (m.text) {
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'msg-act-btn';
+      copyBtn.textContent = '复制';
+      copyBtn.onclick = async e => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(m.text);
+          showWarn('已复制文字', true);
+          setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1500);
+        } catch {}
+        row.classList.remove('show-actions');
+      };
+      actions.appendChild(copyBtn);
+    }
+
+    if (m.role === 'assistant') {
+      const regenBtn = document.createElement('button');
+      regenBtn.type = 'button';
+      regenBtn.className = 'msg-act-btn';
+      regenBtn.textContent = '↻ 重说';
+      regenBtn.onclick = e => {
+        e.stopPropagation();
+        row.classList.remove('show-actions');
+        regenerateFromMessage(m);
+      };
+      actions.appendChild(regenBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'msg-act-btn danger';
+    delBtn.textContent = '删除';
+    delBtn.onclick = e => {
+      e.stopPropagation();
+      if (isBusy) return;
+      const idx = state.messages.indexOf(m);
+      if (idx >= 0) {
+        state.messages.splice(idx, 1);
+        if (idx < state.summarizedCount) state.summarizedCount = Math.max(0, state.summarizedCount - 1);
+        scheduleSave();
+      }
+      row.remove();
+    };
+    actions.appendChild(delBtn);
+
+    row.appendChild(actions);
+    bubble.addEventListener('click', e => {
+      e.stopPropagation();
+      const willShow = !row.classList.contains('show-actions');
+      chatScroll.querySelectorAll('.msg-row.show-actions').forEach(r => r.classList.remove('show-actions'));
+      if (willShow) row.classList.add('show-actions');
+    });
   }
 
   function createMsgRowElement(m, miniChar) {
@@ -1672,6 +1915,7 @@
         bubble.appendChild(span);
       }
       row.appendChild(bubble);
+      attachMsgActions(row, bubble, m);
       return row;
     }
     if (m.imgPending) {
@@ -1703,11 +1947,15 @@
     wrap.appendChild(av);
     wrap.appendChild(bubble);
     row.appendChild(wrap);
+    attachMsgActions(row, bubble, m);
     return row;
   }
 
   function appendChatMessage(m) {
+    if (!m.createdAt) m.createdAt = Date.now();
     state.messages.push(m);
+    const activeChar = getActiveCharacter();
+    if (activeChar) activeChar.lastActiveAt = m.createdAt;
     const miniChar = escapeHtml((state.settings.name || '林澈').slice(-1));
     const row = createMsgRowElement(m, miniChar);
     chatScroll.insertBefore(row, typingRow);
@@ -1937,32 +2185,43 @@
   }
 
   // ---- Long-Term Memory Helpers ----
-  function upsertMemory(key, value) {
+  function upsertMemory(key, value, targetMemories = null, forcePinned = null) {
     const k = String(key || '').trim().slice(0, 24);
     const v = String(value || '').trim().slice(0, 120);
     if (!k || !v) return false;
-    if (!Array.isArray(state.memories)) state.memories = [];
-    const idx = state.memories.findIndex(m => m.key.toLowerCase() === k.toLowerCase());
+    const list = Array.isArray(targetMemories)
+      ? targetMemories
+      : (Array.isArray(state.memories) ? state.memories : (state.memories = []));
+    const idx = list.findIndex(m => m.key.toLowerCase() === k.toLowerCase());
     if (idx >= 0) {
-      state.memories[idx].key = k;
-      state.memories[idx].value = v;
-      state.memories[idx].updatedAt = Date.now();
+      list[idx].key = k;
+      list[idx].value = v;
+      list[idx].updatedAt = Date.now();
+      if (forcePinned !== null) list[idx].pinned = Boolean(forcePinned);
     } else {
-      state.memories.unshift({
+      list.unshift({
         id: 'mem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
         key: k,
         value: v,
+        pinned: Boolean(forcePinned),
         updatedAt: Date.now()
       });
-      if (state.memories.length > 80) state.memories = state.memories.slice(0, 80);
+      if (list.length > 120) {
+        const pinned = list.filter(item => item.pinned);
+        const normal = list.filter(item => !item.pinned).slice(0, Math.max(20, 120 - pinned.length));
+        list.splice(0, list.length, ...pinned, ...normal);
+      }
     }
     return true;
   }
 
-  function removeMemoryByKey(key) {
+  function removeMemoryByKey(key, targetMemories = null) {
     const k = String(key || '').trim().toLowerCase();
-    if (!k || !Array.isArray(state.memories)) return;
-    state.memories = state.memories.filter(m => m.key.toLowerCase() !== k);
+    const list = Array.isArray(targetMemories) ? targetMemories : state.memories;
+    if (!k || !Array.isArray(list)) return;
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (String(list[i].key || '').toLowerCase() === k) list.splice(i, 1);
+    }
   }
 
   function parseAssistantOutput(rawText) {
@@ -2159,25 +2418,103 @@
     return `${dateStr} ${days[d.getDay()]} ${timeStr}（${period}）`;
   }
 
+  function extractMemoryQueryTokens(text) {
+    const tokens = new Set();
+    const clean = String(text || '').toLowerCase();
+    (clean.match(/[a-z0-9]{2,}/g) || []).forEach(w => tokens.add(w));
+    (clean.match(/[\u4e00-\u9fa5]{2,}/g) || []).forEach(seg => {
+      for (let i = 0; i < seg.length - 1; i++) {
+        tokens.add(seg.slice(i, i + 2));
+      }
+    });
+    return [...tokens];
+  }
+
+  function selectRelevantMemories() {
+    const list = Array.isArray(state.memories) ? state.memories : [];
+    if (!list.length) return [];
+    const recentText = state.messages
+      .slice(-6)
+      .map(m => m?.text || '')
+      .join(' ');
+    const tokens = extractMemoryQueryTokens(recentText);
+    const total = list.length;
+
+    const scored = list.map((m, idx) => {
+      const hay = `${m.key || ''} ${m.value || ''}`.toLowerCase();
+      let hits = 0;
+      for (const tok of tokens) {
+        if (hay.includes(tok)) hits += 1;
+      }
+      const score = (m.pinned ? 1000 : 0) + hits * 25 + ((total - idx) * 0.15);
+      return { m, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+
+    const picked = [];
+    let chars = 0;
+    for (const item of scored) {
+      if (picked.length >= 32) break;
+      const lineLen = (item.m.key?.length || 0) + (item.m.value?.length || 0) + 12;
+      if (picked.length >= 8 && chars + lineLen > 1250) break;
+      picked.push(item.m);
+      chars += lineLen;
+    }
+    return picked;
+  }
+
+  function getTimeGapContext() {
+    const msgs = Array.isArray(state.messages) ? state.messages : [];
+    let prevAt = 0;
+    // Skip the very latest user message just sent; check the previous dated message before it
+    for (let i = msgs.length - 2; i >= 0; i--) {
+      if (msgs[i]?.createdAt && !msgs[i]?.isStarter) {
+        prevAt = msgs[i].createdAt;
+        break;
+      }
+    }
+    if (!prevAt) return '';
+    const diffMs = Date.now() - prevAt;
+    const hours = diffMs / 3600000;
+    if (hours < 6) return '';
+    if (hours < 24) return `距离上一轮对话约 ${Math.round(hours)} 小时`;
+    const days = Math.round(hours / 24);
+    return `距离上一轮对话约 ${days} 天，可自然带出一点久违感`;
+  }
+
   function buildSystemPrompt() {
+    const charName = state.settings.name || '林澈';
+    const appearance = (state.settings.appearance || '').trim();
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、') || '暂无';
     const themeHint = state.settings.theme === 'claude'
       ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
       : '温馨柔蓝白主题：背景 #ffffff，正文 #1c2433，次级文字 #6e7a91，主色 #5b8def，浅蓝底 #eef4fd，边框 #e4ebf5';
 
-    const memList = Array.isArray(state.memories) ? state.memories.slice(0, 25) : [];
+    const memList = selectRelevantMemories();
     const memoryBlock = memList.length
-      ? `\n【长期记忆档案（你一直记得的关于 TA 的事）】\n` + memList.map(m => `- ${m.key}：${m.value}`).join('\n').slice(0, 900)
+      ? `\n【长期记忆档案（按重要程度与当前话题关联召回）】\n` + memList.map(m => `- ${m.pinned ? '[核心]' : ''}${m.key}：${m.value}`).join('\n')
       : '';
 
     const summaryBlock = state.memorySummary
       ? `\n【前情提要（更早之前的对话压缩摘要）】\n${state.memorySummary.slice(0, 600)}`
       : '';
 
-    return `${state.settings.persona}
+    const gapHint = getTimeGapContext();
+    const timeNote = gapHint
+      ? `${getLocalTimeContext()}（${gapHint}；请自然感知此时段，无需每轮生硬报时）`
+      : `${getLocalTimeContext()}（请自然感知此时段，但无需每轮生硬报时）`;
+
+    const appearanceBlock = appearance
+      ? `\n你的外貌锚点（发自拍或出镜画面时保持一致）：${appearance}`
+      : '';
+
+    return `【你的身份与核心人设（请直接严格进入该角色并保持一致，绝不要反问用户自己是什么性格）】
+你的名字：${charName}
+性格与相处设定：
+${state.settings.persona}${appearanceBlock}
 
 【当前时间】
-${getLocalTimeContext()}（请自然感知此时段，但无需每轮生硬报时）
+${timeNote}
 ${memoryBlock}${summaryBlock}
 
 【对话风格与记忆规则】
@@ -2355,45 +2692,53 @@ ${memoryBlock}${summaryBlock}
     }
   }
 
-  // ---- Rolling Context Compression & Fact Extraction ----
+  // ---- Rolling Context Compression & Fact Extraction (Per-Character Isolated) ----
+  const compressingChars = new Set();
+
   async function maybeCompressHistory(force = false) {
-    if (isCompressing) return { ok: false, reason: 'busy' };
+    const targetCharId = state.activeCharId;
+    const targetChar = getActiveCharacter();
+    if (!targetChar || compressingChars.has(targetCharId)) {
+      return { ok: false, reason: 'busy' };
+    }
     const { baseUrl, apiKey, model } = state.settings;
     if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
       return { ok: false, reason: 'no_api' };
     }
 
-    const curSummarized = Math.max(0, Math.min(state.summarizedCount || 0, state.messages.length));
-    // Leave at least the latest 6 messages untouched as active short-term context
+    const msgsRef = state.messages;
+    const curSummarized = Math.max(0, Math.min(state.summarizedCount || 0, msgsRef.length));
     const safeEnd = force
-      ? Math.max(0, state.messages.length - 6)
-      : Math.min(lastWindowStartIndex, Math.max(0, state.messages.length - 6));
+      ? Math.max(0, msgsRef.length - 6)
+      : Math.min(lastWindowStartIndex, Math.max(0, msgsRef.length - 6));
 
     const pendingCount = safeEnd - curSummarized;
     if (!force && pendingCount < 10) return { ok: false, reason: 'few' };
     if (pendingCount < 3) return { ok: false, reason: 'few' };
 
     const sliceEnd = Math.min(safeEnd, curSummarized + 24);
-    const chunk = state.messages.slice(curSummarized, sliceEnd)
+    const chunk = msgsRef.slice(curSummarized, sliceEnd)
       .map(formatMessageForModel)
       .filter(Boolean)
       .map(m => `${m.role === 'user' ? '用户' : '伴侣'}: ${m.content}`)
       .join('\n');
 
     if (!chunk.trim()) {
-      state.summarizedCount = sliceEnd;
+      targetChar.summarizedCount = sliceEnd;
+      if (state.activeCharId === targetCharId) state.summarizedCount = sliceEnd;
       scheduleSave();
       return { ok: true, moved: sliceEnd - curSummarized };
     }
 
-    isCompressing = true;
+    compressingChars.add(targetCharId);
     try {
-      const existingKeys = (state.memories || []).slice(0, 30).map(m => `${m.key}:${m.value}`).join('；') || '无';
+      const memSnapshot = Array.isArray(targetChar.memories) ? targetChar.memories : [];
+      const existingKeys = memSnapshot.slice(0, 40).map(m => `${m.key}:${m.value}`).join('；') || '无';
       const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
-      const prompt = `请把下面这段刚滑出对话窗口的旧聊天记录与原有前情提要合并压缩，并顺便提取值得长期记住的事实。
+      const prompt = `请把下面这段刚滑出对话窗口的旧聊天记录与原有前情提要合并压缩，并顺便整理长期记忆（新增重要事实，并列出被替代/过时的矛盾旧标签）。
 
 【原有前情提要】
-${state.memorySummary || '（暂无）'}
+${targetChar.memorySummary || '（暂无）'}
 
 【已有长期记忆】
 ${existingKeys}
@@ -2402,7 +2747,7 @@ ${existingKeys}
 ${chunk.slice(0, 4200)}
 
 请严格只输出一个 JSON 对象，格式如下：
-{"summary":"250字以内的连贯前情摘要，保留关键事件、情绪变化和未完成约定","facts":[{"key":"简短标签(如作息/喜好/约定)","value":"客观具体的长期事实"}]}`;
+{"summary":"250字以内的连贯前情摘要，保留关键事件、情绪变化和未完成约定","facts":[{"key":"简短标签(如作息/喜好/约定)","value":"客观具体的长期事实"}],"dropKeys":["已过时或互相矛盾需删除的旧标签，没有则空数组"]}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -2424,22 +2769,37 @@ ${chunk.slice(0, 4200)}
       if (!jsonMatch) throw new Error('摘要格式解析失败');
       const parsed = JSON.parse(jsonMatch[0]);
 
+      const destChar = state.characters.find(c => c.id === targetCharId);
+      if (!destChar) return { ok: false, reason: 'char_removed' };
+      const isStillActive = state.activeCharId === targetCharId;
+      const destMemories = isStillActive ? state.memories : destChar.memories;
+
       if (typeof parsed.summary === 'string' && parsed.summary.trim()) {
-        state.memorySummary = parsed.summary.trim().slice(0, 600);
+        const cleanSummary = parsed.summary.trim().slice(0, 600);
+        destChar.memorySummary = cleanSummary;
+        if (isStillActive) state.memorySummary = cleanSummary;
+      }
+      if (Array.isArray(parsed.dropKeys)) {
+        parsed.dropKeys.forEach(dk => {
+          if (dk) removeMemoryByKey(dk, destMemories);
+        });
       }
       if (Array.isArray(parsed.facts)) {
         parsed.facts.forEach(f => {
-          if (f && f.key && f.value) upsertMemory(f.key, f.value);
+          if (f && f.key && f.value) upsertMemory(f.key, f.value, destMemories);
         });
       }
-      state.summarizedCount = sliceEnd;
+      destChar.summarizedCount = sliceEnd;
+      if (isStillActive) {
+        state.summarizedCount = sliceEnd;
+        updateMemStats();
+      }
       scheduleSave();
-      updateMemStats();
       return { ok: true, moved: sliceEnd - curSummarized };
     } catch (err) {
       return { ok: false, reason: err.message };
     } finally {
-      isCompressing = false;
+      compressingChars.delete(targetCharId);
     }
   }
 
@@ -2970,9 +3330,11 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       : state.characters.find(c => c.id === charId)?.messages;
     if (!Array.isArray(msgs)) return;
     const idx = msgs.findIndex(m => m && m.id === placeholderId);
+    let finalMsg = null;
     if (idx >= 0) {
       if (finalDataUrl) {
-        msgs[idx] = { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' };
+        finalMsg = { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '', createdAt: Date.now() };
+        msgs[idx] = finalMsg;
       } else {
         msgs.splice(idx, 1);
       }
@@ -2982,7 +3344,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       if (row) {
         if (finalDataUrl) {
           const miniChar = escapeHtml((state.settings.name || '林澈').slice(-1));
-          const fresh = createMsgRowElement({ id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' }, miniChar);
+          const fresh = createMsgRowElement(finalMsg || { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' }, miniChar);
           row.replaceWith(fresh);
         } else {
           row.remove();
@@ -3336,9 +3698,6 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     if (document.documentElement.getAttribute('data-theme') !== t) {
       document.documentElement.setAttribute('data-theme', t);
     }
-    document.querySelectorAll('#themePicker [data-theme-choice]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.themeChoice === t);
-    });
   }
 
   document.getElementById('quickThemeBtn').onclick = () => {
@@ -3348,21 +3707,13 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     scheduleSave();
   };
 
-  document.querySelectorAll('#themePicker [data-theme-choice]').forEach(btn => {
-    btn.onclick = () => {
-      state.settings.theme = btn.dataset.themeChoice;
-      applyTheme(state.settings.theme);
-      renderWidgets();
-      scheduleSave();
-    };
-  });
-
   // ---- Settings & Backup Modal ----
   const settingsModal = document.getElementById('settingsModal');
   const cfgBaseUrl = document.getElementById('cfgBaseUrl');
   const cfgApiKey = document.getElementById('cfgApiKey');
   const cfgModel = document.getElementById('cfgModel');
   const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+  const testConnBtn = document.getElementById('testConnBtn');
   const modelStatus = document.getElementById('modelStatus');
   const modelSuggestions = document.getElementById('modelSuggestions');
   let detectedModels = [];
@@ -3461,6 +3812,57 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
 
   fetchModelsBtn.onclick = () => detectAvailableModels(false);
 
+  testConnBtn.onclick = async () => {
+    const base = cfgBaseUrl.value.trim().replace(/\/+$/, '');
+    const key = cfgApiKey.value.trim();
+    const model = cfgModel.value.trim();
+    if (!base) {
+      setModelStatus('请先点选上方的接口服务商（或填写自定义地址）', 'err');
+      return;
+    }
+    if (!key) {
+      setModelStatus('请先填入 API Key', 'err');
+      cfgApiKey.focus();
+      return;
+    }
+    if (!model) {
+      setModelStatus('请先检测或填写模型名称', 'err');
+      cfgModel.focus();
+      return;
+    }
+    testConnBtn.disabled = true;
+    testConnBtn.textContent = '测通中…';
+    setModelStatus('正在测试对话连通性…');
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          max_tokens: 12,
+          temperature: 0.1,
+          stream: false,
+          messages: [{ role: 'user', content: 'hi' }]
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        const hint = res.status === 401 ? '（Key 无效或已过期）'
+          : (res.status === 402 || res.status === 429) ? '（额度不足或限流）'
+          : res.status === 404 ? '（模型名或接口地址有误）' : '';
+        throw new Error(`HTTP ${res.status}${hint} ${txt.slice(0, 60)}`);
+      }
+      const ms = Date.now() - t0;
+      setModelStatus(`✓ 对话接口可用（响应 ${ms}ms），点下方「保存并应用」即可开聊`, 'ok');
+    } catch (err) {
+      setModelStatus(`✗ 测通失败：${err.message}`, 'err');
+    } finally {
+      testConnBtn.disabled = false;
+      testConnBtn.textContent = '⚡ 测通对话';
+    }
+  };
+
   cfgApiKey.addEventListener('input', () => {
     clearTimeout(keyDetectTimer);
     if (!cfgApiKey.value.trim()) {
@@ -3511,7 +3913,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     }
   }
 
-  function renderMemoryModalList() {
+  function renderMemoryModalList(editingIdx = -1) {
     const list = Array.isArray(state.memories) ? state.memories : [];
     memListEl.innerHTML = '';
     if (!list.length) {
@@ -3521,13 +3923,51 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     list.forEach((m, idx) => {
       const row = document.createElement('div');
       row.className = 'mem-item';
+      if (idx === editingIdx) {
+        row.innerHTML = `
+          <div class="mem-edit-form">
+            <div class="mem-edit-inputs">
+              <input type="text" class="mem-ek" style="width:34%;" value="${escapeHtml(m.key)}" placeholder="标签" />
+              <input type="text" class="mem-ev" style="flex:1;" value="${escapeHtml(m.value)}" placeholder="内容" />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:6px;">
+              <button type="button" class="mini-btn" data-act="cancel">取消</button>
+              <button type="button" class="detect-btn" data-act="save">保存</button>
+            </div>
+          </div>`;
+        row.querySelector('[data-act="cancel"]').onclick = () => renderMemoryModalList(-1);
+        row.querySelector('[data-act="save"]').onclick = () => {
+          const nk = row.querySelector('.mem-ek').value.trim().slice(0, 24);
+          const nv = row.querySelector('.mem-ev').value.trim().slice(0, 120);
+          if (nk && nv) {
+            m.key = nk;
+            m.value = nv;
+            m.updatedAt = Date.now();
+            scheduleSave();
+          }
+          renderMemoryModalList(-1);
+          updateMemStats();
+        };
+        memListEl.appendChild(row);
+        return;
+      }
       row.innerHTML = `
-        <div style="flex:1;min-width:0;"><span class="mem-item-key">${escapeHtml(m.key)}</span><span>${escapeHtml(m.value)}</span></div>
-        <button type="button" class="mini-btn danger" data-idx="${idx}" title="删除">✕</button>`;
-      row.querySelector('button').onclick = () => {
+        <div style="flex:1;min-width:0;"><span class="mem-item-key">${m.pinned ? '📌 ' : ''}${escapeHtml(m.key)}</span><span>${escapeHtml(m.value)}</span></div>
+        <div class="mem-actions">
+          <button type="button" class="mini-btn mem-pin-btn ${m.pinned ? 'pinned' : ''}" data-act="pin" title="${m.pinned ? '取消置顶' : '设为置顶核心记忆'}">📌</button>
+          <button type="button" class="mini-btn" data-act="edit" title="修改">✎</button>
+          <button type="button" class="mini-btn danger" data-act="del" title="删除">✕</button>
+        </div>`;
+      row.querySelector('[data-act="pin"]').onclick = () => {
+        m.pinned = !m.pinned;
+        scheduleSave();
+        renderMemoryModalList(-1);
+      };
+      row.querySelector('[data-act="edit"]').onclick = () => renderMemoryModalList(idx);
+      row.querySelector('[data-act="del"]').onclick = () => {
         state.memories.splice(idx, 1);
         scheduleSave();
-        renderMemoryModalList();
+        renderMemoryModalList(-1);
         updateMemStats();
       };
       memListEl.appendChild(row);
@@ -3585,8 +4025,11 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
   const imgModelLabel = document.getElementById('imgModelLabel');
   const imgModelPresets = document.getElementById('imgModelPresets');
   const imgHintText = document.getElementById('imgHintText');
+  const msTokenHelpLink = document.getElementById('msTokenHelpLink');
+  const cfgAppearance = document.getElementById('cfgAppearance');
   let draftImgProvider = 'off';
   let draftImgTrigger = 'asked';
+  let draftAiGreeting = '';
 
   function syncImgProviderUI(provider, trigger = draftImgTrigger) {
     draftImgProvider = provider || 'off';
@@ -3603,6 +4046,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     const isMs = draftImgProvider === 'modelscope';
     imgBaseUrlField.style.display = isMs ? 'none' : 'block';
     imgModelPresets.style.display = isMs ? 'flex' : 'none';
+    if (msTokenHelpLink) msTokenHelpLink.style.display = isMs ? 'inline-flex' : 'none';
     imgKeyLabel.textContent = isMs ? '魔搭访问令牌（Access Token）' : '生图 API Key（留空则复用上方对话 Key）';
     cfgImgApiKey.placeholder = isMs ? 'ms-...' : 'sk-...（留空复用）';
     imgModelLabel.textContent = isMs ? '生图模型（支持粘贴 LoRA 模型 ID）' : '生图模型名称';
@@ -3669,6 +4113,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     if (!active) return;
     state.settings.name = document.getElementById('cfgName').value.trim() || state.settings.name;
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
+    state.settings.appearance = cfgAppearance.value.trim();
     state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
     flushActiveCharToList();
   }
@@ -3688,10 +4133,12 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     clearTimeout(eventFlushTimer);
     lastWindowStartIndex = 0;
     visibleChatStart = -1;
+    draftAiGreeting = '';
     loadCharacterIntoRuntime(target);
     if (settingsModal.classList.contains('show')) {
       document.getElementById('cfgName').value = target.name;
       document.getElementById('cfgPersona').value = target.persona;
+      cfgAppearance.value = target.appearance || '';
       memSummaryInput.value = target.memorySummary || '';
       renderMemoryModalList();
     }
@@ -3725,9 +4172,11 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       pendingEventQueue = [];
       lastWindowStartIndex = 0;
       visibleChatStart = -1;
+      draftAiGreeting = '';
       loadCharacterIntoRuntime(card);
       document.getElementById('cfgName').value = card.name;
       document.getElementById('cfgPersona').value = card.persona;
+      cfgAppearance.value = card.appearance || '';
       memSummaryInput.value = '';
       renderCharacterBar();
       renderMemoryModalList();
@@ -3748,9 +4197,11 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     pendingEventQueue = [];
     lastWindowStartIndex = 0;
     visibleChatStart = -1;
+    draftAiGreeting = '';
     loadCharacterIntoRuntime(fallback);
     document.getElementById('cfgName').value = fallback.name;
     document.getElementById('cfgPersona').value = fallback.persona;
+    cfgAppearance.value = fallback.appearance || '';
     memSummaryInput.value = fallback.memorySummary || '';
     renderCharacterBar();
     renderMemoryModalList();
@@ -3759,6 +4210,21 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     renderWidgets();
     updateMemStats();
     scheduleSave();
+  };
+
+  document.getElementById('clearCurrentChatBtn').onclick = () => {
+    if (isBusy) return;
+    const name = document.getElementById('cfgName').value.trim() || state.settings.name || '当前角色';
+    if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与小窝组件都会保留）`)) return;
+    state.messages = [{ role: 'assistant', text: `好呀，我们重新开始聊吧～`, isStarter: true }];
+    state.summarizedCount = 0;
+    visibleChatStart = -1;
+    lastWindowStartIndex = 0;
+    flushActiveCharToList();
+    scheduleSave();
+    renderChat();
+    showWarn(`已清空「${name}」的聊天记录`, true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
   };
 
   document.getElementById('exportCharBtn').onclick = () => {
@@ -3772,6 +4238,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       version: 1,
       name: active.name,
       persona: active.persona,
+      appearance: active.appearance || '',
       avatarColor: active.avatarColor || '',
       greeting: firstGreeting ? [firstGreeting] : undefined
     };
@@ -3799,6 +4266,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       const card = makeCharacterCard({
         name: src.name,
         persona: src.persona,
+        appearance: src.appearance || '',
         avatarColor: src.avatarColor || '',
         greeting: Array.isArray(src.greeting) ? src.greeting : (typeof src.greeting === 'string' && src.greeting ? [src.greeting] : undefined),
         widgets: [cloneStarterWidget()]
@@ -3807,9 +4275,11 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       pendingEventQueue = [];
       lastWindowStartIndex = 0;
       visibleChatStart = -1;
+      draftAiGreeting = '';
       loadCharacterIntoRuntime(card);
       document.getElementById('cfgName').value = card.name;
       document.getElementById('cfgPersona').value = card.persona;
+      cfgAppearance.value = card.appearance || '';
       memSummaryInput.value = '';
       renderCharacterBar();
       renderMemoryModalList();
@@ -3840,6 +4310,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
       const pick = CHAR_TEMPLATES[tplKeys[offlineTplIdx++ % tplKeys.length]];
       if (!curName || curName === '新伙伴') document.getElementById('cfgName').value = pick.name;
       document.getElementById('cfgPersona').value = pick.persona;
+      draftAiGreeting = pick.greeting[0] || '';
       aiPersonaStatus.textContent = '已套用精选人设模板；填入 API Key 后可按关键词让 AI 自由捏人';
       aiPersonaStatus.className = 'model-status';
       return;
@@ -3857,7 +4328,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
 要求：
 1. 突出说话习惯、性格反差萌、和用户相处的小细节；
 2. 强调“说话像真人微信日常聊天、自然口语短句、绝不说教、不用 1.2.3. 列表腔”；
-3. 只输出纯 JSON：{"name":"角色名字","persona":"120~220字完整第二人称人设指令"}`;
+3. 只输出纯 JSON：{"name":"角色名字","persona":"120~220字完整第二人称人设指令","appearance":"15~30字典型外貌与穿搭描述（用于保持自拍一致）","greeting":"一句贴合性格的自然微信开场白"}`;
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
@@ -3874,6 +4345,12 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
         }
         if (parsed.persona) {
           document.getElementById('cfgPersona').value = String(parsed.persona).trim();
+        }
+        if (parsed.appearance && !cfgAppearance.value.trim()) {
+          cfgAppearance.value = String(parsed.appearance).trim();
+        }
+        if (parsed.greeting) {
+          draftAiGreeting = String(parsed.greeting).trim();
         }
       } else if (raw.trim()) {
         document.getElementById('cfgPersona').value = raw.trim();
@@ -3900,7 +4377,9 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
     document.getElementById('cfgName').value = state.settings.name;
     document.getElementById('cfgPersona').value = state.settings.persona;
+    cfgAppearance.value = state.settings.appearance || '';
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
+    draftAiGreeting = '';
     memSummaryInput.value = state.memorySummary || '';
     memCompressStatus.textContent = '';
     memCompressStatus.className = 'model-status';
@@ -3958,9 +4437,21 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     state.settings.imgTrigger = draftImgTrigger;
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
+    state.settings.appearance = cfgAppearance.value.trim();
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
     state.settings.stream = true;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+
+    // If the user hasn't started chatting with this card yet, replace stale placeholder starter greeting cleanly
+    const hasUserChatted = state.messages.some(m => m && (m.role === 'user' || m.role === 'event'));
+    if (!hasUserChatted) {
+      const freshGreeting = draftAiGreeting || `嗨，我是${state.settings.name}～以后就在这里陪你聊了。`;
+      if (draftAiGreeting || state.messages.some(m => m?.isStarter || String(m?.text || '').includes('去设置里告诉我'))) {
+        state.messages = [{ role: 'assistant', text: freshGreeting, isStarter: true }];
+      }
+    }
+    draftAiGreeting = '';
+
     flushActiveCharToList();
     scheduleSave();
     renderHeader();
