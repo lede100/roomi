@@ -367,10 +367,10 @@
     box-shadow: 0 4px 22px rgba(77, 107, 254, 0.10);
   }
   .composer textarea {
-    flex: 1; min-height: 22px; max-height: 112px;
+    flex: 1; height: 34px; min-height: 34px; max-height: 112px;
     resize: none; border: none; background: transparent;
     color: var(--text); padding: 6px 0;
-    font-size: 14.5px; line-height: 1.45; font-family: inherit;
+    font-size: 14.5px; line-height: 22px; font-family: inherit;
     outline: none;
   }
   .composer textarea::placeholder { color: var(--text-dim); }
@@ -725,7 +725,7 @@
                 <polyline points="21 15 16 10 5 21"></polyline>
               </svg>
             </button>
-            <textarea id="chatInput" rows="1" placeholder="给林澈发消息，或让 TA 现做个小组件…"></textarea>
+            <textarea id="chatInput" rows="1" placeholder="给林澈发消息…"></textarea>
             <button class="send-btn" id="sendBtn" aria-label="发送">
               <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -820,8 +820,10 @@
       <div class="set-pane" data-set-pane="model">
         <div class="presets">
           <button class="preset-btn" data-url="https://api.deepseek.com/v1">DeepSeek 官方</button>
-          <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter</button>
-          <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动</button>
+          <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动 (免费额度)</button>
+          <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter (:free)</button>
+          <button class="preset-btn" data-url="https://api.groq.com/openai/v1">Groq (免费层)</button>
+          <button class="preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai">Gemini (免费层)</button>
           <button class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
         </div>
         <div class="field">
@@ -1245,7 +1247,7 @@
     const name = state.settings.name || '林澈';
     companionNameDisplay.textContent = name;
     avatarText.textContent = name.slice(-1);
-    chatInput.placeholder = `给${name}发消息，或让 TA 现做个小组件…`;
+    chatInput.placeholder = `给${name}发消息…`;
     affectionDisplay.textContent = `♥ ${state.affection}`;
     moodDisplay.textContent = state.mood;
     const isLive = Boolean(state.settings.apiKey.trim());
@@ -2567,7 +2569,7 @@ ${chunk.slice(0, 4200)}
     if (!text && !image) return;
 
     chatInput.value = '';
-    chatInput.style.height = 'auto';
+    chatInput.style.height = '34px';
     if (image) clearPendingImage();
 
     appendChatMessage({ role: 'user', text, image: image || undefined });
@@ -2583,8 +2585,8 @@ ${chunk.slice(0, 4200)}
     }
   });
   chatInput.addEventListener('input', () => {
-    chatInput.style.height = 'auto';
-    chatInput.style.height = Math.min(chatInput.scrollHeight, 112) + 'px';
+    chatInput.style.height = '34px';
+    chatInput.style.height = Math.max(34, Math.min(chatInput.scrollHeight, 112)) + 'px';
   });
 
   document.getElementById('quickBar').addEventListener('click', e => {
@@ -3011,6 +3013,13 @@ ${chunk.slice(0, 4200)}
             state.settings.theme = 'claude';
           }
           state.settings._v = 3;
+          scheduleSave();
+        }
+        // Clean up invalid keyless opencode zen settings left by v0.6.1/v0.6.2
+        if (state.settings.baseUrl.includes('opencode.ai/zen') && state.settings.apiKey === 'public') {
+          state.settings.baseUrl = '';
+          state.settings.apiKey = '';
+          state.settings.model = '';
           scheduleSave();
         }
       }
