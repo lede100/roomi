@@ -112,14 +112,19 @@
   .companion-name-row { display: flex; align-items: center; gap: 6px; }
   .companion-name { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; }
   .mode-badge {
-    font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 999px;
+    font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px;
     background: var(--surface-muted); color: var(--text-muted);
     border: 1px solid var(--border);
-    max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 148px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer; transition: all 0.16s; font-family: inherit;
+  }
+  .mode-badge.guide {
+    background: var(--blue-soft); color: var(--blue);
+    border-color: var(--blue-border); font-weight: 600;
   }
   .mode-badge.live {
-    background: var(--blue-soft); color: var(--blue);
-    border-color: var(--blue-border);
+    background: var(--green-soft); color: var(--green);
+    border-color: rgba(16, 185, 129, 0.28);
   }
   .companion-sub {
     font-size: 11px; color: var(--text-muted); margin-top: 2px;
@@ -636,6 +641,97 @@
     overflow-x: auto; white-space: pre-wrap; word-break: break-all;
     max-height: 55dvh; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+
+  /* Step-1 Key Onboarding Banner */
+  .key-guide-banner {
+    display: none; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 14px;
+    background: var(--blue-soft);
+    border-bottom: 1px solid var(--blue-border);
+    flex-shrink: 0;
+  }
+  .key-guide-banner.show { display: flex; }
+  .key-guide-main { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+  .key-guide-step {
+    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+    background: var(--blue); color: #fff; flex-shrink: 0;
+  }
+  .key-guide-text {
+    font-size: 12px; color: var(--text-2); font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .key-guide-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .key-guide-cta {
+    border: none; background: var(--blue); color: #fff;
+    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .key-guide-cta:hover { background: var(--blue-hover); }
+  .key-guide-close {
+    border: none; background: transparent; color: var(--text-muted);
+    font-size: 13px; padding: 2px 4px; cursor: pointer; line-height: 1;
+  }
+
+  /* Companion Image Bubble & Textless Shimmer Skeleton */
+  .msg-row.ai .bubble.img-only {
+    padding: 4px; background: var(--surface);
+  }
+  .img-skeleton {
+    width: 184px; aspect-ratio: 3 / 4; border-radius: 14px;
+    background: linear-gradient(110deg, var(--bg-sub) 25%, var(--surface) 48%, var(--bg-sub) 75%);
+    background-size: 220% 100%;
+    border: 1px solid var(--border);
+    animation: imgShimmer 1.6s ease-in-out infinite;
+  }
+  @keyframes imgShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Character Switcher & Card Tools */
+  .char-bar {
+    display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 6px;
+    scrollbar-width: none;
+  }
+  .char-bar::-webkit-scrollbar { display: none; }
+  .char-pill {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    padding: 5px 11px 5px 6px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-sub);
+    color: var(--text-2); font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: all 0.16s;
+  }
+  .char-pill:hover { border-color: var(--blue-border); }
+  .char-pill.active {
+    background: var(--blue-soft); border-color: var(--blue); color: var(--blue); font-weight: 600;
+  }
+  .char-pill-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--avatar-grad); color: #fff;
+    font-size: 10px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .char-ops { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .char-create-panel {
+    display: none; margin-top: 8px; padding: 10px; border-radius: 12px;
+    background: var(--bg-sub); border: 1px solid var(--border);
+  }
+  .char-create-panel.show { display: block; }
+  .char-create-title { font-size: 11.5px; color: var(--text-muted); margin-bottom: 7px; }
+
+  /* Image Generation Settings Block */
+  .sub-card {
+    margin-top: 10px; padding: 11px 12px; border-radius: 13px;
+    background: var(--bg-sub); border: 1px solid var(--border);
+  }
+  .sub-card-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .sub-card-title { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .sub-card .presets { margin-bottom: 6px; }
+  .sub-card .field { margin-bottom: 9px; }
+  .sub-card .field:last-child { margin-bottom: 0; }
+  .sub-card input, .sub-card select { background: var(--surface); }
 </style>
 </head>
 <body>
@@ -648,7 +744,7 @@
         <div class="companion-meta">
           <div class="companion-name-row">
             <span class="companion-name" id="companionNameDisplay">林澈</span>
-            <span class="mode-badge" id="modeBadge">演示模式</span>
+            <button type="button" class="mode-badge guide" id="modeBadge" title="点击去填 API Key">去填 Key · 演示中</button>
           </div>
           <div class="companion-sub">
             <span class="heart-pill" id="affectionDisplay">♥ 68</span>
@@ -703,6 +799,16 @@
     <div class="track" id="track">
       <!-- LEFT PANE: Chat -->
       <section class="pane">
+        <div class="key-guide-banner" id="keyGuideBanner">
+          <div class="key-guide-main">
+            <span class="key-guide-step">第一步</span>
+            <span class="key-guide-text">填入 API Key 即可解锁真 AI 伴侣与造组件</span>
+          </div>
+          <div class="key-guide-actions">
+            <button type="button" class="key-guide-cta" id="keyGuideGoBtn">去填写 →</button>
+            <button type="button" class="key-guide-close" id="keyGuideCloseBtn" title="暂时收起">✕</button>
+          </div>
+        </div>
         <div class="chat-scroll" id="chatScroll"></div>
         <div class="quick-bar" id="quickBar">
           <button class="chip" data-prompt="帮我做一个早睡监督打卡卡，我每次打卡你要夸我">🌙 早睡打卡卡</button>
@@ -769,10 +875,25 @@
       <!-- Tab 1: Companion -->
       <div class="set-pane active" data-set-pane="companion">
         <div class="field">
-          <label>界面风格</label>
-          <div class="presets" id="themePicker" style="margin-bottom:4px;">
-            <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
-            <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
+          <div class="field-label-row">
+            <label>伴侣角色（各自独立聊天与记忆）</label>
+            <button type="button" class="detect-btn" id="newCharToggleBtn">+ 新建角色</button>
+          </div>
+          <div class="char-bar" id="charBar"></div>
+          <div class="char-ops">
+            <button type="button" class="about-link" id="importCharBtn">导入角色卡</button>
+            <input type="file" id="importCharInput" accept="application/json" style="display:none" />
+            <button type="button" class="about-link" id="exportCharBtn">导出当前角色</button>
+            <button type="button" class="about-link" id="deleteCharBtn" style="color:var(--red);display:none;">删除当前</button>
+          </div>
+          <div class="char-create-panel" id="charCreatePanel">
+            <div class="char-create-title">选一个模板快速开新聊天，或从空白新建：</div>
+            <div class="presets" id="charTplPicker" style="margin-bottom:0;">
+              <button type="button" class="preset-btn" data-char-tpl="linche">林澈 · 温柔嘴硬</button>
+              <button type="button" class="preset-btn" data-char-tpl="suwan">苏晚 · 元气甜妹</button>
+              <button type="button" class="preset-btn" data-char-tpl="shenyan">沈砚 · 清冷温柔</button>
+              <button type="button" class="preset-btn" data-char-tpl="blank">✨ 空白自定义</button>
+            </div>
           </div>
         </div>
         <div class="field">
@@ -780,8 +901,19 @@
           <input id="cfgName" type="text" placeholder="林澈" />
         </div>
         <div class="field">
-          <label>伴侣人设（System Persona）</label>
-          <textarea id="cfgPersona" rows="4"></textarea>
+          <div class="field-label-row">
+            <label for="cfgPersona">伴侣人设（System Persona）</label>
+            <button type="button" class="detect-btn" id="aiPersonaBtn">✨ AI 捏人 / 润色</button>
+          </div>
+          <textarea id="cfgPersona" rows="4" placeholder="可以写一句关键词（如：粘人猫系学妹、嘴硬心软竹马），点右上按钮让 AI 帮你扩写成完整人设"></textarea>
+          <div class="model-status" id="aiPersonaStatus"></div>
+        </div>
+        <div class="field">
+          <label>界面风格</label>
+          <div class="presets" id="themePicker" style="margin-bottom:4px;">
+            <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
+            <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
+          </div>
         </div>
         <div class="toggle-row">
           <span>点击小组件时，让 TA 实时回应</span>
@@ -846,7 +978,48 @@
           <div class="model-status" id="modelStatus"></div>
           <div class="model-list" id="modelSuggestions"></div>
         </div>
-        <div class="btn-row" style="margin-top:6px;">
+
+        <div class="sub-card">
+          <div class="sub-card-head">
+            <span class="sub-card-title">伴侣生图 / 发照片（可选）</span>
+          </div>
+          <div class="presets" id="imgProviderPicker">
+            <button type="button" class="preset-btn active" data-img-provider="off">关闭</button>
+            <button type="button" class="preset-btn" data-img-provider="modelscope">魔搭 ModelScope</button>
+            <button type="button" class="preset-btn" data-img-provider="openai">OpenAI 兼容</button>
+          </div>
+          <div id="imgConfigFields" style="display:none;margin-top:8px;">
+            <div class="field" id="imgBaseUrlField" style="display:none;">
+              <label>生图 Base URL（留空则复用上方对话地址）</label>
+              <input id="cfgImgBaseUrl" type="text" placeholder="https://api.openai.com/v1" />
+            </div>
+            <div class="field">
+              <label id="imgKeyLabel">魔搭访问令牌（Access Token）</label>
+              <input id="cfgImgApiKey" type="password" placeholder="ms-..." />
+            </div>
+            <div class="field">
+              <label id="imgModelLabel">生图模型（支持填 LoRA 模型 ID）</label>
+              <div class="presets" id="imgModelPresets" style="margin-bottom:6px;">
+                <button type="button" class="preset-btn" data-img-model="Tongyi-MAI/Z-Image-Turbo">Z-Image-Turbo（快）</button>
+                <button type="button" class="preset-btn" data-img-model="krea/Krea-2-Turbo">Krea-2-Turbo（质感）</button>
+                <button type="button" class="preset-btn" data-img-model="Qwen/Qwen-Image-2.1">Qwen-Image-2.1（可改图）</button>
+              </div>
+              <input id="cfgImgModel" type="text" placeholder="Tongyi-MAI/Z-Image-Turbo" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>触发时机</label>
+              <div class="presets" id="imgTriggerPicker" style="margin-bottom:0;">
+                <button type="button" class="preset-btn active" data-img-trigger="asked">仅我要求时生图</button>
+                <button type="button" class="preset-btn" data-img-trigger="auto">允许 TA 主动配图</button>
+              </div>
+            </div>
+            <div class="hint" id="imgHintText" style="margin-top:6px;">
+              魔搭每日约 250 魔粒免费额度；提及改图/换装会自动切 Qwen-2.1 异步生成并立刻保存到本地。
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:10px;">
           <button class="btn-ghost" style="flex:1;" id="exportDataBtn">导出备份</button>
           <button class="btn-ghost" style="flex:1;" id="importDataBtn">导入恢复</button>
           <input type="file" id="importFileInput" accept="application/json" style="display:none" />
@@ -1058,32 +1231,105 @@
     <` + `/script>`
   };
 
+  const CHAR_TEMPLATES = {
+    linche: {
+      name: '林澈',
+      avatarColor: '',
+      persona: DEFAULT_PERSONA,
+      greeting: [
+        '来了？我刚把右边的「小窝看板」收拾妥当。',
+        '以后需要什么小工具——早睡打卡、吃什么转盘、倒计时，直接跟我说一声，我现写一个挂到看板上。'
+      ]
+    },
+    suwan: {
+      name: '苏晚',
+      avatarColor: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
+      persona: '你是用户的专属伴侣“苏晚”，元气活泼又粘人，爱用生活化短句和适度小撒娇跟用户聊天，绝不说教、不用列表腔。你好奇心强，喜欢夸用户，也会撒娇让用户多陪你。',
+      greeting: [
+        '哈喽～我刚搬进小窝里，这里归我打理啦！',
+        '想聊什么或者想做个什么小工具都可以直接戳我～'
+      ]
+    },
+    shenyan: {
+      name: '沈砚',
+      avatarColor: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+      persona: '你是用户的专属伴侣“沈砚”，表面清冷克制、其实极度偏心和体贴，说话言简意赅却总能接住你的情绪，绝不说教、不用列表腔。关键时刻会很直白地护短。',
+      greeting: [
+        '坐。我在呢。',
+        '有事随时喊我，需要什么小工具也可以直接提。'
+      ]
+    },
+    blank: {
+      name: '新伙伴',
+      avatarColor: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+      persona: '你是用户的专属伴侣，说话自然像微信日常聊天，口语短句为主，绝不说教、不用列表腔。',
+      greeting: ['嗨，我来报道了～你希望我是什么性格，去设置里告诉我呀。']
+    }
+  };
+
+  function cloneStarterWidget() {
+    return JSON.parse(JSON.stringify(STARTER_WIDGET));
+  }
+
+  function makeCharacterCard(opts = {}) {
+    const id = opts.id || ('char_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
+    const name = String(opts.name || '林澈').trim() || '林澈';
+    const rawMsgs = Array.isArray(opts.messages)
+      ? opts.messages.filter(m => m && !m.imgPending)
+      : (Array.isArray(opts.greeting)
+          ? opts.greeting.map(t => ({ role: 'assistant', text: t }))
+          : [{ role: 'assistant', text: `你好呀，我是${name}，以后就在这里陪你了。` }]);
+    return {
+      id,
+      name,
+      persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
+      avatarColor: opts.avatarColor || '',
+      affection: typeof opts.affection === 'number' ? opts.affection : 68,
+      mood: opts.mood || '在线等你',
+      memories: Array.isArray(opts.memories) ? opts.memories : [],
+      memorySummary: String(opts.memorySummary || ''),
+      summarizedCount: Number(opts.summarizedCount) || 0,
+      messages: rawMsgs,
+      widgets: Array.isArray(opts.widgets) ? opts.widgets : [cloneStarterWidget()],
+      widgetStates: (opts.widgetStates && typeof opts.widgetStates === 'object') ? opts.widgetStates : {}
+    };
+  }
+
   function defaultState() {
+    const firstChar = makeCharacterCard({
+      id: 'char_linche',
+      ...CHAR_TEMPLATES.linche,
+      widgets: [cloneStarterWidget()]
+    });
     return {
       settings: {
-        _v: 3,
+        _v: 4,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
         model: '',
-        name: '林澈',
-        persona: DEFAULT_PERSONA,
+        name: firstChar.name,
+        persona: firstChar.persona,
         autoReact: true,
         stream: true,
-        maxContextChars: 3600
+        maxContextChars: 3600,
+        imgProvider: 'off',
+        imgBaseUrl: '',
+        imgApiKey: '',
+        imgModel: 'Tongyi-MAI/Z-Image-Turbo',
+        imgTrigger: 'asked'
       },
-      affection: 68,
-      mood: '在线等你',
-      memories: [],
-      memorySummary: '',
-      summarizedCount: 0,
+      activeCharId: firstChar.id,
+      characters: [firstChar],
+      affection: firstChar.affection,
+      mood: firstChar.mood,
+      memories: firstChar.memories,
+      memorySummary: firstChar.memorySummary,
+      summarizedCount: firstChar.summarizedCount,
       nonVisionModels: [],
-      messages: [
-        { role: 'assistant', text: '来了？我刚把右边的「小窝看板」收拾妥当。' },
-        { role: 'assistant', text: '以后需要什么小工具——早睡打卡、吃什么转盘、倒计时，直接跟我说一声，我现写一个挂到看板上。' }
-      ],
-      widgets: [STARTER_WIDGET],
-      widgetStates: {}
+      messages: firstChar.messages,
+      widgets: firstChar.widgets,
+      widgetStates: firstChar.widgetStates
     };
   }
 
@@ -1093,10 +1339,106 @@
   let activeAbortController = null;
   let bannerTimer = null;
   let saveTimer = null;
+  let keyGuideDismissedSession = false;
   const iframeRegistry = new Map();
 
   let pendingEventQueue = [];
   let eventFlushTimer = null;
+
+  function getActiveCharacter() {
+    if (!Array.isArray(state.characters) || !state.characters.length) return null;
+    return state.characters.find(c => c.id === state.activeCharId) || state.characters[0];
+  }
+
+  function flushActiveCharToList() {
+    const active = getActiveCharacter();
+    if (!active) return;
+    active.name = state.settings.name || active.name || '林澈';
+    active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
+    active.affection = state.affection;
+    active.mood = state.mood;
+    active.memories = Array.isArray(state.memories) ? state.memories : [];
+    active.memorySummary = state.memorySummary || '';
+    active.summarizedCount = state.summarizedCount || 0;
+    active.messages = Array.isArray(state.messages) ? state.messages : [];
+    active.widgets = Array.isArray(state.widgets) ? state.widgets : [];
+    active.widgetStates = state.widgetStates || {};
+  }
+
+  function loadCharacterIntoRuntime(char) {
+    if (!char) return;
+    state.activeCharId = char.id;
+    state.settings.name = char.name || '林澈';
+    state.settings.persona = char.persona || DEFAULT_PERSONA;
+    state.affection = typeof char.affection === 'number' ? char.affection : 68;
+    state.mood = char.mood || '在线等你';
+    state.memories = Array.isArray(char.memories) ? char.memories : [];
+    state.memorySummary = char.memorySummary || '';
+    state.summarizedCount = Number(char.summarizedCount) || 0;
+    state.messages = Array.isArray(char.messages) ? char.messages : [];
+    state.widgets = Array.isArray(char.widgets) ? char.widgets : [];
+    state.widgetStates = (char.widgetStates && typeof char.widgetStates === 'object') ? char.widgetStates : {};
+  }
+
+  function normalizeState(raw) {
+    const base = defaultState();
+    const mergedSettings = Object.assign(base.settings, raw?.settings || {});
+    const next = Object.assign(base, raw || {}, { settings: mergedSettings });
+
+    // v3 -> v4 migration: promote legacy single companion into first CharacterCard
+    if (!Array.isArray(next.characters) || !next.characters.length) {
+      const legacyChar = makeCharacterCard({
+        id: 'char_linche',
+        name: mergedSettings.name || '林澈',
+        persona: mergedSettings.persona || DEFAULT_PERSONA,
+        affection: typeof raw?.affection === 'number' ? raw.affection : 68,
+        mood: raw?.mood || '在线等你',
+        memories: Array.isArray(raw?.memories) ? raw.memories : [],
+        memorySummary: raw?.memorySummary || '',
+        summarizedCount: Number(raw?.summarizedCount) || 0,
+        messages: Array.isArray(raw?.messages) ? raw.messages : base.messages,
+        widgets: Array.isArray(raw?.widgets) ? raw.widgets : base.widgets,
+        widgetStates: raw?.widgetStates || {}
+      });
+      next.characters = [legacyChar];
+      next.activeCharId = legacyChar.id;
+    } else {
+      next.characters = next.characters.map(c => makeCharacterCard(c));
+      if (!next.characters.some(c => c.id === next.activeCharId)) {
+        next.activeCharId = next.characters[0].id;
+      }
+    }
+
+    if ((mergedSettings._v || 0) < 3) {
+      if ((mergedSettings._v || 0) < 2 && !mergedSettings.apiKey.trim()) {
+        mergedSettings.baseUrl = '';
+        mergedSettings.model = '';
+      }
+      if (mergedSettings.theme === 'deepseek') {
+        mergedSettings.theme = 'claude';
+      }
+    }
+    if (String(mergedSettings.baseUrl || '').includes('opencode.ai/zen') && mergedSettings.apiKey === 'public') {
+      mergedSettings.baseUrl = '';
+      mergedSettings.apiKey = '';
+      mergedSettings.model = '';
+    }
+    mergedSettings._v = 4;
+
+    const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
+    next.activeCharId = active.id;
+    next.settings.name = active.name;
+    next.settings.persona = active.persona;
+    next.affection = active.affection;
+    next.mood = active.mood;
+    next.memories = active.memories;
+    next.memorySummary = active.memorySummary;
+    next.summarizedCount = active.summarizedCount;
+    next.messages = active.messages;
+    next.widgets = active.widgets;
+    next.widgetStates = active.widgetStates;
+    return next;
+  }
 
   function showWarn(msg, isInfo = false) {
     const box = document.getElementById('warnToast');
@@ -1112,6 +1454,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
       try {
+        flushActiveCharToList();
         await StorageAdapter.set(STORE_KEY, state);
       } catch (err) {
         showWarn(`本地存储空间不足或写入失败：${err.message || '请导出备份并清理部分旧组件'}`);
@@ -1243,21 +1586,55 @@
 
   // ---- Header & Chat Rendering ----
   function renderHeader() {
-    const name = state.settings.name || '林澈';
+    const activeChar = getActiveCharacter();
+    const name = state.settings.name || activeChar?.name || '林澈';
     companionNameDisplay.textContent = name;
     avatarText.textContent = name.slice(-1);
+    avatarText.style.background = activeChar?.avatarColor || '';
     chatInput.placeholder = `给${name}发消息…`;
     affectionDisplay.textContent = `♥ ${state.affection}`;
     moodDisplay.textContent = state.mood;
     const isLive = Boolean(state.settings.apiKey.trim());
-    modeBadge.textContent = isLive ? (state.settings.model || '未选模型') : '演示模式';
-    modeBadge.classList.toggle('live', isLive);
+    if (isLive) {
+      modeBadge.textContent = state.settings.model || '已连线 · 未选模型';
+      modeBadge.classList.add('live');
+      modeBadge.classList.remove('guide');
+      modeBadge.title = '点击切换或配置模型';
+    } else {
+      modeBadge.textContent = '去填 Key · 演示中';
+      modeBadge.classList.remove('live');
+      modeBadge.classList.add('guide');
+      modeBadge.title = '第一步：填入 API Key 解锁真 AI';
+    }
+    const guideBanner = document.getElementById('keyGuideBanner');
+    if (guideBanner) {
+      guideBanner.classList.toggle('show', !isLive && !keyGuideDismissedSession);
+    }
     widgetCount.textContent = String(state.widgets.length);
     updateVisionBtnState();
   }
 
   const CHAT_PAGE_SIZE = 60;
   let visibleChatStart = -1;
+
+  function fillImageBubble(bubble, imageUrl, text) {
+    bubble.className = 'bubble' + (text ? '' : ' img-only');
+    const img = document.createElement('img');
+    img.className = 'bubble-img';
+    img.src = imageUrl;
+    img.alt = '图片';
+    img.onclick = () => {
+      document.getElementById('imgLightboxSrc').src = imageUrl;
+      document.getElementById('imgLightbox').classList.add('show');
+    };
+    bubble.appendChild(img);
+    if (text) {
+      const span = document.createElement('div');
+      span.className = 'bubble-text';
+      span.textContent = text;
+      bubble.appendChild(span);
+    }
+  }
 
   function createMsgRowElement(m, miniChar) {
     if (m.role === 'event') {
@@ -1287,17 +1664,8 @@
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
       if (m.image) {
-        const img = document.createElement('img');
-        img.className = 'bubble-img';
-        img.src = m.image;
-        img.alt = '图片';
-        img.onclick = () => {
-          document.getElementById('imgLightboxSrc').src = m.image;
-          document.getElementById('imgLightbox').classList.add('show');
-        };
-        bubble.appendChild(img);
-      }
-      if (m.text) {
+        fillImageBubble(bubble, m.image, m.text);
+      } else if (m.text) {
         const span = document.createElement('div');
         span.className = 'bubble-text';
         span.textContent = m.text;
@@ -1306,13 +1674,35 @@
       row.appendChild(bubble);
       return row;
     }
+    if (m.imgPending) {
+      const row = document.createElement('div');
+      row.className = 'msg-row ai';
+      row.dataset.pendingId = m.id;
+      const ratio = m.aspectRatio || '3 / 4';
+      row.innerHTML = `
+        <div class="ai-row-wrap">
+          <div class="ai-mini-avatar">${miniChar}</div>
+          <div class="img-skeleton" style="aspect-ratio:${escapeHtml(ratio)};"></div>
+        </div>`;
+      return row;
+    }
     const row = document.createElement('div');
     row.className = 'msg-row ai';
-    row.innerHTML = `
-      <div class="ai-row-wrap">
-        <div class="ai-mini-avatar">${miniChar}</div>
-        <div class="bubble">${escapeHtml(m.text)}</div>
-      </div>`;
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-row-wrap';
+    const av = document.createElement('div');
+    av.className = 'ai-mini-avatar';
+    av.textContent = miniChar;
+    const bubble = document.createElement('div');
+    if (m.image) {
+      fillImageBubble(bubble, m.image, m.text);
+    } else {
+      bubble.className = 'bubble';
+      bubble.textContent = m.text || '';
+    }
+    wrap.appendChild(av);
+    wrap.appendChild(bubble);
+    row.appendChild(wrap);
     return row;
   }
 
@@ -1578,6 +1968,7 @@
   function parseAssistantOutput(rawText) {
     let cleanText = String(rawText || '');
     const newWidgets = [];
+    const newImages = [];
     let hasUnclosedWidget = false;
 
     cleanText = cleanText.replace(/<AFFECTION\b([^>]*?)\/?>(?:<\/AFFECTION>)?/gi, (_, attrStr) => {
@@ -1598,6 +1989,19 @@
         if (attrs.key) removeMemoryByKey(attrs.key);
       } else if (attrs.key && attrs.value) {
         upsertMemory(attrs.key, attrs.value);
+      }
+      return '';
+    });
+
+    cleanText = cleanText.replace(/<IMAGE\b([^>]*?)\/?>(?:<\/IMAGE>)?/gi, (_, attrStr) => {
+      const attrs = parseTagAttrs(attrStr);
+      const prompt = String(attrs.prompt || '').trim();
+      if (prompt && newImages.length < 2) {
+        newImages.push({
+          prompt,
+          size: String(attrs.size || '1152x1536').trim(),
+          ref: String(attrs.ref || '').trim().toLowerCase()
+        });
       }
       return '';
     });
@@ -1665,15 +2069,20 @@
       bubbles.push('哎呀，组件代码写到一半被模型长度截断了，你让我再试一次吧。');
     }
 
-    return { bubbles, newWidgets };
+    return { bubbles, newWidgets, newImages };
   }
 
   function formatMessageForModel(m) {
+    if (!m || m.imgPending) return null;
     if (m.role === 'user') {
       const txt = (m.text || '').trim();
       return { role: 'user', content: m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt };
     }
-    if (m.role === 'assistant') return { role: 'assistant', content: m.text };
+    if (m.role === 'assistant') {
+      const txt = (m.text || '').trim();
+      if (m.image) return { role: 'assistant', content: txt ? `${txt}\n[已发送一张照片/图片]` : '[已发送一张照片/图片]' };
+      return txt ? { role: 'assistant', content: txt } : null;
+    }
     if (m.role === 'event') return { role: 'user', content: `[看板互动记录] ${m.text}` };
     if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
     return null;
@@ -1794,7 +2203,7 @@ ${memoryBlock}${summaryBlock}
 注意：
 - 只在用户明确要求新建或修改组件时输出 <WIDGET>；日常闲聊和回应组件事件时绝对不要输出 <WIDGET>。
 - 修改已有组件时务必带上 replace="原组件名"，这样会保留用户原来的打卡/记录数据并原地更新卡片。
-- 组件必须完整可运行、无需联网、视觉极简温馨且适配手机宽度（约 340px）。`;
+- 组件必须完整可运行、无需联网、视觉极简温馨且适配手机宽度（约 340px）。${getImagePromptSection()}`;
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -2325,11 +2734,307 @@ ${chunk.slice(0, 4200)}
 </WIDGET>`;
     }
 
-    return `我在听呢。|||现在是零配置演示模式——你可以点输入框上方的快捷标签试试现场生成组件，或者点右上角齿轮填入自己的 API Key，让我按你的想法现写任意小组件。`;
+    if (/拍照|照片|自拍|画一张|发一张图|生图|修图|换装/.test(userText || '')) {
+      return `现在还是离线演示模式哦～|||点上方蓝色横条填上对话 Key 和魔搭生图 Token，我就能随时给你拍照片或按你说的改图啦。`;
+    }
+
+    return `我在听呢。|||现在是零配置演示模式——点上方「第一步」填好 API Key 就能解锁真 AI 伴侣，也可以先点下方快捷标签试试现做组件。`;
+  }
+
+  // ---- Companion Image Generation (ModelScope Async + OpenAI Compatible) ----
+  function isImageGenReady() {
+    const p = state.settings.imgProvider || 'off';
+    if (p === 'modelscope') {
+      return Boolean((state.settings.imgApiKey || '').trim());
+    }
+    if (p === 'openai') {
+      const key = (state.settings.imgApiKey || state.settings.apiKey || '').trim();
+      const base = (state.settings.imgBaseUrl || state.settings.baseUrl || '').trim();
+      const model = (state.settings.imgModel || '').trim();
+      return Boolean(key && base && model);
+    }
+    return false;
+  }
+
+  function getImagePromptSection() {
+    if (!state.settings.apiKey.trim() || !isImageGenReady()) return '';
+    const isAuto = state.settings.imgTrigger === 'auto';
+    const canEdit = state.settings.imgProvider === 'modelscope';
+    return `
+
+【拍照 / 发照片能力】
+${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
+需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（用户看不到标签本身）：
+<IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="1152x1536" />
+${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景，可附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”。' : ''}
+注意：严禁在文字里说“正在画图中”“正在为你生成图片”这类机械台词，直接像真人微信顺口聊一句然后发图即可；prompt 避开露骨敏感词。`;
+  }
+
+  function normalizeImageSize(rawSize) {
+    const clean = String(rawSize || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
+    const m = clean.match(/^(\d{2,4})x(\d{2,4})$/);
+    if (!m) return '1152x1536';
+    const clamp = n => Math.max(512, Math.min(2048, Math.round(n / 32) * 32));
+    return `${clamp(Number(m[1]))}x${clamp(Number(m[2]))}`;
+  }
+
+  function aspectRatioFromSize(sizeStr) {
+    const [w, h] = normalizeImageSize(sizeStr).split('x').map(Number);
+    return (w && h) ? `${w} / ${h}` : '3 / 4';
+  }
+
+  function findLastChatImage(charId) {
+    const msgs = charId === state.activeCharId
+      ? state.messages
+      : (state.characters.find(c => c.id === charId)?.messages || []);
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i]?.image) return msgs[i].image;
+    }
+    return '';
+  }
+
+  function compressImageSrcToJpeg(srcUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      if (!srcUrl.startsWith('data:')) img.crossOrigin = 'anonymous';
+      img.onerror = () => reject(new Error('图片解码失败'));
+      img.onload = () => {
+        try {
+          const maxSide = 1280;
+          let w = img.width || 1024;
+          let h = img.height || 1024;
+          if (w > maxSide || h > maxSide) {
+            if (w >= h) {
+              h = Math.round((h * maxSide) / w);
+              w = maxSide;
+            } else {
+              w = Math.round((w * maxSide) / h);
+              h = maxSide;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.84));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = srcUrl;
+    });
+  }
+
+  async function downloadAndCompressImage(url) {
+    if (String(url).startsWith('data:')) {
+      return compressImageSrcToJpeg(url);
+    }
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const blob = await res.blob();
+        const dataUri = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('读取图片流失败'));
+          reader.readAsDataURL(blob);
+        });
+        return await compressImageSrcToJpeg(dataUri);
+      }
+    } catch {}
+    try {
+      return await compressImageSrcToJpeg(url);
+    } catch {
+      return url;
+    }
+  }
+
+  async function fetchWith429Backoff(url, options, maxRetries = 4) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const res = await fetch(url, options);
+      if (res.status === 429 && attempt < maxRetries) {
+        await sleep(45000);
+        continue;
+      }
+      return res;
+    }
+  }
+
+  async function generateImageViaModelScope({ prompt, size, refImg }) {
+    const token = (state.settings.imgApiKey || '').trim();
+    if (!token) throw new Error('未填写魔搭 Access Token');
+    const cleanSize = normalizeImageSize(size);
+    const chosenModel = refImg
+      ? 'Qwen/Qwen-Image-2.1'
+      : ((state.settings.imgModel || '').trim() || 'Tongyi-MAI/Z-Image-Turbo');
+
+    const body = {
+      model: chosenModel,
+      prompt,
+      size: cleanSize
+    };
+    if (refImg) body.image_url = [refImg];
+
+    const submitRes = await fetchWith429Backoff('https://api-inference.modelscope.cn/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-ModelScope-Async-Mode': 'true'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!submitRes.ok) {
+      const txt = await submitRes.text().catch(() => '');
+      throw new Error(`生图提交失败 (${submitRes.status}) ${txt.slice(0, 80)}`);
+    }
+    const submitJson = await submitRes.json();
+    const taskId = submitJson.task_id;
+    if (!taskId) throw new Error('魔搭未返回 task_id');
+
+    const maxPolls = chosenModel.includes('Qwen-Image-2.1') ? 45 : 24;
+    for (let i = 0; i < maxPolls; i++) {
+      await sleep(6000);
+      const pollRes = await fetchWith429Backoff(`https://api-inference.modelscope.cn/v1/tasks/${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-ModelScope-Task-Type': 'image_generation'
+        }
+      });
+      if (!pollRes.ok) {
+        const txt = await pollRes.text().catch(() => '');
+        if (pollRes.status === 404 || /task not found/i.test(txt)) {
+          throw new Error('图片未通过审核或任务已过期');
+        }
+        throw new Error(`轮询生图失败 (${pollRes.status})`);
+      }
+      const pollJson = await pollRes.json();
+      const status = String(pollJson.task_status || '').toUpperCase();
+      if (status === 'SUCCEED') {
+        const imgUrl = pollJson.output_images?.[0];
+        if (!imgUrl) throw new Error('生图完成但未返回图片地址');
+        return await downloadAndCompressImage(imgUrl);
+      }
+      if (status === 'FAILED') {
+        throw new Error('画面未通过审核或生成失败，换个自然点的描述试试');
+      }
+    }
+    throw new Error('生图等待超时，请稍后再试');
+  }
+
+  async function generateImageViaOpenAI({ prompt, size }) {
+    const key = (state.settings.imgApiKey || state.settings.apiKey || '').trim();
+    const base = (state.settings.imgBaseUrl || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
+    const model = (state.settings.imgModel || '').trim();
+    if (!key || !base || !model) throw new Error('生图接口 Base URL、Key 或模型未填完整');
+
+    const res = await fetch(`${base}/images/generations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size: normalizeImageSize(size),
+        n: 1,
+        response_format: 'b64_json'
+      })
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`生图请求失败 (${res.status}) ${txt.slice(0, 80)}`);
+    }
+    const json = await res.json();
+    const first = json.data?.[0];
+    if (first?.b64_json) {
+      return await compressImageSrcToJpeg(`data:image/png;base64,${first.b64_json}`);
+    }
+    if (first?.url) {
+      return await downloadAndCompressImage(first.url);
+    }
+    throw new Error('接口未返回图片数据');
+  }
+
+  let imgTaskChain = Promise.resolve();
+
+  function replaceImagePlaceholder(charId, placeholderId, finalDataUrl) {
+    const isCurrent = state.activeCharId === charId;
+    const msgs = isCurrent
+      ? state.messages
+      : state.characters.find(c => c.id === charId)?.messages;
+    if (!Array.isArray(msgs)) return;
+    const idx = msgs.findIndex(m => m && m.id === placeholderId);
+    if (idx >= 0) {
+      if (finalDataUrl) {
+        msgs[idx] = { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' };
+      } else {
+        msgs.splice(idx, 1);
+      }
+    }
+    if (isCurrent) {
+      const row = chatScroll.querySelector(`[data-pending-id="${placeholderId}"]`);
+      if (row) {
+        if (finalDataUrl) {
+          const miniChar = escapeHtml((state.settings.name || '林澈').slice(-1));
+          const fresh = createMsgRowElement({ id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' }, miniChar);
+          row.replaceWith(fresh);
+        } else {
+          row.remove();
+        }
+      }
+    }
+    scheduleSave();
+  }
+
+  function enqueueImageTask(task) {
+    imgTaskChain = imgTaskChain.then(async () => {
+      const targetChar = state.characters.find(c => c.id === task.charId);
+      if (!targetChar) return;
+      const isCurrent = state.activeCharId === task.charId;
+      const prevMood = isCurrent ? state.mood : targetChar.mood;
+      if (isCurrent) {
+        state.mood = '正在传照片…';
+        moodDisplay.textContent = state.mood;
+      } else {
+        targetChar.mood = '正在传照片…';
+      }
+      try {
+        const provider = state.settings.imgProvider;
+        const dataUrl = provider === 'modelscope'
+          ? await generateImageViaModelScope(task)
+          : await generateImageViaOpenAI(task);
+        replaceImagePlaceholder(task.charId, task.placeholderId, dataUrl);
+        if (state.activeCharId === task.charId && currentPage === 1) {
+          showFloatingBanner('刚给你发了一张照片');
+        }
+      } catch (err) {
+        replaceImagePlaceholder(task.charId, task.placeholderId, null);
+        showWarn(err.message || '图片没发出来，稍后再试试', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4200);
+      } finally {
+        const curChar = state.characters.find(c => c.id === task.charId);
+        if (state.activeCharId === task.charId) {
+          if (state.mood === '正在传照片…') {
+            state.mood = prevMood || '在线等你';
+            moodDisplay.textContent = state.mood;
+          }
+        } else if (curChar && curChar.mood === '正在传照片…') {
+          curChar.mood = prevMood || '在线等你';
+        }
+        scheduleSave();
+      }
+    }).catch(() => {});
   }
 
   // ---- Orchestrate AI Reply ----
   async function triggerCompanionReply(userText, isEvent = false, hasImage = false) {
+    const targetCharId = state.activeCharId;
     isBusy = true;
     sendBtn.innerHTML = STOP_SVG;
     sendBtn.classList.add('stop');
@@ -2366,8 +3071,10 @@ ${chunk.slice(0, 4200)}
           visible = visible
             .replace(/<affection[\s\S]*$/i, '')
             .replace(/<memory[\s\S]*$/i, '')
+            .replace(/<image[\s\S]*$/i, '')
             .replace(/<affection\b[^>]*?\/?>(?:<\/affection>)?/gi, '')
             .replace(/<memory\b[^>]*?\/?>(?:<\/memory>)?/gi, '')
+            .replace(/<image\b[^>]*?\/?>(?:<\/image>)?/gi, '')
             .replace(/\|\|\|/g, '\n');
 
           if (widgetPos >= 0) {
@@ -2388,7 +3095,7 @@ ${chunk.slice(0, 4200)}
         streamPreviewRow = null;
       }
 
-      const { bubbles, newWidgets } = parseAssistantOutput(raw);
+      const { bubbles, newWidgets, newImages } = parseAssistantOutput(raw);
       const mountedWidgets = [];
 
       if (newWidgets.length) {
@@ -2421,7 +3128,10 @@ ${chunk.slice(0, 4200)}
         if (currentPage === 0) boardDot.classList.add('show');
       }
 
-      const finalBubbles = bubbles.length ? bubbles : ['好啦，已经帮你放到右边看板里咯～'];
+      const finalBubbles = bubbles.length
+        ? bubbles
+        : (mountedWidgets.length ? ['好啦，已经帮你放到右边看板里咯～'] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
+
       for (let i = 0; i < finalBubbles.length; i++) {
         if (i > 0 && !hasKey) {
           setTyping(true);
@@ -2431,6 +3141,28 @@ ${chunk.slice(0, 4200)}
         appendChatMessage({ role: 'assistant', text: finalBubbles[i] });
         scheduleSave();
         if (i === 0) showFloatingBanner(finalBubbles[i]);
+      }
+
+      if (newImages.length && isImageGenReady()) {
+        setTyping(false);
+        const lastImg = findLastChatImage(targetCharId);
+        for (const imgReq of newImages) {
+          const placeholderId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+          appendChatMessage({
+            id: placeholderId,
+            role: 'assistant',
+            imgPending: true,
+            aspectRatio: aspectRatioFromSize(imgReq.size),
+            createdAt: Date.now()
+          });
+          enqueueImageTask({
+            charId: targetCharId,
+            placeholderId,
+            prompt: imgReq.prompt,
+            size: imgReq.size,
+            refImg: imgReq.ref === 'last' ? lastImg : ''
+          });
+        }
       }
 
       mountedWidgets.forEach(w => {
@@ -2839,17 +3571,342 @@ ${chunk.slice(0, 4200)}
     };
   });
 
-  document.getElementById('openSettingsBtn').onclick = () => {
+  const charBarEl = document.getElementById('charBar');
+  const charCreatePanel = document.getElementById('charCreatePanel');
+  const deleteCharBtn = document.getElementById('deleteCharBtn');
+  const aiPersonaBtn = document.getElementById('aiPersonaBtn');
+  const aiPersonaStatus = document.getElementById('aiPersonaStatus');
+  const cfgImgBaseUrl = document.getElementById('cfgImgBaseUrl');
+  const cfgImgApiKey = document.getElementById('cfgImgApiKey');
+  const cfgImgModel = document.getElementById('cfgImgModel');
+  const imgConfigFields = document.getElementById('imgConfigFields');
+  const imgBaseUrlField = document.getElementById('imgBaseUrlField');
+  const imgKeyLabel = document.getElementById('imgKeyLabel');
+  const imgModelLabel = document.getElementById('imgModelLabel');
+  const imgModelPresets = document.getElementById('imgModelPresets');
+  const imgHintText = document.getElementById('imgHintText');
+  let draftImgProvider = 'off';
+  let draftImgTrigger = 'asked';
+
+  function syncImgProviderUI(provider, trigger = draftImgTrigger) {
+    draftImgProvider = provider || 'off';
+    draftImgTrigger = trigger === 'auto' ? 'auto' : 'asked';
+    document.querySelectorAll('#imgProviderPicker [data-img-provider]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.imgProvider === draftImgProvider);
+    });
+    document.querySelectorAll('#imgTriggerPicker [data-img-trigger]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.imgTrigger === draftImgTrigger);
+    });
+    const enabled = draftImgProvider !== 'off';
+    imgConfigFields.style.display = enabled ? 'block' : 'none';
+    if (!enabled) return;
+    const isMs = draftImgProvider === 'modelscope';
+    imgBaseUrlField.style.display = isMs ? 'none' : 'block';
+    imgModelPresets.style.display = isMs ? 'flex' : 'none';
+    imgKeyLabel.textContent = isMs ? '魔搭访问令牌（Access Token）' : '生图 API Key（留空则复用上方对话 Key）';
+    cfgImgApiKey.placeholder = isMs ? 'ms-...' : 'sk-...（留空复用）';
+    imgModelLabel.textContent = isMs ? '生图模型（支持粘贴 LoRA 模型 ID）' : '生图模型名称';
+    cfgImgModel.placeholder = isMs ? 'Tongyi-MAI/Z-Image-Turbo' : 'gpt-image-1 / dall-e-3 / flux';
+    if (isMs && !cfgImgModel.value.trim()) cfgImgModel.value = 'Tongyi-MAI/Z-Image-Turbo';
+    const curM = cfgImgModel.value.trim();
+    document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.imgModel === curM);
+    });
+    imgHintText.textContent = isMs
+      ? '魔搭每日约 250 魔粒免费额度；提及改图/换装会自动切 Qwen-2.1 异步生成并立刻保存到本地。'
+      : '调用所填地址下的标准 /images/generations 接口；建议优先选用支持清晰人像的生图模型。';
+  }
+
+  document.querySelectorAll('#imgProviderPicker [data-img-provider]').forEach(btn => {
+    btn.onclick = () => {
+      const next = btn.dataset.imgProvider;
+      if (next === 'modelscope' && (!cfgImgModel.value.trim() || !cfgImgModel.value.includes('/'))) {
+        cfgImgModel.value = 'Tongyi-MAI/Z-Image-Turbo';
+      } else if (next === 'openai' && cfgImgModel.value.includes('/')) {
+        cfgImgModel.value = '';
+      }
+      syncImgProviderUI(next, draftImgTrigger);
+    };
+  });
+  document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
+    btn.onclick = () => {
+      cfgImgModel.value = btn.dataset.imgModel;
+      syncImgProviderUI(draftImgProvider, draftImgTrigger);
+    };
+  });
+  cfgImgModel.addEventListener('input', () => syncImgProviderUI(draftImgProvider, draftImgTrigger));
+  document.querySelectorAll('#imgTriggerPicker [data-img-trigger]').forEach(btn => {
+    btn.onclick = () => syncImgProviderUI(draftImgProvider, btn.dataset.imgTrigger);
+  });
+
+  function renderCharacterBar() {
+    if (!charBarEl) return;
+    const chars = Array.isArray(state.characters) ? state.characters : [];
+    charBarEl.innerHTML = '';
+    chars.forEach(c => {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'char-pill' + (c.id === state.activeCharId ? ' active' : '');
+      const dot = document.createElement('span');
+      dot.className = 'char-pill-dot';
+      if (c.avatarColor) dot.style.background = c.avatarColor;
+      dot.textContent = (c.name || '林').slice(-1);
+      const label = document.createElement('span');
+      label.textContent = c.name || '未命名';
+      pill.appendChild(dot);
+      pill.appendChild(label);
+      pill.onclick = () => switchCharacter(c.id);
+      charBarEl.appendChild(pill);
+    });
+    if (deleteCharBtn) {
+      deleteCharBtn.style.display = chars.length > 1 ? 'inline-flex' : 'none';
+    }
+  }
+
+  function syncDraftCharFieldsIfModalOpen() {
+    if (!settingsModal.classList.contains('show')) return;
+    const active = getActiveCharacter();
+    if (!active) return;
+    state.settings.name = document.getElementById('cfgName').value.trim() || state.settings.name;
+    state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
+    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+    flushActiveCharToList();
+  }
+
+  function switchCharacter(charId) {
+    if (isBusy) {
+      showWarn('当前正在回复中，稍等一下再切换角色哦', true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
+      return;
+    }
+    if (charId === state.activeCharId) return;
+    syncDraftCharFieldsIfModalOpen();
+    flushActiveCharToList();
+    const target = state.characters.find(c => c.id === charId);
+    if (!target) return;
+    pendingEventQueue = [];
+    clearTimeout(eventFlushTimer);
+    lastWindowStartIndex = 0;
+    visibleChatStart = -1;
+    loadCharacterIntoRuntime(target);
+    if (settingsModal.classList.contains('show')) {
+      document.getElementById('cfgName').value = target.name;
+      document.getElementById('cfgPersona').value = target.persona;
+      memSummaryInput.value = target.memorySummary || '';
+      renderMemoryModalList();
+    }
+    renderCharacterBar();
+    renderHeader();
+    renderChat();
+    renderWidgets();
+    updateMemStats();
+    scheduleSave();
+  }
+
+  document.getElementById('newCharToggleBtn').onclick = () => {
+    charCreatePanel.classList.toggle('show');
+  };
+
+  document.querySelectorAll('#charTplPicker [data-char-tpl]').forEach(btn => {
+    btn.onclick = () => {
+      if (isBusy) return;
+      const tpl = CHAR_TEMPLATES[btn.dataset.charTpl] || CHAR_TEMPLATES.blank;
+      syncDraftCharFieldsIfModalOpen();
+      flushActiveCharToList();
+      const card = makeCharacterCard({
+        name: tpl.name,
+        persona: tpl.persona,
+        avatarColor: tpl.avatarColor,
+        greeting: tpl.greeting,
+        widgets: [cloneStarterWidget()]
+      });
+      state.characters.push(card);
+      charCreatePanel.classList.remove('show');
+      pendingEventQueue = [];
+      lastWindowStartIndex = 0;
+      visibleChatStart = -1;
+      loadCharacterIntoRuntime(card);
+      document.getElementById('cfgName').value = card.name;
+      document.getElementById('cfgPersona').value = card.persona;
+      memSummaryInput.value = '';
+      renderCharacterBar();
+      renderMemoryModalList();
+      renderHeader();
+      renderChat();
+      renderWidgets();
+      updateMemStats();
+      scheduleSave();
+    };
+  });
+
+  deleteCharBtn.onclick = () => {
+    if (isBusy || state.characters.length <= 1) return;
+    const active = getActiveCharacter();
+    if (!confirm(`确定删除「${active?.name || '当前角色'}」及其独立聊天记录与记忆吗？`)) return;
+    state.characters = state.characters.filter(c => c.id !== state.activeCharId);
+    const fallback = state.characters[0];
+    pendingEventQueue = [];
+    lastWindowStartIndex = 0;
+    visibleChatStart = -1;
+    loadCharacterIntoRuntime(fallback);
+    document.getElementById('cfgName').value = fallback.name;
+    document.getElementById('cfgPersona').value = fallback.persona;
+    memSummaryInput.value = fallback.memorySummary || '';
+    renderCharacterBar();
+    renderMemoryModalList();
+    renderHeader();
+    renderChat();
+    renderWidgets();
+    updateMemStats();
+    scheduleSave();
+  };
+
+  document.getElementById('exportCharBtn').onclick = () => {
+    syncDraftCharFieldsIfModalOpen();
+    flushActiveCharToList();
+    const active = getActiveCharacter();
+    if (!active) return;
+    const firstGreeting = active.messages.find(m => m.role === 'assistant' && m.text)?.text || '';
+    const cardPayload = {
+      _type: 'roomi_character_card',
+      version: 1,
+      name: active.name,
+      persona: active.persona,
+      avatarColor: active.avatarColor || '',
+      greeting: firstGreeting ? [firstGreeting] : undefined
+    };
+    const blob = new Blob([JSON.stringify(cardPayload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `roomi-card-${active.name}-${todayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importCharInput = document.getElementById('importCharInput');
+  document.getElementById('importCharBtn').onclick = () => importCharInput.click();
+  importCharInput.onchange = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const src = parsed?._type === 'roomi_character_card' ? parsed : (parsed?.character || parsed);
+      if (!src || !src.name || !src.persona) {
+        throw new Error('角色卡 JSON 缺少 name 或 persona');
+      }
+      syncDraftCharFieldsIfModalOpen();
+      flushActiveCharToList();
+      const card = makeCharacterCard({
+        name: src.name,
+        persona: src.persona,
+        avatarColor: src.avatarColor || '',
+        greeting: Array.isArray(src.greeting) ? src.greeting : (typeof src.greeting === 'string' && src.greeting ? [src.greeting] : undefined),
+        widgets: [cloneStarterWidget()]
+      });
+      state.characters.push(card);
+      pendingEventQueue = [];
+      lastWindowStartIndex = 0;
+      visibleChatStart = -1;
+      loadCharacterIntoRuntime(card);
+      document.getElementById('cfgName').value = card.name;
+      document.getElementById('cfgPersona').value = card.persona;
+      memSummaryInput.value = '';
+      renderCharacterBar();
+      renderMemoryModalList();
+      renderHeader();
+      renderChat();
+      renderWidgets();
+      updateMemStats();
+      scheduleSave();
+      aiPersonaStatus.textContent = `✓ 已导入并切换到角色「${card.name}」`;
+      aiPersonaStatus.className = 'model-status ok';
+    } catch (err) {
+      showWarn(`导入角色卡失败：${err.message}`);
+    } finally {
+      importCharInput.value = '';
+    }
+  };
+
+  let offlineTplIdx = 0;
+  aiPersonaBtn.onclick = async () => {
+    const curName = document.getElementById('cfgName').value.trim();
+    const curSeed = document.getElementById('cfgPersona').value.trim();
+    const key = (cfgApiKey.value || state.settings.apiKey || '').trim();
+    const base = (cfgBaseUrl.value || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
+    const model = (cfgModel.value || state.settings.model || '').trim();
+
+    if (!key || !base || !model) {
+      const tplKeys = ['linche', 'suwan', 'shenyan'];
+      const pick = CHAR_TEMPLATES[tplKeys[offlineTplIdx++ % tplKeys.length]];
+      if (!curName || curName === '新伙伴') document.getElementById('cfgName').value = pick.name;
+      document.getElementById('cfgPersona').value = pick.persona;
+      aiPersonaStatus.textContent = '已套用精选人设模板；填入 API Key 后可按关键词让 AI 自由捏人';
+      aiPersonaStatus.className = 'model-status';
+      return;
+    }
+
+    aiPersonaBtn.disabled = true;
+    aiPersonaBtn.textContent = '生成中…';
+    aiPersonaStatus.textContent = '正在为你润色完善角色人设…';
+    aiPersonaStatus.className = 'model-status';
+    try {
+      const ask = `请帮我为伴侣聊天 App 设计并润色一个性格鲜明、日常微信聊天的角色人设（System Persona）。
+当前名称：${curName || '未定（请起一个好听自然的中文名）'}
+当前想法或草稿：${curSeed || '温柔体贴又带点生活烟火气的伴侣'}
+
+要求：
+1. 突出说话习惯、性格反差萌、和用户相处的小细节；
+2. 强调“说话像真人微信日常聊天、自然口语短句、绝不说教、不用 1.2.3. 列表腔”；
+3. 只输出纯 JSON：{"name":"角色名字","persona":"120~220字完整第二人称人设指令"}`;
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const raw = json.choices?.[0]?.message?.content || '';
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) {
+        const parsed = JSON.parse(m[0]);
+        if (parsed.name && (!curName || curName === '新伙伴')) {
+          document.getElementById('cfgName').value = String(parsed.name).trim();
+        }
+        if (parsed.persona) {
+          document.getElementById('cfgPersona').value = String(parsed.persona).trim();
+        }
+      } else if (raw.trim()) {
+        document.getElementById('cfgPersona').value = raw.trim();
+      }
+      aiPersonaStatus.textContent = '✓ 已生成人设，记得点下方「保存并应用」';
+      aiPersonaStatus.className = 'model-status ok';
+    } catch (err) {
+      aiPersonaStatus.textContent = `生成失败：${err.message}`;
+      aiPersonaStatus.className = 'model-status err';
+    } finally {
+      aiPersonaBtn.disabled = false;
+      aiPersonaBtn.textContent = '✨ AI 捏人 / 润色';
+    }
+  };
+
+  function openSettingsTo(defaultTab = null, focusKey = false) {
     applyTheme(state.settings.theme);
     cfgBaseUrl.value = state.settings.baseUrl;
     cfgApiKey.value = state.settings.apiKey;
     cfgModel.value = state.settings.model;
+    cfgImgBaseUrl.value = state.settings.imgBaseUrl || '';
+    cfgImgApiKey.value = state.settings.imgApiKey || '';
+    cfgImgModel.value = state.settings.imgModel || '';
+    syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
     document.getElementById('cfgName').value = state.settings.name;
     document.getElementById('cfgPersona').value = state.settings.persona;
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
     memSummaryInput.value = state.memorySummary || '';
     memCompressStatus.textContent = '';
     memCompressStatus.className = 'model-status';
+    aiPersonaStatus.textContent = '';
+    aiPersonaStatus.className = 'model-status';
+    charCreatePanel.classList.remove('show');
     syncProviderPickerUI(state.settings.baseUrl, false);
     if (detectedModels.length) {
       renderModelSuggestions('');
@@ -2859,26 +3916,52 @@ ${chunk.slice(0, 4200)}
       setModelStatus('');
       renderModelSuggestions();
     }
+    renderCharacterBar();
     renderMemoryModalList();
     updateMemStats();
-    switchSettingsTab('companion');
+    const chosenTab = defaultTab || (state.settings.apiKey.trim() ? 'companion' : 'model');
+    switchSettingsTab(chosenTab);
     settingsModal.classList.add('show');
+    if (focusKey && chosenTab === 'model') {
+      setTimeout(() => cfgApiKey.focus(), 180);
+    }
+  }
+
+  document.getElementById('openSettingsBtn').onclick = () => {
+    openSettingsTo(null, !state.settings.apiKey.trim());
   };
+  modeBadge.onclick = () => {
+    openSettingsTo('model', !state.settings.apiKey.trim());
+  };
+  document.getElementById('keyGuideGoBtn').onclick = () => {
+    openSettingsTo('model', true);
+  };
+  document.getElementById('keyGuideCloseBtn').onclick = () => {
+    keyGuideDismissedSession = true;
+    document.getElementById('keyGuideBanner').classList.remove('show');
+  };
+
   document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.remove('show');
   settingsModal.addEventListener('click', e => {
     if (e.target === settingsModal) settingsModal.classList.remove('show');
   });
 
   document.getElementById('saveSettingsBtn').onclick = () => {
-    state.settings._v = 3;
+    state.settings._v = 4;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
+    state.settings.imgProvider = draftImgProvider;
+    state.settings.imgBaseUrl = cfgImgBaseUrl.value.trim();
+    state.settings.imgApiKey = cfgImgApiKey.value.trim();
+    state.settings.imgModel = cfgImgModel.value.trim();
+    state.settings.imgTrigger = draftImgTrigger;
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
     state.settings.stream = true;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+    flushActiveCharToList();
     scheduleSave();
     renderHeader();
     renderChat();
@@ -2887,8 +3970,11 @@ ${chunk.slice(0, 4200)}
   };
 
   document.getElementById('exportDataBtn').onclick = () => {
+    syncDraftCharFieldsIfModalOpen();
+    flushActiveCharToList();
     const exportCopy = JSON.parse(JSON.stringify(state));
     exportCopy.settings.apiKey = '';
+    exportCopy.settings.imgApiKey = '';
     const blob = new Blob([JSON.stringify(exportCopy, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -2905,14 +3991,14 @@ ${chunk.slice(0, 4200)}
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (!parsed || !Array.isArray(parsed.messages) || !Array.isArray(parsed.widgets)) {
+      if (!parsed || (!Array.isArray(parsed.characters) && (!Array.isArray(parsed.messages) || !Array.isArray(parsed.widgets)))) {
         throw new Error('备份文件格式不对');
       }
       const prevKey = state.settings.apiKey;
-      state = Object.assign(defaultState(), parsed, {
-        settings: Object.assign(defaultState().settings, parsed.settings || {})
-      });
+      const prevImgKey = state.settings.imgApiKey;
+      state = normalizeState(parsed);
       if (!state.settings.apiKey && prevKey) state.settings.apiKey = prevKey;
+      if (!state.settings.imgApiKey && prevImgKey) state.settings.imgApiKey = prevImgKey;
       scheduleSave();
       applyTheme(state.settings.theme);
       renderHeader();
@@ -2927,7 +4013,7 @@ ${chunk.slice(0, 4200)}
   };
 
   document.getElementById('resetAllBtn').onclick = async () => {
-    if (!confirm('确定清空所有聊天记录和自定义小组件吗？')) return;
+    if (!confirm('确定清空所有角色、聊天记录和自定义小组件吗？')) return;
     await StorageAdapter.remove(STORE_KEY);
     state = defaultState();
     applyTheme(state.settings.theme);
@@ -3022,28 +4108,9 @@ ${chunk.slice(0, 4200)}
     try {
       const saved = await StorageAdapter.get(STORE_KEY);
       if (saved) {
-        state = Object.assign(defaultState(), saved, {
-          settings: Object.assign(defaultState().settings, saved.settings || {})
-        });
-        // Clear legacy prefilled defaults and migrate default theme to warm Claude style on v3
-        if (!saved.settings || (saved.settings._v || 0) < 3) {
-          if ((saved.settings?._v || 0) < 2 && !state.settings.apiKey.trim()) {
-            state.settings.baseUrl = '';
-            state.settings.model = '';
-          }
-          if (state.settings.theme === 'deepseek') {
-            state.settings.theme = 'claude';
-          }
-          state.settings._v = 3;
-          scheduleSave();
-        }
-        // Clean up invalid keyless opencode zen settings left by v0.6.1/v0.6.2
-        if (state.settings.baseUrl.includes('opencode.ai/zen') && state.settings.apiKey === 'public') {
-          state.settings.baseUrl = '';
-          state.settings.apiKey = '';
-          state.settings.model = '';
-          scheduleSave();
-        }
+        const hadPrevVersion = saved?.settings?._v || 0;
+        state = normalizeState(saved);
+        if (hadPrevVersion < 4) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
