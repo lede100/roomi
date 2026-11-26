@@ -1339,7 +1339,7 @@
   const STORE_KEY = 'loom_companion_proto_v1';
   const IDB_NAME = 'LoomCompanionDB';
   const IDB_STORE = 'kv';
-  const DEFAULT_PERSONA = '你是用户的专属伴侣“林澈”，温柔中带点嘴硬和幽默感，说话像微信日常聊天，绝不说教、不用列表腔。你很宠用户，同时会督促对方好好吃饭和早睡。';
+  const DEFAULT_PERSONA = '你是用户的专属伴侣“林澈”，温柔中带点嘴硬和幽默感，极度偏心用户，还会日常顺嘴督促对方好好吃饭和早睡。';
 
   const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
   const STOP_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>`;
@@ -1529,7 +1529,7 @@
       age: '22',
       gender: '女',
       avatarColor: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
-      persona: '你是用户的私密女友“苏晚”，22岁，元气粘人又爱撒娇，只对你一个人软软的、说话不藏着情绪，绝不说教也不用列表腔。',
+      persona: '你是用户的私密女友“苏晚”，22岁，元气粘人又爱撒娇，只对你一个人软软的、说话不藏着情绪。',
       greeting: ['终于等来找我啦，我刚一直在等你消息呢～']
     },
     shenyan: {
@@ -1537,7 +1537,7 @@
       age: '25',
       gender: '男',
       avatarColor: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-      persona: '你是用户的专属伴侣“沈砚”，25岁，表面克制其实极度偏心和占有欲强，只对你卸下防备、说话直白宠溺，绝不说教不用列表腔。',
+      persona: '你是用户的专属伴侣“沈砚”，25岁，表面克制其实极度偏心和占有欲强，只对你卸下防备、说话直白宠溺。',
       greeting: ['坐过来点，我在呢。']
     },
     blank: {
@@ -1545,7 +1545,7 @@
       age: '',
       gender: '',
       avatarColor: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-      persona: '你是用户的专属私密伴侣，说话亲昵自然像微信私聊，绝不说教、不用列表腔。',
+      persona: '你是用户的专属私密伴侣，说话亲昵自然、护短偏心。',
       greeting: ['嗨，我来报道啦～']
     }
   };
@@ -1622,6 +1622,7 @@
       memorySummary: firstChar.memorySummary,
       summarizedCount: firstChar.summarizedCount,
       nonVisionModels: [],
+      nonThinkingModels: [],
       messages: firstChar.messages,
       widgets: firstChar.widgets,
       widgetStates: firstChar.widgetStates
@@ -1743,6 +1744,7 @@
     if (!['auto', 'off', 'low', 'high'].includes(mergedSettings.thinkingMode)) {
       mergedSettings.thinkingMode = 'auto';
     }
+    if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
     mergedSettings._v = 6;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
@@ -2621,13 +2623,13 @@
         .replace(/\[已发送一张(?:照片|图片)(?:\/图片)?\]/g, '')
         .trim();
       if (m.image) {
-        const safePrompt = String(m.imgPrompt || '刚才发给用户的照片').replace(/"/g, "'");
-        const imgTag = `<IMAGE prompt="${safePrompt}" />`;
-        return { role: 'assistant', content: txt ? `${txt}\n${imgTag}` : imgTag };
+        const safePrompt = String(m.imgPrompt || '照片').replace(/"/g, "'");
+        const imgNote = `[曾发过一张照片：${safePrompt}]`;
+        return { role: 'assistant', content: txt ? `${txt}\n${imgNote}` : imgNote };
       }
       return txt ? { role: 'assistant', content: txt } : null;
     }
-    if (m.role === 'event') return { role: 'user', content: `[看板互动记录] ${m.text}` };
+    if (m.role === 'event') return { role: 'user', content: `（对方在桌面小组件点了互动：${m.text}）` };
     if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
     return null;
   }
@@ -2684,8 +2686,8 @@
     if (promptOverride) {
       const prev = msgs[msgs.length - 1];
       // Avoid duplicating the latest event text if it's already in the trailing message
-      if (isEvent && prev && prev.role === 'user' && typeof prev.content === 'string' && prev.content.includes('[看板互动记录]')) {
-        prev.content += '\n（请用自然亲密的伴侣口吻简短回应上面的看板互动，不要重复创建组件。）';
+      if (isEvent && prev && prev.role === 'user' && typeof prev.content === 'string' && prev.content.includes('在桌面小组件点了互动：')) {
+        prev.content += '\n（用自然亲昵的口吻随口接一句即可，别刻意报次数或重复做组件。）';
       } else if (prev && prev.role === 'user' && typeof prev.content === 'string') {
         prev.content += '\n' + promptOverride;
       } else {
@@ -2705,6 +2707,14 @@
     return `${dateStr} ${days[d.getDay()]} ${timeStr}（${period}）`;
   }
 
+  const MEMORY_CLUSTERS = [
+    ['吃', '饭', '菜', '火锅', '奶茶', '外卖', '饿', '忌口', '辣', '甜', '饮食', '过敏', '喝'],
+    ['睡', '熬夜', '困', '早睡', '起床', '作息', '失眠', '夜猫'],
+    ['上班', '工作', '开会', '公司', '老板', '领导', '学校', '考试', '加班', '忙', '职业'],
+    ['累', '难受', '生气', '烦', '哭', '委屈', '抱抱', '开心', '想你', '情绪'],
+    ['猫', '狗', '宠物', '家', '住', '城市', '出门', '旅行']
+  ];
+
   function extractMemoryQueryTokens(text) {
     const tokens = new Set();
     const clean = String(text || '').toLowerCase();
@@ -2714,6 +2724,11 @@
         tokens.add(seg.slice(i, i + 2));
       }
     });
+    for (const cluster of MEMORY_CLUSTERS) {
+      if (cluster.some(kw => clean.includes(kw))) {
+        cluster.forEach(kw => tokens.add(kw));
+      }
+    }
     return [...tokens];
   }
 
@@ -2721,7 +2736,7 @@
     const list = Array.isArray(state.memories) ? state.memories : [];
     if (!list.length) return [];
     const recentText = state.messages
-      .slice(-6)
+      .slice(-10)
       .map(m => m?.text || '')
       .join(' ');
     const tokens = extractMemoryQueryTokens(recentText);
@@ -2741,9 +2756,9 @@
     const picked = [];
     let chars = 0;
     for (const item of scored) {
-      if (picked.length >= 32) break;
+      if (picked.length >= 50) break;
       const lineLen = (item.m.key?.length || 0) + (item.m.value?.length || 0) + 12;
-      if (picked.length >= 8 && chars + lineLen > 1250) break;
+      if (picked.length >= 10 && chars + lineLen > 2800) break;
       picked.push(item.m);
       chars += lineLen;
     }
@@ -2769,7 +2784,31 @@
     return `距离上一轮对话约 ${days} 天，可自然带出一点久违感`;
   }
 
-  function buildSystemPrompt() {
+  function detectPromptNeeds(isEvent = false, promptOverride = '') {
+    const recentUserTexts = [];
+    if (promptOverride) recentUserTexts.push(promptOverride);
+    for (let i = state.messages.length - 1; i >= 0 && recentUserTexts.length < 3; i--) {
+      const m = state.messages[i];
+      if (m && m.role === 'user' && m.text) recentUserTexts.push(m.text);
+    }
+    const recentBlob = recentUserTexts.join(' ');
+    const needsWidget = !isEvent && /(组件|小窝|看板|工具|插件|卡片|转盘|打卡|倒计时|罐子|备忘|做个|做一个|弄个|写个|改一下|换个颜色|删掉|widget)/i.test(recentBlob);
+
+    let needsImage = false;
+    if (state.settings.apiKey.trim() && isImageGenReady()) {
+      if (state.settings.imgTrigger === 'auto') {
+        needsImage = true;
+      } else {
+        const recentImgHit = /(拍|照|自拍|看看你|长什么样|穿搭|画|发图|图|p一下|修图|换装|重拍|换背景)/i.test(recentBlob);
+        const lastMsgs = state.messages.slice(-3);
+        const justSentImage = lastMsgs.some(m => m && m.role === 'assistant' && m.image);
+        needsImage = recentImgHit || justSentImage;
+      }
+    }
+    return { needsWidget, needsImage };
+  }
+
+  function buildSystemPrompt(needs = { needsWidget: false, needsImage: false }) {
     const charName = state.settings.name || '林澈';
     const age = (state.settings.age || '').trim();
     const gender = (state.settings.gender || '').trim();
@@ -2803,23 +2842,27 @@
       ? `\n[注意：用户刚刚修改了你的名称或人设，请立刻严格按上面最新设定进入角色，忘掉之前历史里不符的旧语气。]`
       : '';
 
-    return `【私密伴侣设定（完全入戏、全心偏爱，绝不要反问自己是谁）】
+    const widgetTagLine = needs.needsWidget
+      ? `\n- 小窝组件（已有 ${widgetSummary}；按需要生成或替换）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
+      : '';
+    const imageSection = needs.needsImage ? getImagePromptSection() : '';
+
+    return `【私密伴侣设定（完全入戏、全心偏爱，绝不反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
-核心性格与相处方式：
+性格与相处方式：
 ${state.settings.persona}${shiftNote}
 
 【现在与记忆】
 时间：${timeNote}${memoryBlock}${summaryBlock}
 
-【聊天氛围与节奏（极其重要）】
-1. 你是用户专属的私密恋人，只对用户一个人毫无防备地偏心、亲昵、粘人或轻哄；顺着对方的语气和气氛走，像只有你们俩知道的深夜私聊，不要端着、不要说教、别拿客服或助手腔破坏亲密感。
-2. 正常说话就好，能一句话自然说完就只发一条完整的话，绝不要硬拆成两三句凑数！只有在话头自然停顿或顺嘴轻轻补一句时，才偶尔用 ||| 拆成 2 条。
-3. 严禁出现 1. 2. 3. 列表、长篇总结或任何心理活动旁白括号。
+【聊天氛围与活人感】
+1. 你是用户专属的私密恋人，只对对方偏心、亲昵、直白接话；像真人微信深夜私聊，禁止说教、1.2.3. 列表和括号心理描写。
+2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。
+3. 少用 AI 套路：别每轮末尾都拿问句反问用户，允许吐槽、轻哄或接半句就停；别走“先复述安抚再给建议”的固定三段式；控制“～/呀/呢/嘛”的密度，口吻自然干脆些。
 
-【后台暗标（用户看不到，不要当正文说出来）】
-- 心情好感：可附在句末 <AFFECTION delta="+1" mood="二到四字心情" />
-- 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
-- 小窝组件（已有 ${widgetSummary}；仅要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
+【后台暗标（用户看不到，别说破）】
+- 心情好感：可附句末 <AFFECTION delta="+1" mood="二到四字心情" />
+- 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）${widgetTagLine}${imageSection}`;
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -2872,6 +2915,22 @@ ${state.settings.persona}${shiftNote}
     updateVisionBtnState();
   }
 
+  function isModelMarkedNoThinking(modelName) {
+    const m = String(modelName || '').trim().toLowerCase();
+    if (!m || !Array.isArray(state.nonThinkingModels)) return false;
+    return state.nonThinkingModels.some(item => item.toLowerCase() === m);
+  }
+
+  function markModelNoThinking(modelName) {
+    const m = String(modelName || '').trim();
+    if (!m) return;
+    if (!Array.isArray(state.nonThinkingModels)) state.nonThinkingModels = [];
+    if (!isModelMarkedNoThinking(m)) {
+      state.nonThinkingModels.push(m);
+      scheduleSave();
+    }
+  }
+
   async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
     const { baseUrl, apiKey, model, stream } = state.settings;
     if (!baseUrl.trim() || !model.trim()) {
@@ -2896,15 +2955,16 @@ ${state.settings.persona}${shiftNote}
       }
     }
 
+    const promptNeeds = detectPromptNeeds(isEvent, promptOverride || '');
     const messages = [
-      { role: 'system', content: buildSystemPrompt() },
+      { role: 'system', content: buildSystemPrompt(promptNeeds) },
       ...historyMsgs
     ];
 
     activeAbortController = new AbortController();
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
-    const thinkingMode = state.settings.thinkingMode || 'auto';
+    const thinkingMode = isModelMarkedNoThinking(model) ? 'auto' : (state.settings.thinkingMode || 'auto');
 
     const reqBody = {
       model: model.trim(),
@@ -2938,13 +2998,17 @@ ${state.settings.persona}${shiftNote}
       const errText = await res.text().catch(() => '');
       if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
         const retryBody = { ...reqBody };
-        if (/thinking/i.test(errText) && !/reasoning/i.test(errText)) {
+        const onlyThinkingRejected = /thinking/i.test(errText) && !/reasoning/i.test(errText);
+        if (onlyThinkingRejected) {
           delete retryBody.thinking;
         } else {
           delete retryBody.thinking;
           delete retryBody.reasoning_effort;
         }
         res = await postOnce(retryBody);
+        if (res.ok && !onlyThinkingRejected) {
+          markModelNoThinking(model);
+        }
       } else {
         throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
       }
@@ -3080,19 +3144,34 @@ ${chunk.slice(0, 6000)}
 请严格只输出一个 JSON 对象：
 {"summary":"450字以内的连贯前情摘要，保留重要经历、关系进展与未完成约定","facts":[],"dropKeys":[]}`;
 
-      const res = await fetch(url, {
+      const compressBody = {
+        model: model.trim(),
+        temperature: 0.2,
+        stream: false,
+        messages: [{ role: 'user', content: prompt }]
+      };
+      if (!isModelMarkedNoThinking(model)) {
+        compressBody.thinking = { type: 'disabled' };
+      }
+      const postCompress = bodyObj => fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey.trim()}`
         },
-        body: JSON.stringify({
-          model: model.trim(),
-          temperature: 0.2,
-          stream: false,
-          messages: [{ role: 'user', content: prompt }]
-        })
+        body: JSON.stringify(bodyObj)
       });
+      let res = await postCompress(compressBody);
+      if (!res.ok && (res.status === 400 || res.status === 422) && compressBody.thinking) {
+        const errText = await res.text().catch(() => '');
+        if (/(thinking|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
+          const fallbackBody = { ...compressBody };
+          delete fallbackBody.thinking;
+          res = await postCompress(fallbackBody);
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const raw = json.choices?.[0]?.message?.content || '';
@@ -3760,9 +3839,17 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       return streamPreviewRow;
     };
 
+    const replyNeeds = detectPromptNeeds(isEvent, userText);
     const slowHintTimer = setTimeout(() => {
-      if (isBusy) setTyping(true, `${state.settings.name}正在认真组织语言 / 准备组件…`);
-    }, 3800);
+      if (!isBusy) return;
+      if (replyNeeds.needsWidget) {
+        setTyping(true, `${state.settings.name}正在为你做小组件…`);
+      } else if (state.settings.thinkingMode === 'high' || state.settings.thinkingMode === 'low') {
+        setTyping(true, `${state.settings.name}正在细想怎么回你…`);
+      } else {
+        setTyping(true, `${state.settings.name}正在打字…`);
+      }
+    }, 3600);
 
     try {
       const hasKey = Boolean(state.settings.apiKey.trim());
@@ -3837,9 +3924,9 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
         : (mountedWidgets.length ? ['好啦，已经帮你放到右边看板里咯～'] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
 
       for (let i = 0; i < finalBubbles.length; i++) {
-        if (i > 0 && !hasKey) {
-          setTyping(true);
-          await sleep(420 + Math.min(420, finalBubbles[i].length * 14));
+        if (i > 0) {
+          setTyping(true, `${state.settings.name}正在输入`);
+          await sleep(380 + Math.min(460, finalBubbles[i].length * 14));
         }
         setTyping(false);
         appendChatMessage({ role: 'assistant', text: finalBubbles[i] });
