@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-apk:
-    name: Build Debug APK
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -44,30 +44,73 @@ jobs:
           npx capacitor-assets generate --android
           npx cap sync android
 
-      - name: Patch AndroidManifest for soft keyboard and HTTP gateways
+      - name: Patch AndroidManifest and auto-increment version
+        env:
+          RUN_NUM: ${{ github.run_number }}
         run: |
           python3 - <<'EOF'
-          import pathlib
-          p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
-          xml = p.read_text(encoding='utf-8')
+          import json, os, pathlib, re
+
+          # 1. Patch AndroidManifest.xml
+          manifest = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text(encoding='utf-8')
           if 'android:usesCleartextTraffic' not in xml:
               xml = xml.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
           if 'android:windowSoftInputMode' not in xml:
               xml = xml.replace('android:name=".MainActivity"', 'android:name=".MainActivity" android:windowSoftInputMode="adjustResize"', 1)
-          p.write_text(xml, encoding='utf-8')
+          manifest.write_text(xml, encoding='utf-8')
+
+          # 2. Increment versionCode and versionName in build.gradle
+          pkg = json.loads(pathlib.Path('package.json').read_text(encoding='utf-8'))
+          base_ver = '.'.join(pkg.get('version', '0.5.0').split('.')[:2])
+          run_num = int(os.environ.get('RUN_NUM', '1'))
+          ver_code = 10 + run_num
+          ver_name = f"{base_ver}.{run_num}"
+
+          gradle_path = pathlib.Path('android/app/build.gradle')
+          gradle_txt = gradle_path.read_text(encoding='utf-8')
+          gradle_txt = re.sub(r'versionCode\s+\d+', f'versionCode {ver_code}', gradle_txt, count=1)
+          gradle_txt = re.sub(r'versionName\s+"[^"]+"', f'versionName "{ver_name}"', gradle_txt, count=1)
+          gradle_path.write_text(gradle_txt, encoding='utf-8')
+          print(f"VERSION_PATCHED: versionCode={ver_code}, versionName={ver_name}")
           EOF
 
-      - name: Grant gradlew permission and build Debug APK
+      - name: Grant gradlew permission and build APK
         working-directory: android
         env:
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          mkdir -p ../dist_apk
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            ./gradlew assembleRelease
+            SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+            BUILD_TOOLS=$(ls -d "$SDK_ROOT"/build-tools/* | sort -V | tail -n 1)
+            echo "Using build-tools: $BUILD_TOOLS"
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > /tmp/release.keystore
+            "$BUILD_TOOLS/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk /tmp/app-aligned.apk
+            "$BUILD_TOOLS/apksigner" sign \
+              --ks /tmp/release.keystore \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD \
+              --key-pass env:KEY_PASSWORD \
+              --out ../dist_apk/Roomi-release.apk \
+              /tmp/app-aligned.apk
+            "$BUILD_TOOLS/apksigner" verify --verbose ../dist_apk/Roomi-release.apk
+            rm -f /tmp/release.keystore /tmp/app-aligned.apk
+          else
+            echo "No signing secrets found, falling back to debug build."
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk ../dist_apk/Roomi-debug.apk
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: roomi-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: roomi-apk
+          path: dist_apk/*.apk
           retention-days: 30
