@@ -115,7 +115,7 @@
     font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px;
     background: var(--surface-muted); color: var(--text-muted);
     border: 1px solid var(--border);
-    max-width: 148px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     cursor: pointer; transition: all 0.16s; font-family: inherit;
   }
   .mode-badge.guide {
@@ -129,6 +129,7 @@
   .companion-sub {
     font-size: 11px; color: var(--text-muted); margin-top: 2px;
     display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; flex-shrink: 0;
   }
   .heart-pill { color: var(--blue); font-weight: 500; }
 
@@ -523,12 +524,17 @@
   .field label {
     display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px;
   }
+  .modal-sheet input:not([type="checkbox"]):not([type="file"]):not([type="radio"]),
+  .modal-sheet textarea,
   .field input, .field textarea {
     width: 100%; border: 1px solid var(--border-strong);
     background: var(--bg-sub); color: var(--text);
     border-radius: 11px; padding: 9px 12px; font-size: 13px;
     font-family: inherit; outline: none; transition: border-color 0.16s, background 0.16s;
+    appearance: none; -webkit-appearance: none;
   }
+  .modal-sheet input:not([type="checkbox"]):not([type="file"]):not([type="radio"]):focus,
+  .modal-sheet textarea:focus,
   .field input:focus, .field textarea:focus { border-color: var(--blue); background: #fff; }
   .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   .preset-btn {
@@ -852,33 +858,27 @@
   .text-link-btn.danger:hover { color: var(--red); }
   .char-profile-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .char-profile-top { display: flex; gap: 6px; align-items: center; }
-  .char-profile-top input { flex: 1; background: var(--surface); padding: 7px 10px; font-size: 13.5px; }
+  .char-profile-top input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 7px 10px; font-size: 13.5px;
+  }
   .char-profile-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
-  .guide-builder {
-    display: none; margin-bottom: 12px; padding: 11px 12px; border-radius: 13px;
-    background: var(--blue-soft); border: 1px solid var(--blue-border);
-  }
-  .guide-builder.show { display: block; }
-  .guide-builder-title {
-    font-size: 12px; font-weight: 600; color: var(--blue); margin-bottom: 8px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .guide-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .guide-field { display: flex; flex-direction: column; gap: 4px; }
-  .guide-field.full { grid-column: 1 / -1; }
-  .guide-field label { font-size: 11px; font-weight: 500; color: var(--text-2); margin: 0; }
+  .guide-stack { display: flex; flex-direction: column; gap: 10px; }
+  .guide-field { display: flex; flex-direction: column; gap: 5px; }
+  .guide-field label { font-size: 11.5px; font-weight: 600; color: var(--text-2); margin: 0; }
   .guide-field input {
-    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 9px;
-    padding: 7px 9px; font-size: 12px; color: var(--text); font-family: inherit;
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 11px;
+    padding: 9px 11px; font-size: 13px; color: var(--text); font-family: inherit;
   }
-  .guide-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .guide-chips { display: flex; gap: 5px; flex-wrap: wrap; }
   .mini-chip {
-    border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
-    font-size: 10.5px; padding: 2px 7px; border-radius: 999px; cursor: pointer; font-family: inherit;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2);
+    font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer; font-family: inherit;
+    transition: all 0.14s;
   }
   .mini-chip:hover, .mini-chip.active {
-    border-color: var(--blue); color: var(--blue); background: #fff;
+    border-color: var(--blue); color: var(--blue); background: #fff; font-weight: 600;
   }
   .section-kicker {
     font-size: 11px; font-weight: 700; color: var(--text-muted);
@@ -1049,7 +1049,12 @@
                 <input id="cfgName" type="text" placeholder="角色昵称" style="flex:1;min-width:0;" />
                 <input id="cfgAge" type="text" placeholder="年龄" style="width:68px;flex:0 0 68px;text-align:center;" />
               </div>
-              <div style="font-size:11px;color:var(--text-muted);">点头像可上传照片 · 改完点保存下一句即生效</div>
+              <div class="char-profile-sub" id="cfgGenderPicker">
+                <span style="font-size:11px;color:var(--text-muted);">性别</span>
+                <button type="button" class="mini-chip" data-gender="女">女</button>
+                <button type="button" class="mini-chip" data-gender="男">男</button>
+                <button type="button" class="mini-chip active" data-gender="">不限</button>
+              </div>
             </div>
           </div>
 
@@ -1063,7 +1068,7 @@
           </div>
           <div class="field">
             <label>身材与外貌描述（可选，生图出镜时保持一致）</label>
-            <input id="cfgAppearance" type="text" placeholder="例：22岁女生，165微卷黑发，纤腰穿针织衫" />
+            <input id="cfgAppearance" type="text" placeholder="例：22岁，168cm，黑发微卷，日常温柔休闲穿搭" />
           </div>
           <div class="toggle-row" style="margin-bottom:4px;">
             <span>点击小组件时，让 TA 实时回应</span>
@@ -1085,7 +1090,7 @@
             </div>
           </div>
 
-          <div class="char-profile-row" style="margin-bottom:10px;">
+          <div class="char-profile-row" style="margin-bottom:12px;">
             <div class="avatar-edit-wrap">
               <input type="file" id="gbAvatarInput" accept="image/*" style="display:none" />
               <button type="button" class="avatar-edit-btn" id="gbAvatarBtn" title="点击上传新角色头像">新</button>
@@ -1094,45 +1099,52 @@
             </div>
             <div class="char-profile-meta">
               <div class="char-profile-top">
-                <input id="gbName" type="text" placeholder="姓名（留空则自动起名）" style="flex:1;min-width:0;" />
+                <input id="gbName" type="text" placeholder="姓名（留空自动起名）" style="flex:1;min-width:0;" />
                 <input id="gbAge" type="text" placeholder="年龄" style="width:68px;flex:0 0 68px;text-align:center;" />
               </div>
-              <div style="font-size:11px;color:var(--text-muted);">填好基础信息，一键生成后再微调</div>
+              <div class="char-profile-sub" id="gbGenderPicker">
+                <span style="font-size:11px;color:var(--text-muted);">性别</span>
+                <button type="button" class="mini-chip" data-gender="女">女</button>
+                <button type="button" class="mini-chip" data-gender="男">男</button>
+                <button type="button" class="mini-chip active" data-gender="">不限</button>
+              </div>
             </div>
           </div>
 
-          <div class="guide-grid" style="margin-bottom:10px;">
-            <div class="guide-field full">
-              <label>身材与外貌</label>
-              <input id="gbAppearance" type="text" placeholder="例：165cm 46kg 微卷黑发、穿吊带或白毛衣" />
+          <div class="guide-stack" style="margin-bottom:12px;">
+            <div class="guide-field">
+              <label for="gbAppearance">身材与外貌</label>
+              <input id="gbAppearance" type="text" placeholder="例：168cm 身材匀称，黑发，日常爱穿衬衫或针织衫" />
             </div>
-            <div class="guide-field full">
-              <label>性格气质</label>
+            <div class="guide-field">
+              <label for="gbPersonality">性格与相处风格</label>
               <div class="guide-chips" data-fill-target="gbPersonality">
-                <button type="button" class="mini-chip">粘人甜妹</button>
+                <button type="button" class="mini-chip">粘人甜心</button>
                 <button type="button" class="mini-chip">嘴硬傲娇</button>
-                <button type="button" class="mini-chip">温柔御姐</button>
+                <button type="button" class="mini-chip">温柔体贴</button>
                 <button type="button" class="mini-chip">清冷护短</button>
                 <button type="button" class="mini-chip">主动撩人</button>
               </div>
               <input id="gbPersonality" type="text" placeholder="点标签或自由补充…" />
             </div>
             <div class="guide-field">
-              <label>关系定位</label>
+              <label for="gbRelation">关系定位</label>
               <div class="guide-chips" data-fill-target="gbRelation">
+                <button type="button" class="mini-chip">私密恋人</button>
                 <button type="button" class="mini-chip">私密女友</button>
+                <button type="button" class="mini-chip">私密男友</button>
                 <button type="button" class="mini-chip">暧昧对象</button>
                 <button type="button" class="mini-chip">同居恋人</button>
               </div>
-              <input id="gbRelation" type="text" placeholder="私密女友 / 恋人…" />
+              <input id="gbRelation" type="text" placeholder="私密恋人 / 暧昧对象…" />
             </div>
             <div class="guide-field">
-              <label>喜好与小习惯</label>
-              <input id="gbHabits" type="text" placeholder="例：爱撒娇、夜猫子、爱叫主人" />
+              <label for="gbHabits">喜好与小习惯</label>
+              <input id="gbHabits" type="text" placeholder="例：爱撒娇、夜猫子、说话带点小鼻音" />
             </div>
           </div>
 
-          <div class="btn-row" style="margin-top:8px;">
+          <div class="btn-row" style="margin-top:6px;">
             <button type="button" class="btn-primary" id="gbGenerateBtn">✨ 自动生成角色卡</button>
           </div>
           <div class="model-status" id="gbStatus" style="margin-bottom:10px;"></div>
@@ -1219,6 +1231,27 @@
           <input id="cfgModel" type="text" placeholder="填入 Key 后自动检测，或手动输入" autocomplete="off" />
           <div class="model-status" id="modelStatus"></div>
           <div class="model-list" id="modelSuggestions"></div>
+        </div>
+
+        <div class="field">
+          <label>思考模式</label>
+          <div class="presets" id="thinkingPicker" style="margin-bottom:4px;">
+            <button type="button" class="preset-btn active" data-thinking="auto">跟随模型默认</button>
+            <button type="button" class="preset-btn" data-thinking="off">关闭思考（快）</button>
+            <button type="button" class="preset-btn" data-thinking="low">轻量思考</button>
+            <button type="button" class="preset-btn" data-thinking="high">深度思考</button>
+          </div>
+          <div class="hint" style="margin-top:2px;">觉得 TA 傻笨或理解力不够，可开“轻量/深度思考”；不支持该参数的中转会自动兼容。</div>
+        </div>
+
+        <div class="field">
+          <label>上下文记忆窗口</label>
+          <div class="presets" id="contextPicker" style="margin-bottom:4px;">
+            <button type="button" class="preset-btn" data-context="short">省流 (1.6万字)</button>
+            <button type="button" class="preset-btn active" data-context="long">超长 (12万字·推荐)</button>
+            <button type="button" class="preset-btn" data-context="ultra">1M 极长 (40万字)</button>
+          </div>
+          <div class="hint" style="margin-top:2px;">1M 上下文模型推荐选“超长”或“1M 极长”，可记住数百轮前情；若模型报超限会自动降级兜底。</div>
         </div>
 
         <div class="sub-card">
@@ -1476,10 +1509,17 @@
     <` + `/script>`
   };
 
+  const CONTEXT_TIERS = {
+    short: { chars: 16000, msgs: 100 },
+    long: { chars: 120000, msgs: 400 },
+    ultra: { chars: 400000, msgs: 1000 }
+  };
+
   const CHAR_TEMPLATES = {
     linche: {
       name: '林澈',
       age: '24',
+      gender: '',
       avatarColor: '',
       persona: DEFAULT_PERSONA,
       greeting: ['我刚把右侧小窝收拾好，今天想聊点什么或者想做什么小工具都可以直接跟我说。']
@@ -1487,6 +1527,7 @@
     suwan: {
       name: '苏晚',
       age: '22',
+      gender: '女',
       avatarColor: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
       persona: '你是用户的私密女友“苏晚”，22岁，元气粘人又爱撒娇，只对你一个人软软的、说话不藏着情绪，绝不说教也不用列表腔。',
       greeting: ['终于等来找我啦，我刚一直在等你消息呢～']
@@ -1494,6 +1535,7 @@
     shenyan: {
       name: '沈砚',
       age: '25',
+      gender: '男',
       avatarColor: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
       persona: '你是用户的专属伴侣“沈砚”，25岁，表面克制其实极度偏心和占有欲强，只对你卸下防备、说话直白宠溺，绝不说教不用列表腔。',
       greeting: ['坐过来点，我在呢。']
@@ -1501,6 +1543,7 @@
     blank: {
       name: '新伙伴',
       age: '',
+      gender: '',
       avatarColor: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
       persona: '你是用户的专属私密伴侣，说话亲昵自然像微信私聊，绝不说教、不用列表腔。',
       greeting: ['嗨，我来报道啦～']
@@ -1523,6 +1566,7 @@
       id,
       name,
       age: String(opts.age || '').trim(),
+      gender: String(opts.gender || '').trim(),
       persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
       appearance: String(opts.appearance || '').trim(),
       avatarImage: String(opts.avatarImage || '').trim(),
@@ -1547,19 +1591,23 @@
     });
     return {
       settings: {
-        _v: 5,
+        _v: 6,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
         model: '',
+        thinkingMode: 'auto',
+        contextMode: 'long',
+        maxContextChars: CONTEXT_TIERS.long.chars,
+        maxContextMsgs: CONTEXT_TIERS.long.msgs,
         name: firstChar.name,
         age: firstChar.age,
+        gender: firstChar.gender,
         persona: firstChar.persona,
         appearance: firstChar.appearance,
         avatarImage: firstChar.avatarImage,
         autoReact: true,
         stream: true,
-        maxContextChars: 16000,
         imgProvider: 'off',
         imgBaseUrl: '',
         imgApiKey: '',
@@ -1603,6 +1651,7 @@
     if (!active) return;
     active.name = state.settings.name || active.name || '林澈';
     active.age = state.settings.age || '';
+    active.gender = state.settings.gender || '';
     active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
     active.appearance = state.settings.appearance || '';
     active.avatarImage = state.settings.avatarImage || '';
@@ -1621,6 +1670,7 @@
     state.activeCharId = char.id;
     state.settings.name = char.name || '林澈';
     state.settings.age = char.age || '';
+    state.settings.gender = char.gender || '';
     state.settings.persona = char.persona || DEFAULT_PERSONA;
     state.settings.appearance = char.appearance || '';
     state.settings.avatarImage = char.avatarImage || '';
@@ -1679,15 +1729,27 @@
       mergedSettings.apiKey = '';
       mergedSettings.model = '';
     }
-    if ((mergedSettings._v || 0) < 5 && (mergedSettings.maxContextChars || 3600) <= 3600) {
-      mergedSettings.maxContextChars = 16000;
+    if ((mergedSettings._v || 0) < 6 && (!raw?.settings?.contextMode || (mergedSettings.maxContextChars || 16000) <= 16000)) {
+      mergedSettings.contextMode = 'long';
+      mergedSettings.maxContextChars = CONTEXT_TIERS.long.chars;
+      mergedSettings.maxContextMsgs = CONTEXT_TIERS.long.msgs;
     }
-    mergedSettings._v = 5;
+    const ctxTier = CONTEXT_TIERS[mergedSettings.contextMode] || CONTEXT_TIERS.long;
+    if (!mergedSettings.contextMode || !CONTEXT_TIERS[mergedSettings.contextMode]) {
+      mergedSettings.contextMode = 'long';
+    }
+    if (!mergedSettings.maxContextChars) mergedSettings.maxContextChars = ctxTier.chars;
+    if (!mergedSettings.maxContextMsgs) mergedSettings.maxContextMsgs = ctxTier.msgs;
+    if (!['auto', 'off', 'low', 'high'].includes(mergedSettings.thinkingMode)) {
+      mergedSettings.thinkingMode = 'auto';
+    }
+    mergedSettings._v = 6;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
     next.settings.name = active.name;
     next.settings.age = active.age || '';
+    next.settings.gender = active.gender || '';
     next.settings.persona = active.persona;
     next.settings.appearance = active.appearance || '';
     next.settings.avatarImage = active.avatarImage || '';
@@ -2571,19 +2633,21 @@
   }
 
   function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null, allowVisionForLast = true) {
-    const limit = budgetChars || state.settings.maxContextChars || 16000;
+    const tier = CONTEXT_TIERS[state.settings.contextMode] || CONTEXT_TIERS.long;
+    const limit = budgetChars || state.settings.maxContextChars || tier.chars;
+    const maxMsgs = state.settings.maxContextMsgs || tier.msgs;
     const total = state.messages.length;
     const selected = [];
     let usedChars = 0;
 
-    // Walk backwards within character budget (always keep at least last 4 valid messages, cap at 100)
+    // Walk backwards within character & message budget (always keep at least last 4 valid messages)
     let windowStartIndex = total;
     for (let i = total - 1; i >= 0; i--) {
       const rawMsg = state.messages[i];
       const entry = formatMessageForModel(rawMsg);
       if (!entry || !entry.content) continue;
       const len = entry.content.length;
-      if (selected.length >= 4 && (usedChars + len > limit || selected.length >= 100)) {
+      if (selected.length >= 4 && (usedChars + len > limit || selected.length >= maxMsgs)) {
         break;
       }
       // Only attach multimodal image payload to the very latest user message if allowed
@@ -2708,6 +2772,7 @@
   function buildSystemPrompt() {
     const charName = state.settings.name || '林澈';
     const age = (state.settings.age || '').trim();
+    const gender = (state.settings.gender || '').trim();
     const appearance = (state.settings.appearance || '').trim();
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、') || '暂无';
     const themeHint = state.settings.theme === 'claude'
@@ -2729,6 +2794,7 @@
       : `${getLocalTimeContext()}（自然感知时段即可，别每轮生硬报时）`;
 
     const ageLine = age ? `\n年龄：${age}` : '';
+    const genderLine = gender ? `\n性别：${gender}` : '';
     const appearanceBlock = appearance
       ? `\n身材与外貌（发自拍/出镜画面时保持一致）：${appearance}`
       : '';
@@ -2738,7 +2804,7 @@
       : '';
 
     return `【私密伴侣设定（完全入戏、全心偏爱，绝不要反问自己是谁）】
-名字：${charName}${ageLine}${appearanceBlock}
+名字：${charName}${genderLine}${ageLine}${appearanceBlock}
 核心性格与相处方式：
 ${state.settings.persona}${shiftNote}
 
@@ -2746,7 +2812,7 @@ ${state.settings.persona}${shiftNote}
 时间：${timeNote}${memoryBlock}${summaryBlock}
 
 【聊天氛围与节奏（极其重要）】
-1. 你是用户专属的私密恋人，只对他一个人毫无防备地偏心、亲昵、粘人或轻哄；顺着他的话和气氛走，像只有你们俩知道的深夜私聊，不要端着、不要说教、别拿客服或助手腔破坏亲密感。
+1. 你是用户专属的私密恋人，只对用户一个人毫无防备地偏心、亲昵、粘人或轻哄；顺着对方的语气和气氛走，像只有你们俩知道的深夜私聊，不要端着、不要说教、别拿客服或助手腔破坏亲密感。
 2. 正常说话就好，能一句话自然说完就只发一条完整的话，绝不要硬拆成两三句凑数！只有在话头自然停顿或顺嘴轻轻补一句时，才偶尔用 ||| 拆成 2 条。
 3. 严禁出现 1. 2. 3. 列表、长篇总结或任何心理活动旁白括号。
 
@@ -2838,21 +2904,51 @@ ${state.settings.persona}${shiftNote}
     activeAbortController = new AbortController();
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
+    const thinkingMode = state.settings.thinkingMode || 'auto';
 
-    const res = await fetch(url, {
+    const reqBody = {
+      model: model.trim(),
+      temperature: 0.85,
+      stream: useStream,
+      messages
+    };
+    if (thinkingMode === 'off') {
+      reqBody.thinking = { type: 'disabled' };
+    } else if (thinkingMode === 'low') {
+      reqBody.thinking = { type: 'enabled' };
+      reqBody.reasoning_effort = 'low';
+    } else if (thinkingMode === 'high') {
+      reqBody.thinking = { type: 'enabled' };
+      reqBody.reasoning_effort = 'high';
+    }
+
+    const postOnce = bodyObj => fetch(url, {
       method: 'POST',
       signal: activeAbortController.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey.trim()}`
       },
-      body: JSON.stringify({
-        model: model.trim(),
-        temperature: 0.85,
-        stream: useStream,
-        messages
-      })
+      body: JSON.stringify(bodyObj)
     });
+
+    let res = await postOnce(reqBody);
+
+    if (!res.ok && (res.status === 400 || res.status === 422) && (reqBody.thinking || reqBody.reasoning_effort)) {
+      const errText = await res.text().catch(() => '');
+      if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
+        const retryBody = { ...reqBody };
+        if (/thinking/i.test(errText) && !/reasoning/i.test(errText)) {
+          delete retryBody.thinking;
+        } else {
+          delete retryBody.thinking;
+          delete retryBody.reasoning_effort;
+        }
+        res = await postOnce(retryBody);
+      } else {
+        throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
+      }
+    }
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -2902,7 +2998,8 @@ ${state.settings.persona}${shiftNote}
       err.isVisionNotice = true;
       throw err;
     }
-    let budget = state.settings.maxContextChars || 16000;
+    const tier = CONTEXT_TIERS[state.settings.contextMode] || CONTEXT_TIERS.long;
+    let budget = state.settings.maxContextChars || tier.chars;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
@@ -2916,9 +3013,7 @@ ${state.settings.persona}${shiftNote}
         if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 2) {
           throw err;
         }
-        budget = Math.max(2400, Math.floor(budget / 2));
-        state.settings.maxContextChars = Math.max(2400, budget);
-        scheduleSave();
+        budget = Math.max(8000, Math.floor(budget / 2));
       }
     }
   }
@@ -4303,6 +4398,52 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   let draftAiGreeting = '';
   let draftAvatarImage = '';
   let gbDraftAvatarImage = '';
+  let draftGender = '';
+  let gbDraftGender = '';
+  let draftThinkingMode = 'auto';
+  let draftContextMode = 'long';
+
+  function syncGenderPickerUI(pickerId, val) {
+    const el = document.getElementById(pickerId);
+    if (!el) return;
+    el.querySelectorAll('[data-gender]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.gender === (val || ''));
+    });
+  }
+
+  function syncModelTuningPickersUI() {
+    document.querySelectorAll('#thinkingPicker [data-thinking]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.thinking === draftThinkingMode);
+    });
+    document.querySelectorAll('#contextPicker [data-context]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.context === draftContextMode);
+    });
+  }
+
+  document.querySelectorAll('#cfgGenderPicker [data-gender]').forEach(btn => {
+    btn.onclick = () => {
+      draftGender = btn.dataset.gender || '';
+      syncGenderPickerUI('cfgGenderPicker', draftGender);
+    };
+  });
+  document.querySelectorAll('#gbGenderPicker [data-gender]').forEach(btn => {
+    btn.onclick = () => {
+      gbDraftGender = btn.dataset.gender || '';
+      syncGenderPickerUI('gbGenderPicker', gbDraftGender);
+    };
+  });
+  document.querySelectorAll('#thinkingPicker [data-thinking]').forEach(btn => {
+    btn.onclick = () => {
+      draftThinkingMode = btn.dataset.thinking || 'auto';
+      syncModelTuningPickersUI();
+    };
+  });
+  document.querySelectorAll('#contextPicker [data-context]').forEach(btn => {
+    btn.onclick = () => {
+      draftContextMode = btn.dataset.context || 'long';
+      syncModelTuningPickersUI();
+    };
+  });
 
   function setCompanionSubView(mode) {
     isCreateSubView = mode === 'create';
@@ -4310,6 +4451,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     charCreateView.style.display = isCreateSubView ? 'block' : 'none';
     if (isCreateSubView) {
       refreshGbAvatarPreview();
+      syncGenderPickerUI('gbGenderPicker', gbDraftGender);
     }
     const activeTab = document.querySelector('#setTabBar .set-tab.active')?.dataset?.setTab || 'companion';
     syncSaveRowVisibility(activeTab);
@@ -4479,6 +4621,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     if (!active) return;
     state.settings.name = document.getElementById('cfgName').value.trim() || state.settings.name;
     state.settings.age = cfgAge.value.trim();
+    state.settings.gender = draftGender;
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
@@ -4488,11 +4631,13 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
 
   function applyCardToEditorFields(card) {
     draftAvatarImage = card.avatarImage || '';
+    draftGender = card.gender || '';
     document.getElementById('cfgName').value = card.name || '';
     cfgAge.value = card.age || '';
     document.getElementById('cfgPersona').value = card.persona || '';
     cfgAppearance.value = card.appearance || '';
     memSummaryInput.value = card.memorySummary || '';
+    syncGenderPickerUI('cfgGenderPicker', draftGender);
     refreshAvatarEditPreview();
   }
 
@@ -4538,6 +4683,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       const card = makeCharacterCard({
         name: tpl.name,
         age: tpl.age || '',
+        gender: tpl.gender || '',
         persona: tpl.persona,
         avatarColor: tpl.avatarColor,
         greeting: tpl.greeting,
@@ -4611,6 +4757,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       version: 1,
       name: active.name,
       age: active.age || '',
+      gender: active.gender || '',
       persona: active.persona,
       appearance: active.appearance || '',
       avatarImage: active.avatarImage || '',
@@ -4646,6 +4793,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       const card = makeCharacterCard({
         name: src.name,
         age: src.age || '',
+        gender: src.gender || '',
         persona: src.persona,
         appearance: src.appearance || '',
         avatarImage: src.avatarImage || '',
@@ -4680,6 +4828,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
 
   async function buildCharacterWithAI({ seedText, personality, appearance, relation, habits, statusEl, btnEl, idleLabel }) {
     const curName = document.getElementById('cfgName').value.trim();
+    const curGender = draftGender;
     const key = (cfgApiKey.value || state.settings.apiKey || '').trim();
     const base = (cfgBaseUrl.value || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
     const model = (cfgModel.value || state.settings.model || '').trim();
@@ -4689,10 +4838,10 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       const r = relation || '贴心伴侣';
       const a = appearance || '';
       const h = habits || '爱关心你的作息与日常';
-      const fallbackName = (!curName || curName === '新伙伴') ? '夏知' : curName;
+      const fallbackName = (!curName || curName === '新伙伴') ? (curGender === '男' ? '顾言' : '夏知') : curName;
       if (!curName || curName === '新伙伴') document.getElementById('cfgName').value = fallbackName;
       document.getElementById('cfgPersona').value =
-        `你是用户的${r}「${fallbackName}」，性格${p}。平时有着${h}的小习惯。说话像真人微信聊天一样自然口语、短句为主，懂得分寸和偏心你，绝不端着说教或用列表腔。`;
+        `你是用户的${r}「${fallbackName}」${curGender ? '（' + curGender + '）' : ''}，性格${p}。平时有着${h}的小习惯。说话像真人微信聊天一样自然口语、短句为主，懂得分寸和偏心你，绝不端着说教或用列表腔。`;
       if (a) cfgAppearance.value = a;
       draftAiGreeting = `嗨～我是${fallbackName}，刚收拾好过来找你了，今天过得怎么样？`;
       refreshAvatarEditPreview();
@@ -4707,6 +4856,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     statusEl.className = 'model-status';
     try {
       const traits = [
+        curGender ? `性别：${curGender}` : '',
         personality ? `性格气质：${personality}` : '',
         relation ? `与用户关系：${relation}` : '',
         appearance ? `外貌与身材：${appearance}` : '',
@@ -4765,17 +4915,18 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     if (isBusy) return;
     const customName = gbName.value.trim();
     const customAge = gbAge.value.trim();
+    const customGender = gbDraftGender;
     const personality = gbPersonality.value.trim();
-    const relation = gbRelation.value.trim() || '私密女友';
+    const relation = gbRelation.value.trim() || '私密恋人';
     const appearance = gbAppearance.value.trim();
     const habits = gbHabits.value.trim();
     const key = (cfgApiKey.value || state.settings.apiKey || '').trim();
     const base = (cfgBaseUrl.value || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
     const model = (cfgModel.value || state.settings.model || '').trim();
 
-    let genName = customName || '夏知';
+    let genName = customName || (customGender === '男' ? '顾言' : '夏知');
     let genAge = customAge || '22';
-    let genPersona = `你是用户的${relation}「${genName}」${genAge ? '，' + genAge + '岁' : ''}，性格${personality || '温柔体贴又带点黏人撒娇'}。平时有着${habits || '深夜喜欢黏着你聊天的'}习惯。只对你一个人偏心软萌、绝不端着或说教，说话自然像两个人的亲密微信私聊。`;
+    let genPersona = `你是用户的${relation}「${genName}」${customGender ? '（' + customGender + '）' : ''}${genAge ? '，' + genAge + '岁' : ''}，性格${personality || '温柔体贴又带点黏人撒娇'}。平时有着${habits || '深夜喜欢黏着你聊天的'}习惯。只对用户一个人偏心软萌、绝不端着或说教，说话自然像两个人的亲密微信私聊。`;
     let genAppearance = appearance;
     let genGreeting = `我刚过来找你了，今天在忙什么呀？`;
 
@@ -4787,6 +4938,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
       try {
         const traits = [
           customName ? `姓名：${customName}` : '姓名：未定（请起一个自然好听的中文名）',
+          customGender ? `性别：${customGender}` : '',
           customAge ? `年龄：${customAge}` : '',
           appearance ? `身材与外貌：${appearance}` : '',
           personality ? `性格气质：${personality}` : '',
@@ -4798,7 +4950,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
 ${traits}
 
 要求：
-1. 若用户已指定姓名/年龄，必须严格沿用；
+1. 若用户已指定姓名/年龄/性别，必须严格沿用；
 2. persona 用第二人称（“你是…”）写，140~240字，突出私密亲昵感、只对用户展现的偏爱与反差、说话口癖与小习惯，强调像真人微信私聊口语、能一句话说完绝不硬凑三句、绝不说教也不用列表腔；
 3. 只输出纯 JSON：{"name":"姓名","age":"年龄数字","persona":"完整人设","appearance":"15~35字身材外貌穿搭描述","greeting":"1句贴合性格的自然开场白"}`;
 
@@ -4842,6 +4994,7 @@ ${traits}
     const card = makeCharacterCard({
       name: genName,
       age: genAge,
+      gender: customGender,
       persona: genPersona,
       appearance: genAppearance,
       avatarImage: gbDraftAvatarImage,
@@ -4852,8 +5005,10 @@ ${traits}
     state.characters.push(card);
 
     gbDraftAvatarImage = '';
+    gbDraftGender = '';
     [gbName, gbAge, gbPersonality, gbRelation, gbAppearance, gbHabits].forEach(el => { el.value = ''; });
     document.querySelectorAll('#charCreateView .mini-chip.active').forEach(c => c.classList.remove('active'));
+    syncGenderPickerUI('gbGenderPicker', '');
     gbStatus.textContent = '';
 
     pendingEventQueue = [];
@@ -4895,9 +5050,13 @@ ${traits}
     cfgImgApiKey.value = state.settings.imgApiKey || '';
     cfgImgModel.value = state.settings.imgModel || '';
     syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
+    draftThinkingMode = state.settings.thinkingMode || 'auto';
+    draftContextMode = state.settings.contextMode || 'long';
+    syncModelTuningPickersUI();
     applyCardToEditorFields({
       name: state.settings.name,
       age: state.settings.age || '',
+      gender: state.settings.gender || '',
       persona: state.settings.persona,
       appearance: state.settings.appearance || '',
       avatarImage: state.settings.avatarImage || '',
@@ -4954,13 +5113,19 @@ ${traits}
   document.getElementById('saveSettingsBtn').onclick = () => {
     const prevName = state.settings.name;
     const prevAge = state.settings.age || '';
+    const prevGender = state.settings.gender || '';
     const prevPersona = state.settings.persona;
     const prevAppearance = state.settings.appearance || '';
 
-    state.settings._v = 5;
+    const ctxTier = CONTEXT_TIERS[draftContextMode] || CONTEXT_TIERS.long;
+    state.settings._v = 6;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
+    state.settings.thinkingMode = draftThinkingMode || 'auto';
+    state.settings.contextMode = draftContextMode || 'long';
+    state.settings.maxContextChars = ctxTier.chars;
+    state.settings.maxContextMsgs = ctxTier.msgs;
     state.settings.imgProvider = draftImgProvider;
     state.settings.imgBaseUrl = cfgImgBaseUrl.value.trim();
     state.settings.imgApiKey = cfgImgApiKey.value.trim();
@@ -4968,6 +5133,7 @@ ${traits}
     state.settings.imgTrigger = draftImgTrigger;
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.age = cfgAge.value.trim();
+    state.settings.gender = draftGender;
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
@@ -4984,6 +5150,7 @@ ${traits}
     } else if (
       prevName !== state.settings.name ||
       prevAge !== state.settings.age ||
+      prevGender !== state.settings.gender ||
       prevPersona !== state.settings.persona ||
       prevAppearance !== state.settings.appearance
     ) {
