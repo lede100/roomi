@@ -2623,11 +2623,12 @@
     if (m.role === 'assistant') {
       const txt = (m.text || '')
         .replace(/\[已发送一张(?:照片|图片)(?:\/图片)?\]/g, '')
+        .replace(/\[曾发过一张照片[：:][\s\S]*?\]/g, '')
         .trim();
       if (m.image) {
-        const safePrompt = String(m.imgPrompt || '照片').replace(/"/g, "'");
-        const imgNote = `[曾发过一张照片：${safePrompt}]`;
-        return { role: 'assistant', content: txt ? `${txt}\n${imgNote}` : imgNote };
+        const safePrompt = String(m.imgPrompt || '刚才发给用户的照片').replace(/"/g, "'");
+        const imgTag = `<IMAGE prompt="${safePrompt}" />`;
+        return { role: 'assistant', content: txt ? `${txt}\n${imgTag}` : imgTag };
       }
       return txt ? { role: 'assistant', content: txt } : null;
     }
@@ -2786,31 +2787,7 @@
     return `距离上一轮对话约 ${days} 天，可自然带出一点久违感`;
   }
 
-  function detectPromptNeeds(isEvent = false, promptOverride = '') {
-    const recentUserTexts = [];
-    if (promptOverride) recentUserTexts.push(promptOverride);
-    for (let i = state.messages.length - 1; i >= 0 && recentUserTexts.length < 3; i--) {
-      const m = state.messages[i];
-      if (m && m.role === 'user' && m.text) recentUserTexts.push(m.text);
-    }
-    const recentBlob = recentUserTexts.join(' ');
-    const needsWidget = !isEvent && /(组件|小窝|看板|工具|插件|卡片|转盘|打卡|倒计时|罐子|备忘|widget|做个.{0,6}(?:表|卡|器|页|板|东西)|做一个.{0,6}(?:表|卡|器|页|板|东西)|改一下.{0,6}(?:组件|看板|颜色|样式))/i.test(recentBlob);
-
-    let needsImage = false;
-    if (state.settings.apiKey.trim() && isImageGenReady()) {
-      if (state.settings.imgTrigger === 'auto') {
-        needsImage = true;
-      } else {
-        const recentImgHit = /(拍照|拍张|拍个|拍一张|照片|自拍|看看你|长什么样|穿搭|画一张|画个|画幅|发图|发张图|发照片|生图|出图|配图|p一下|修图|换装|重拍|换背景)/i.test(recentBlob);
-        const lastMsgs = state.messages.slice(-3);
-        const justSentImage = lastMsgs.some(m => m && m.role === 'assistant' && m.image);
-        needsImage = recentImgHit || justSentImage;
-      }
-    }
-    return { needsWidget, needsImage };
-  }
-
-  function buildSystemPrompt(needs = { needsWidget: false, needsImage: false }) {
+  function buildSystemPrompt() {
     const charName = state.settings.name || '林澈';
     const age = (state.settings.age || '').trim();
     const gender = (state.settings.gender || '').trim();
@@ -2844,11 +2821,6 @@
       ? `\n[注意：用户刚刚修改了你的名称或人设，请立刻严格按上面最新设定进入角色，忘掉之前历史里不符的旧语气。]`
       : '';
 
-    const widgetTagLine = needs.needsWidget
-      ? `\n- 小窝组件（已有 ${widgetSummary}；按需要生成或替换）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
-      : '';
-    const imageSection = needs.needsImage ? getImagePromptSection() : '';
-
     return `【私密伴侣设定（完全入戏、全心偏爱，绝不反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
 性格与相处方式：
@@ -2857,14 +2829,15 @@ ${state.settings.persona}${shiftNote}
 【现在与记忆】
 时间：${timeNote}${memoryBlock}${summaryBlock}
 
-【聊天氛围与活人感】
-1. 你是用户专属的私密恋人，只对对方偏心、亲昵、直白接话；像真人微信深夜私聊，禁止说教、1.2.3. 列表和括号心理描写。
+【聊天氛围与节奏】
+1. 你是用户专属的私密恋人，完全贴合上方人设的语气与脾气，只对对方偏心、亲昵、直白接话；像真人微信深夜私聊，禁止说教、1.2.3. 列表和括号心理描写。
 2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。
-3. 少用 AI 套路：别每轮末尾都拿问句反问用户，允许吐槽、轻哄或接半句就停；别走“先复述安抚再给建议”的固定三段式；控制“～/呀/呢/嘛”的密度，口吻自然干脆些。
+3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。
 
 【后台暗标（用户看不到，别说破）】
 - 心情好感：可附句末 <AFFECTION delta="+1" mood="二到四字心情" />
-- 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）${widgetTagLine}${imageSection}`;
+- 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
+- 小窝组件（已有 ${widgetSummary}；仅要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -2957,9 +2930,8 @@ ${state.settings.persona}${shiftNote}
       }
     }
 
-    const promptNeeds = detectPromptNeeds(isEvent, promptOverride || '');
     const messages = [
-      { role: 'system', content: buildSystemPrompt(promptNeeds) },
+      { role: 'system', content: buildSystemPrompt() },
       ...historyMsgs
     ];
 
@@ -3841,10 +3813,10 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       return streamPreviewRow;
     };
 
-    const replyNeeds = detectPromptNeeds(isEvent, userText);
+    const wantsWidgetHint = !isEvent && /(组件|小窝|看板|工具|转盘|打卡|倒计时|罐子|做个)/i.test(userText || '');
     const slowHintTimer = setTimeout(() => {
       if (!isBusy) return;
-      if (replyNeeds.needsWidget) {
+      if (wantsWidgetHint) {
         setTyping(true, `${state.settings.name}正在为你做小组件…`);
       } else if (state.settings.thinkingMode === 'high' || state.settings.thinkingMode === 'low') {
         setTyping(true, `${state.settings.name}正在细想怎么回你…`);
