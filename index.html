@@ -564,15 +564,28 @@
   }
   .model-pill:hover { border-color: var(--blue-border); color: var(--blue); }
   .model-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-  .mem-summary-card {
-    padding: 10px 12px; border-radius: 12px;
-    background: var(--bg-sub); border: 1px solid var(--border);
-    margin-bottom: 10px;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  .set-tabs {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    background: var(--surface-muted); padding: 3px; border-radius: 11px;
+    margin-bottom: 14px;
   }
-  .mem-stats { font-size: 12px; color: var(--text-2); line-height: 1.45; }
-  .mem-stats span { color: var(--text-muted); font-size: 11px; display: block; margin-top: 2px; }
-  .mem-list { display: flex; flex-direction: column; gap: 8px; max-height: 36dvh; overflow-y: auto; margin-bottom: 12px; }
+  .set-tab {
+    border: none; background: transparent; color: var(--text-muted);
+    font-size: 12.5px; font-weight: 500; padding: 6px 0; border-radius: 8px;
+    cursor: pointer; transition: all 0.16s;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .set-tab.active {
+    background: var(--surface); color: var(--text); font-weight: 600;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  }
+  .set-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--blue); display: none;
+  }
+  .set-dot.show { display: inline-block; }
+  .set-pane { display: none; }
+  .set-pane.active { display: block; }
+  .mem-list { display: flex; flex-direction: column; gap: 8px; max-height: 30dvh; overflow-y: auto; margin-bottom: 10px; }
   .mem-item {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
     padding: 9px 11px; border-radius: 11px;
@@ -739,88 +752,115 @@
     </div>
   </main>
 
-  <!-- Settings Modal -->
+  <!-- Settings Modal (3 Clean Tabs: 伴侣 / 记忆 / 模型) -->
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-sheet">
       <div class="modal-header">
-        <div class="modal-title">模型接入与伴侣设定</div>
+        <div class="modal-title">设置</div>
         <button class="mini-btn" id="closeSettingsBtn">✕ 关闭</button>
       </div>
 
-      <div class="field">
-        <label>界面风格</label>
-        <div class="presets" id="themePicker" style="margin-bottom:4px;">
-          <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
-          <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
+      <div class="set-tabs" id="setTabBar">
+        <button type="button" class="set-tab active" data-set-tab="companion">伴侣</button>
+        <button type="button" class="set-tab" data-set-tab="memory">记忆 <span id="memTabCount" style="font-size:11px;color:var(--text-muted);"></span></button>
+        <button type="button" class="set-tab" data-set-tab="model">模型与数据 <span class="set-dot" id="modelCfgDot"></span></button>
+      </div>
+
+      <!-- Tab 1: Companion -->
+      <div class="set-pane active" data-set-pane="companion">
+        <div class="field">
+          <label>界面风格</label>
+          <div class="presets" id="themePicker" style="margin-bottom:4px;">
+            <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
+            <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>伴侣昵称</label>
+          <input id="cfgName" type="text" placeholder="林澈" />
+        </div>
+        <div class="field">
+          <label>伴侣人设（System Persona）</label>
+          <textarea id="cfgPersona" rows="4"></textarea>
+        </div>
+        <div class="toggle-row">
+          <span>点击小组件时，让 TA 实时回应</span>
+          <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
         </div>
       </div>
 
-      <div class="presets">
-        <button class="preset-btn" data-url="https://api.deepseek.com/v1">DeepSeek 官方</button>
-        <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter</button>
-        <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动</button>
-        <button class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
-      </div>
-
-      <div class="field">
-        <label>API Base URL（兼容 OpenAI 格式）</label>
-        <input id="cfgBaseUrl" type="text" placeholder="https://api.deepseek.com/v1" />
-      </div>
-      <div class="field">
-        <label>API Key（留空为演示模式；仅存本地存储）</label>
-        <input id="cfgApiKey" type="password" placeholder="sk-..." />
-      </div>
-      <div class="field">
-        <div class="field-label-row">
-          <label for="cfgModel">模型名称（Model）</label>
-          <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测可用模型</button>
+      <!-- Tab 2: Memory (Human-readable, no jargon) -->
+      <div class="set-pane" data-set-pane="memory">
+        <div class="hint" style="margin-top:0;margin-bottom:10px;">
+          聊天中 TA 会顺手把你的习惯、喜好记进小本本；聊长了也会自动整理前情，不用手动管。
         </div>
-        <input id="cfgModel" type="text" placeholder="可手动输入，或填入 Key 后自动检测" autocomplete="off" />
-        <div class="model-status" id="modelStatus"></div>
-        <div class="model-list" id="modelSuggestions"></div>
-      </div>
-      <div class="field">
-        <label>伴侣昵称</label>
-        <input id="cfgName" type="text" placeholder="林澈" />
-      </div>
-      <div class="field">
-        <label>伴侣人设（System Persona）</label>
-        <textarea id="cfgPersona" rows="3"></textarea>
-      </div>
-
-      <div class="toggle-row">
-        <span>点击小组件时，让 TA 实时回应</span>
-        <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
-      </div>
-      <div class="toggle-row">
-        <span>启用流式响应（SSE 逐字输出）</span>
-        <input id="cfgStream" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
-      </div>
-
-      <div class="mem-summary-card">
-        <div class="mem-stats">
-          长期记忆与上下文压缩
-          <span id="memStatsText">0 条长期记忆 · 0 条待压缩</span>
+        <div class="field">
+          <div class="field-label-row">
+            <label for="memSummaryInput">TA 对近期经历的印象</label>
+            <button type="button" class="detect-btn" id="compressNowBtn">↻ 帮 TA 整理一下</button>
+          </div>
+          <textarea id="memSummaryInput" rows="3" placeholder="聊得比较多时，这里会自动记录你们之前发生过的事…"></textarea>
+          <div class="model-status" id="memCompressStatus"></div>
         </div>
-        <button type="button" class="detect-btn" id="openMemoryBtn">管理小本本</button>
+        <div class="field">
+          <div class="field-label-row">
+            <label>小本本 · 记住的事</label>
+            <button type="button" class="mini-btn danger" id="clearMemBtn">清空记忆</button>
+          </div>
+          <div class="mem-add-row">
+            <input id="memNewKey" type="text" placeholder="标签（如：作息）" style="width:34%;" />
+            <input id="memNewVal" type="text" placeholder="内容（如：凌晨1点睡）" style="flex:1;" />
+            <button type="button" class="detect-btn" id="memAddBtn">+ 记一条</button>
+          </div>
+          <div class="mem-list" id="memList"></div>
+        </div>
       </div>
 
-      <div class="btn-row">
-        <button class="btn-ghost" id="exportDataBtn">导出备份</button>
-        <button class="btn-ghost" id="importDataBtn">导入恢复</button>
-        <input type="file" id="importFileInput" accept="application/json" style="display:none" />
-        <button class="btn-ghost" id="resetAllBtn">重置数据</button>
+      <!-- Tab 3: Model & Data -->
+      <div class="set-pane" data-set-pane="model">
+        <div class="presets">
+          <button class="preset-btn" data-url="https://api.deepseek.com/v1">DeepSeek 官方</button>
+          <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter</button>
+          <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动</button>
+          <button class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
+        </div>
+        <div class="field">
+          <label>API Base URL（兼容 OpenAI 格式）</label>
+          <input id="cfgBaseUrl" type="text" placeholder="https://api.deepseek.com/v1" />
+        </div>
+        <div class="field">
+          <label>API Key（留空则为离线演示模式）</label>
+          <input id="cfgApiKey" type="password" placeholder="sk-..." />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label for="cfgModel">模型名称（Model）</label>
+            <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测可用模型</button>
+          </div>
+          <input id="cfgModel" type="text" placeholder="可手动输入，或填入 Key 后自动检测" autocomplete="off" />
+          <div class="model-status" id="modelStatus"></div>
+          <div class="model-list" id="modelSuggestions"></div>
+        </div>
+        <div class="toggle-row">
+          <span>网页端启用流式输出（逐字显示）</span>
+          <input id="cfgStream" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
+        </div>
+        <div class="btn-row" style="margin-top:4px;">
+          <button class="btn-ghost" style="flex:1;" id="exportDataBtn">导出备份</button>
+          <button class="btn-ghost" style="flex:1;" id="importDataBtn">导入恢复</button>
+          <input type="file" id="importFileInput" accept="application/json" style="display:none" />
+          <button class="btn-ghost" id="resetAllBtn">重置数据</button>
+        </div>
+        <div class="about-bar">
+          <span>数据与 Key 仅存手机本地沙盒</span>
+          <div class="about-links">
+            <button type="button" class="about-link" data-ext-url="https://github.com/lede100/roomi">GitHub 开源</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:12px;">
         <button class="btn-primary" id="saveSettingsBtn">保存并应用</button>
-      </div>
-      <div class="hint">
-        存储优先写入本地 IndexedDB（兼容旧版 localStorage 自动迁移），后续可直接替换原生存储打包 APK；所有生成的小组件运行在无 <code>allow-same-origin</code> 且开启 CSP 断网隔离的沙盒 iframe 中。
-      </div>
-      <div class="about-bar">
-        <span>Roomi · 关于与反馈</span>
-        <div class="about-links">
-          <button type="button" class="about-link" data-ext-url="https://github.com/lede100/roomi">GitHub 开源</button>
-          <button type="button" class="about-link" data-ext-url="https://v.douyin.com/v6fncBugjAU/">抖音反馈</button>
-        </div>
       </div>
     </div>
   </div>
@@ -838,40 +878,6 @@
         <button class="mini-btn" id="closeCodeBtn">✕ 关闭</button>
       </div>
       <pre class="code-pre" id="codePreview"></pre>
-    </div>
-  </div>
-
-  <!-- Long-Term Memory & Context Summary Modal -->
-  <div class="modal-backdrop" id="memoryModal">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <div class="modal-title">TA 的小本本（长期记忆与摘要）</div>
-        <button class="mini-btn" id="closeMemoryBtn">✕ 关闭</button>
-      </div>
-
-      <div class="field">
-        <div class="field-label-row">
-          <label for="memSummaryInput">前情提要（滚动压缩摘要）</label>
-          <button type="button" class="detect-btn" id="compressNowBtn">↻ 立即压缩旧对话</button>
-        </div>
-        <textarea id="memSummaryInput" rows="3" placeholder="聊多以后会自动把滑出窗口的旧对话压缩成前情摘要…"></textarea>
-        <div class="model-status" id="memCompressStatus"></div>
-      </div>
-
-      <div class="field">
-        <label>长期记忆档案（对话中会自动提取，也可手动增删）</label>
-        <div class="mem-add-row">
-          <input id="memNewKey" type="text" placeholder="标签（如：作息）" style="width:34%;" />
-          <input id="memNewVal" type="text" placeholder="内容（如：一般凌晨1点睡）" style="flex:1;" />
-          <button type="button" class="detect-btn" id="memAddBtn">+ 添加</button>
-        </div>
-        <div class="mem-list" id="memList"></div>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn-ghost" id="clearMemBtn">清空记忆与摘要</button>
-        <button class="btn-primary" id="saveMemBtn">保存修改</button>
-      </div>
     </div>
   </div>
 </div>
@@ -2744,6 +2750,57 @@ ${chunk.slice(0, 4200)}
     if (detectedModels.length) renderModelSuggestions('');
   });
 
+  const memSummaryInput = document.getElementById('memSummaryInput');
+  const memListEl = document.getElementById('memList');
+  const memCompressStatus = document.getElementById('memCompressStatus');
+  const memTabCount = document.getElementById('memTabCount');
+  const modelCfgDot = document.getElementById('modelCfgDot');
+
+  function switchSettingsTab(tabKey) {
+    document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.setTab === tabKey);
+    });
+    document.querySelectorAll('#settingsModal .set-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.dataset.setPane === tabKey);
+    });
+  }
+
+  document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchSettingsTab(btn.dataset.setTab));
+  });
+
+  function updateMemStats() {
+    const memCount = Array.isArray(state.memories) ? state.memories.length : 0;
+    if (memTabCount) memTabCount.textContent = memCount ? `(${memCount})` : '';
+    if (modelCfgDot) {
+      const missingCfg = !state.settings.apiKey.trim() || !state.settings.model.trim();
+      modelCfgDot.classList.toggle('show', missingCfg);
+    }
+  }
+
+  function renderMemoryModalList() {
+    const list = Array.isArray(state.memories) ? state.memories : [];
+    memListEl.innerHTML = '';
+    if (!list.length) {
+      memListEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:12px;text-align:center;background:var(--bg-sub);border-radius:10px;">小本本还是空的，聊到你的作息/喜好时会自动记下来</div>`;
+      return;
+    }
+    list.forEach((m, idx) => {
+      const row = document.createElement('div');
+      row.className = 'mem-item';
+      row.innerHTML = `
+        <div style="flex:1;min-width:0;"><span class="mem-item-key">${escapeHtml(m.key)}</span><span>${escapeHtml(m.value)}</span></div>
+        <button type="button" class="mini-btn danger" data-idx="${idx}" title="删除">✕</button>`;
+      row.querySelector('button').onclick = () => {
+        state.memories.splice(idx, 1);
+        scheduleSave();
+        renderMemoryModalList();
+        updateMemStats();
+      };
+      memListEl.appendChild(row);
+    });
+  }
+
   document.getElementById('openSettingsBtn').onclick = () => {
     applyTheme(state.settings.theme);
     cfgBaseUrl.value = state.settings.baseUrl;
@@ -2753,6 +2810,9 @@ ${chunk.slice(0, 4200)}
     document.getElementById('cfgPersona').value = state.settings.persona;
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
     document.getElementById('cfgStream').checked = state.settings.stream !== false;
+    memSummaryInput.value = state.memorySummary || '';
+    memCompressStatus.textContent = '';
+    memCompressStatus.className = 'model-status';
     if (detectedModels.length) {
       renderModelSuggestions('');
     } else if (cfgApiKey.value.trim()) {
@@ -2761,7 +2821,9 @@ ${chunk.slice(0, 4200)}
       setModelStatus('');
       renderModelSuggestions();
     }
+    renderMemoryModalList();
     updateMemStats();
+    switchSettingsTab('companion');
     settingsModal.classList.add('show');
   };
   document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.remove('show');
@@ -2784,7 +2846,7 @@ ${chunk.slice(0, 4200)}
   });
 
   document.getElementById('saveSettingsBtn').onclick = () => {
-    state.settings._v = 2;
+    state.settings._v = 3;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
@@ -2792,9 +2854,11 @@ ${chunk.slice(0, 4200)}
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
     state.settings.stream = document.getElementById('cfgStream').checked;
+    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
     scheduleSave();
     renderHeader();
     renderChat();
+    updateMemStats();
     settingsModal.classList.remove('show');
   };
 
@@ -2849,56 +2913,6 @@ ${chunk.slice(0, 4200)}
     settingsModal.classList.remove('show');
   };
 
-  // ---- Long-Term Memory Modal ----
-  const memoryModal = document.getElementById('memoryModal');
-  const memSummaryInput = document.getElementById('memSummaryInput');
-  const memListEl = document.getElementById('memList');
-  const memCompressStatus = document.getElementById('memCompressStatus');
-
-  function updateMemStats() {
-    const el = document.getElementById('memStatsText');
-    if (!el) return;
-    const memCount = Array.isArray(state.memories) ? state.memories.length : 0;
-    const summarized = Math.min(state.summarizedCount || 0, state.messages.length);
-    const pending = Math.max(0, state.messages.length - summarized - 6);
-    el.textContent = `${memCount} 条长期记忆 · 已归档 ${summarized} 条 · 待压缩 ${pending} 条`;
-  }
-
-  function renderMemoryModalList() {
-    const list = Array.isArray(state.memories) ? state.memories : [];
-    memListEl.innerHTML = '';
-    if (!list.length) {
-      memListEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:12px;text-align:center;background:var(--bg-sub);border-radius:10px;">暂时还没有长期记忆，聊到你的偏好/作息时会自动记下来</div>`;
-      return;
-    }
-    list.forEach((m, idx) => {
-      const row = document.createElement('div');
-      row.className = 'mem-item';
-      row.innerHTML = `
-        <div style="flex:1;min-width:0;"><span class="mem-item-key">${escapeHtml(m.key)}</span><span>${escapeHtml(m.value)}</span></div>
-        <button type="button" class="mini-btn danger" data-idx="${idx}" title="删除">✕</button>`;
-      row.querySelector('button').onclick = () => {
-        state.memories.splice(idx, 1);
-        scheduleSave();
-        renderMemoryModalList();
-        updateMemStats();
-      };
-      memListEl.appendChild(row);
-    });
-  }
-
-  document.getElementById('openMemoryBtn').onclick = () => {
-    memSummaryInput.value = state.memorySummary || '';
-    memCompressStatus.textContent = '';
-    memCompressStatus.className = 'model-status';
-    renderMemoryModalList();
-    memoryModal.classList.add('show');
-  };
-  document.getElementById('closeMemoryBtn').onclick = () => memoryModal.classList.remove('show');
-  memoryModal.addEventListener('click', e => {
-    if (e.target === memoryModal) memoryModal.classList.remove('show');
-  });
-
   document.getElementById('memAddBtn').onclick = () => {
     const kEl = document.getElementById('memNewKey');
     const vEl = document.getElementById('memNewVal');
@@ -2914,30 +2928,30 @@ ${chunk.slice(0, 4200)}
   document.getElementById('compressNowBtn').onclick = async () => {
     const btn = document.getElementById('compressNowBtn');
     btn.disabled = true;
-    btn.textContent = '压缩中…';
-    memCompressStatus.textContent = '正在整理旧对话并提取记忆…';
+    btn.textContent = '整理中…';
+    memCompressStatus.textContent = '正在翻看之前的聊天并整理印象…';
     memCompressStatus.className = 'model-status';
     const res = await maybeCompressHistory(true);
     btn.disabled = false;
-    btn.textContent = '↻ 立即压缩旧对话';
+    btn.textContent = '↻ 帮 TA 整理一下';
     if (res.ok) {
       memSummaryInput.value = state.memorySummary || '';
       renderMemoryModalList();
-      memCompressStatus.textContent = `✓ 已成功压缩 ${res.moved} 条旧对话并更新档案`;
+      memCompressStatus.textContent = `✓ 已整理 ${res.moved} 条旧消息并更新印象`;
       memCompressStatus.className = 'model-status ok';
     } else if (res.reason === 'no_api') {
-      memCompressStatus.textContent = '演示模式无法调用模型压缩，请先配置 API Key';
+      memCompressStatus.textContent = '演示模式下无法整理，请先到「模型与数据」配置 API Key';
       memCompressStatus.className = 'model-status err';
     } else if (res.reason === 'few') {
-      memCompressStatus.textContent = '当前旧消息较少，暂不需要压缩（会保留最新 6 条对话）';
+      memCompressStatus.textContent = '目前聊得还不算多，还不需要单独整理哦';
     } else {
-      memCompressStatus.textContent = `压缩失败：${res.reason}`;
+      memCompressStatus.textContent = `整理失败：${res.reason}`;
       memCompressStatus.className = 'model-status err';
     }
   };
 
   document.getElementById('clearMemBtn').onclick = () => {
-    if (!confirm('确定清空全部长期记忆和前情摘要吗？（聊天记录不会被删除）')) return;
+    if (!confirm('确定清空 TA 的长期记忆和近期印象吗？（聊天记录不会被删除）')) return;
     state.memories = [];
     state.memorySummary = '';
     state.summarizedCount = 0;
@@ -2945,13 +2959,6 @@ ${chunk.slice(0, 4200)}
     scheduleSave();
     renderMemoryModalList();
     updateMemStats();
-  };
-
-  document.getElementById('saveMemBtn').onclick = () => {
-    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
-    scheduleSave();
-    updateMemStats();
-    memoryModal.classList.remove('show');
   };
 
   // ---- Code Inspector Modal ----
@@ -3025,10 +3032,6 @@ ${chunk.slice(0, 4200)}
         }
         if (codeModal.classList.contains('show')) {
           codeModal.classList.remove('show');
-          return;
-        }
-        if (memoryModal.classList.contains('show')) {
-          memoryModal.classList.remove('show');
           return;
         }
         if (settingsModal.classList.contains('show')) {
