@@ -527,12 +527,14 @@
   .modal-sheet input:not([type="checkbox"]):not([type="file"]):not([type="radio"]),
   .modal-sheet textarea,
   .field input, .field textarea {
-    width: 100%; border: 1px solid var(--border-strong);
+    border: 1px solid var(--border-strong);
     background: var(--bg-sub); color: var(--text);
     border-radius: 11px; padding: 9px 12px; font-size: 13px;
     font-family: inherit; outline: none; transition: border-color 0.16s, background 0.16s;
     appearance: none; -webkit-appearance: none;
   }
+  .field input, .field textarea { width: 100%; }
+  .mem-add-row input, .mem-edit-inputs input { width: auto; min-width: 0; }
   .modal-sheet input:not([type="checkbox"]):not([type="file"]):not([type="radio"]):focus,
   .modal-sheet textarea:focus,
   .field input:focus, .field textarea:focus { border-color: var(--blue); background: #fff; }
@@ -2792,14 +2794,14 @@
       if (m && m.role === 'user' && m.text) recentUserTexts.push(m.text);
     }
     const recentBlob = recentUserTexts.join(' ');
-    const needsWidget = !isEvent && /(组件|小窝|看板|工具|插件|卡片|转盘|打卡|倒计时|罐子|备忘|做个|做一个|弄个|写个|改一下|换个颜色|删掉|widget)/i.test(recentBlob);
+    const needsWidget = !isEvent && /(组件|小窝|看板|工具|插件|卡片|转盘|打卡|倒计时|罐子|备忘|widget|做个.{0,6}(?:表|卡|器|页|板|东西)|做一个.{0,6}(?:表|卡|器|页|板|东西)|改一下.{0,6}(?:组件|看板|颜色|样式))/i.test(recentBlob);
 
     let needsImage = false;
     if (state.settings.apiKey.trim() && isImageGenReady()) {
       if (state.settings.imgTrigger === 'auto') {
         needsImage = true;
       } else {
-        const recentImgHit = /(拍|照|自拍|看看你|长什么样|穿搭|画|发图|图|p一下|修图|换装|重拍|换背景)/i.test(recentBlob);
+        const recentImgHit = /(拍照|拍张|拍个|拍一张|照片|自拍|看看你|长什么样|穿搭|画一张|画个|画幅|发图|发张图|发照片|生图|出图|配图|p一下|修图|换装|重拍|换背景)/i.test(recentBlob);
         const lastMsgs = state.messages.slice(-3);
         const justSentImage = lastMsgs.some(m => m && m.role === 'assistant' && m.image);
         needsImage = recentImgHit || justSentImage;
@@ -3064,7 +3066,7 @@ ${state.settings.persona}${shiftNote}
     }
     const tier = CONTEXT_TIERS[state.settings.contextMode] || CONTEXT_TIERS.long;
     let budget = state.settings.maxContextChars || tier.chars;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
       } catch (err) {
@@ -3074,7 +3076,7 @@ ${state.settings.persona}${shiftNote}
           vErr.isVisionNotice = true;
           throw vErr;
         }
-        if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 2) {
+        if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 4) {
           throw err;
         }
         budget = Math.max(8000, Math.floor(budget / 2));
