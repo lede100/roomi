@@ -60,12 +60,11 @@ jobs:
               xml = xml.replace('android:name=".MainActivity"', 'android:name=".MainActivity" android:windowSoftInputMode="adjustResize"', 1)
           manifest.write_text(xml, encoding='utf-8')
 
-          # 2. Increment versionCode and versionName in build.gradle
+          # 2. Sync versionName with package.json and increment versionCode
           pkg = json.loads(pathlib.Path('package.json').read_text(encoding='utf-8'))
-          base_ver = '.'.join(pkg.get('version', '0.5.0').split('.')[:2])
+          ver_name = pkg.get('version', '0.6.0')
           run_num = int(os.environ.get('RUN_NUM', '1'))
           ver_code = 10 + run_num
-          ver_name = f"{base_ver}.{run_num}"
 
           gradle_path = pathlib.Path('android/app/build.gradle')
           gradle_txt = gradle_path.read_text(encoding='utf-8')
