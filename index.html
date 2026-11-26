@@ -523,6 +523,28 @@
   }
   .model-pill:hover { border-color: var(--blue-border); color: var(--blue); }
   .model-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .mem-summary-card {
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--bg-sub); border: 1px solid var(--border);
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .mem-stats { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+  .mem-stats span { color: var(--text-muted); font-size: 11px; display: block; margin-top: 2px; }
+  .mem-list { display: flex; flex-direction: column; gap: 8px; max-height: 36dvh; overflow-y: auto; margin-bottom: 12px; }
+  .mem-item {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    padding: 9px 11px; border-radius: 11px;
+    background: var(--bg-sub); border: 1px solid var(--border);
+    font-size: 12.5px; line-height: 1.45;
+  }
+  .mem-item-key { font-weight: 600; color: var(--blue); margin-right: 6px; }
+  .mem-add-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .mem-add-row input {
+    border: 1px solid var(--border-strong); background: var(--bg-sub); color: var(--text);
+    border-radius: 10px; padding: 8px 10px; font-size: 12.5px; outline: none; font-family: inherit;
+  }
+  .mem-add-row input:focus { border-color: var(--blue); background: #fff; }
   .toggle-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-radius: 12px;
@@ -708,6 +730,14 @@
         <input id="cfgStream" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
       </div>
 
+      <div class="mem-summary-card">
+        <div class="mem-stats">
+          长期记忆与上下文压缩
+          <span id="memStatsText">0 条长期记忆 · 0 条待压缩</span>
+        </div>
+        <button type="button" class="detect-btn" id="openMemoryBtn">管理小本本</button>
+      </div>
+
       <div class="btn-row">
         <button class="btn-ghost" id="exportDataBtn">导出备份</button>
         <button class="btn-ghost" id="importDataBtn">导入恢复</button>
@@ -729,6 +759,40 @@
         <button class="mini-btn" id="closeCodeBtn">✕ 关闭</button>
       </div>
       <pre class="code-pre" id="codePreview"></pre>
+    </div>
+  </div>
+
+  <!-- Long-Term Memory & Context Summary Modal -->
+  <div class="modal-backdrop" id="memoryModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">TA 的小本本（长期记忆与摘要）</div>
+        <button class="mini-btn" id="closeMemoryBtn">✕ 关闭</button>
+      </div>
+
+      <div class="field">
+        <div class="field-label-row">
+          <label for="memSummaryInput">前情提要（滚动压缩摘要）</label>
+          <button type="button" class="detect-btn" id="compressNowBtn">↻ 立即压缩旧对话</button>
+        </div>
+        <textarea id="memSummaryInput" rows="3" placeholder="聊多以后会自动把滑出窗口的旧对话压缩成前情摘要…"></textarea>
+        <div class="model-status" id="memCompressStatus"></div>
+      </div>
+
+      <div class="field">
+        <label>长期记忆档案（对话中会自动提取，也可手动增删）</label>
+        <div class="mem-add-row">
+          <input id="memNewKey" type="text" placeholder="标签（如：作息）" style="width:34%;" />
+          <input id="memNewVal" type="text" placeholder="内容（如：一般凌晨1点睡）" style="flex:1;" />
+          <button type="button" class="detect-btn" id="memAddBtn">+ 添加</button>
+        </div>
+        <div class="mem-list" id="memList"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" id="clearMemBtn">清空记忆与摘要</button>
+        <button class="btn-primary" id="saveMemBtn">保存修改</button>
+      </div>
     </div>
   </div>
 </div>
@@ -919,10 +983,14 @@
         name: '林澈',
         persona: DEFAULT_PERSONA,
         autoReact: true,
-        stream: true
+        stream: true,
+        maxContextChars: 3600
       },
       affection: 68,
       mood: '在线等你',
+      memories: [],
+      memorySummary: '',
+      summarizedCount: 0,
       messages: [
         { role: 'assistant', text: '来了？我刚把右边的「小窝看板」收拾妥当。' },
         { role: 'assistant', text: '以后需要什么小工具——早睡打卡、吃什么转盘、倒计时，直接跟我说一声，我现写一个挂到看板上。' }
@@ -1334,6 +1402,35 @@
     return attrs;
   }
 
+  // ---- Long-Term Memory Helpers ----
+  function upsertMemory(key, value) {
+    const k = String(key || '').trim().slice(0, 24);
+    const v = String(value || '').trim().slice(0, 120);
+    if (!k || !v) return false;
+    if (!Array.isArray(state.memories)) state.memories = [];
+    const idx = state.memories.findIndex(m => m.key.toLowerCase() === k.toLowerCase());
+    if (idx >= 0) {
+      state.memories[idx].key = k;
+      state.memories[idx].value = v;
+      state.memories[idx].updatedAt = Date.now();
+    } else {
+      state.memories.unshift({
+        id: 'mem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        key: k,
+        value: v,
+        updatedAt: Date.now()
+      });
+      if (state.memories.length > 80) state.memories = state.memories.slice(0, 80);
+    }
+    return true;
+  }
+
+  function removeMemoryByKey(key) {
+    const k = String(key || '').trim().toLowerCase();
+    if (!k || !Array.isArray(state.memories)) return;
+    state.memories = state.memories.filter(m => m.key.toLowerCase() !== k);
+  }
+
   function parseAssistantOutput(rawText) {
     let cleanText = String(rawText || '');
     const newWidgets = [];
@@ -1348,6 +1445,16 @@
         }
       }
       if (attrs.mood) state.mood = attrs.mood;
+      return '';
+    });
+
+    cleanText = cleanText.replace(/<MEMORY\b([^>]*?)\/?>(?:<\/MEMORY>)?/gi, (_, attrStr) => {
+      const attrs = parseTagAttrs(attrStr);
+      if (attrs.op === 'del' || attrs.op === 'delete') {
+        if (attrs.key) removeMemoryByKey(attrs.key);
+      } else if (attrs.key && attrs.value) {
+        upsertMemory(attrs.key, attrs.value);
+      }
       return '';
     });
 
@@ -1416,45 +1523,56 @@
     return { bubbles, newWidgets };
   }
 
-  function buildConversationHistory(promptOverride) {
-    const recent = state.messages.slice(-18);
-    const msgs = [];
+  function formatMessageForModel(m) {
+    if (m.role === 'user') return { role: 'user', content: m.text };
+    if (m.role === 'assistant') return { role: 'assistant', content: m.text };
+    if (m.role === 'event') return { role: 'user', content: `[看板互动记录] ${m.text}` };
+    if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
+    return null;
+  }
 
-    for (const m of recent) {
-      let role = null;
-      let content = '';
-      if (m.role === 'user') {
-        role = 'user';
-        content = m.text;
-      } else if (m.role === 'assistant') {
-        role = 'assistant';
-        content = m.text;
-      } else if (m.role === 'event') {
-        role = 'user';
-        content = `[看板互动记录] ${m.text}`;
-      } else if (m.role === 'spawn') {
-        role = 'assistant';
-        content = `[已创建并挂载小组件：${m.title}]`;
+  function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null) {
+    const limit = budgetChars || state.settings.maxContextChars || 3600;
+    const total = state.messages.length;
+    const selected = [];
+    let usedChars = 0;
+
+    // Walk backwards within character budget (always keep at least last 4 valid messages, cap at 28)
+    let windowStartIndex = total;
+    for (let i = total - 1; i >= 0; i--) {
+      const entry = formatMessageForModel(state.messages[i]);
+      if (!entry || !entry.content) continue;
+      const len = entry.content.length;
+      if (selected.length >= 4 && (usedChars + len > limit || selected.length >= 28)) {
+        break;
       }
-      if (!role || !content) continue;
+      selected.unshift({ index: i, ...entry });
+      usedChars += len;
+      windowStartIndex = i;
+    }
 
+    const msgs = [];
+    for (const item of selected) {
       const prev = msgs[msgs.length - 1];
-      if (prev && prev.role === role) {
-        prev.content += '\n' + content;
+      if (prev && prev.role === item.role) {
+        prev.content += '\n' + item.content;
       } else {
-        msgs.push({ role, content });
+        msgs.push({ role: item.role, content: item.content });
       }
     }
 
     if (promptOverride) {
       const prev = msgs[msgs.length - 1];
-      if (prev && prev.role === 'user') {
+      // Avoid duplicating the latest event text if it's already in the trailing message
+      if (isEvent && prev && prev.role === 'user' && prev.content.includes('[看板互动记录]')) {
+        prev.content += '\n（请用自然亲密的伴侣口吻简短回应上面的看板互动，不要重复创建组件。）';
+      } else if (prev && prev.role === 'user') {
         prev.content += '\n' + promptOverride;
       } else {
         msgs.push({ role: 'user', content: promptOverride });
       }
     }
-    return msgs;
+    return { msgs, windowStartIndex };
   }
 
   function buildSystemPrompt() {
@@ -1462,11 +1580,23 @@
     const themeHint = state.settings.theme === 'claude'
       ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
       : '极简白蓝主题：背景 #ffffff，正文 #111827，次级文字 #6b7280，主色 #4d6bfe，浅蓝底 #eff4ff，边框 #e6e9f0';
-    return `${state.settings.persona}
 
-【对话风格规则】
+    const memList = Array.isArray(state.memories) ? state.memories.slice(0, 25) : [];
+    const memoryBlock = memList.length
+      ? `\n【长期记忆档案（你一直记得的关于 TA 的事）】\n` + memList.map(m => `- ${m.key}：${m.value}`).join('\n').slice(0, 900)
+      : '';
+
+    const summaryBlock = state.memorySummary
+      ? `\n【前情提要（更早之前的对话压缩摘要）】\n${state.memorySummary.slice(0, 600)}`
+      : '';
+
+    return `${state.settings.persona}
+${memoryBlock}${summaryBlock}
+
+【对话风格与记忆规则】
 1. 像真人微信聊天一样回复，自然口语化，每次回复拆成 1~3 条短句，用 ||| 分隔（例如：醒啦？|||昨晚是不是又熬夜了）。
-2. 可在回复末尾附带一个状态标签更新心情和好感（不会展示给用户）：<AFFECTION delta="+1" mood="有点开心" />。
+2. 可在回复末尾附带状态标签（不会展示给用户）：<AFFECTION delta="+1" mood="有点开心" />。
+3. 当用户提到重要个人信息、作息习惯、饮食喜好、重要约定或变化时，可在末尾附带记忆标签悄悄记住：<MEMORY key="作息" value="通常凌晨1点睡" />（需要删除旧事实时用 op="del"）。只记录值得长期记住的事实，日常寒暄不要写。
 
 【小窝看板·现场造组件能力】
 当前看板已有组件：${widgetSummary}。
@@ -1508,19 +1638,29 @@
     return acc;
   }
 
-  async function callLiveLLM(promptOverride, onStreamProgress) {
+  let lastWindowStartIndex = 0;
+  let isCompressing = false;
+
+  function isContextLimitError(err) {
+    const msg = String(err?.message || '').toLowerCase();
+    return /(context|length|token|too long|exceed|maximum|limit|413)/.test(msg);
+  }
+
+  async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null) {
     const { baseUrl, apiKey, model, stream } = state.settings;
     if (!baseUrl.trim() || !model.trim()) {
       throw new Error('请先在设置中填写 API Base URL 和模型名称');
     }
     const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
+    const built = buildConversationHistory(promptOverride, isEvent, budgetChars);
+    lastWindowStartIndex = built.windowStartIndex;
+
     const messages = [
       { role: 'system', content: buildSystemPrompt() },
-      ...buildConversationHistory(promptOverride)
+      ...built.msgs
     ];
 
     activeAbortController = new AbortController();
-    // CapacitorHttp buffers responses natively, so avoid SSE stream inside native APK
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
 
@@ -1541,7 +1681,7 @@
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${errText.slice(0, 120)}`);
+      throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
     }
 
     const contentType = res.headers.get('content-type') || '';
@@ -1575,6 +1715,111 @@
     }
 
     return fullText || '刚才走神了，再跟我说一遍？';
+  }
+
+  async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isEvent = false) {
+    let budget = state.settings.maxContextChars || 3600;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget);
+      } catch (err) {
+        if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 2) {
+          throw err;
+        }
+        // Shrink context budget on context-limit error and retry
+        budget = Math.max(600, Math.floor(budget / 2));
+        state.settings.maxContextChars = Math.max(1800, budget);
+        scheduleSave();
+      }
+    }
+  }
+
+  // ---- Rolling Context Compression & Fact Extraction ----
+  async function maybeCompressHistory(force = false) {
+    if (isCompressing) return { ok: false, reason: 'busy' };
+    const { baseUrl, apiKey, model } = state.settings;
+    if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
+      return { ok: false, reason: 'no_api' };
+    }
+
+    const curSummarized = Math.max(0, Math.min(state.summarizedCount || 0, state.messages.length));
+    // Leave at least the latest 6 messages untouched as active short-term context
+    const safeEnd = force
+      ? Math.max(0, state.messages.length - 6)
+      : Math.min(lastWindowStartIndex, Math.max(0, state.messages.length - 6));
+
+    const pendingCount = safeEnd - curSummarized;
+    if (!force && pendingCount < 10) return { ok: false, reason: 'few' };
+    if (pendingCount < 3) return { ok: false, reason: 'few' };
+
+    const sliceEnd = Math.min(safeEnd, curSummarized + 24);
+    const chunk = state.messages.slice(curSummarized, sliceEnd)
+      .map(formatMessageForModel)
+      .filter(Boolean)
+      .map(m => `${m.role === 'user' ? '用户' : '伴侣'}: ${m.content}`)
+      .join('\n');
+
+    if (!chunk.trim()) {
+      state.summarizedCount = sliceEnd;
+      scheduleSave();
+      return { ok: true, moved: sliceEnd - curSummarized };
+    }
+
+    isCompressing = true;
+    try {
+      const existingKeys = (state.memories || []).slice(0, 30).map(m => `${m.key}:${m.value}`).join('；') || '无';
+      const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
+      const prompt = `请把下面这段刚滑出对话窗口的旧聊天记录与原有前情提要合并压缩，并顺便提取值得长期记住的事实。
+
+【原有前情提要】
+${state.memorySummary || '（暂无）'}
+
+【已有长期记忆】
+${existingKeys}
+
+【待归档的新增旧对话】
+${chunk.slice(0, 4200)}
+
+请严格只输出一个 JSON 对象，格式如下：
+{"summary":"250字以内的连贯前情摘要，保留关键事件、情绪变化和未完成约定","facts":[{"key":"简短标签(如作息/喜好/约定)","value":"客观具体的长期事实"}]}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: model.trim(),
+          temperature: 0.2,
+          stream: false,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const raw = json.choices?.[0]?.message?.content || '';
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('摘要格式解析失败');
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      if (typeof parsed.summary === 'string' && parsed.summary.trim()) {
+        state.memorySummary = parsed.summary.trim().slice(0, 600);
+      }
+      if (Array.isArray(parsed.facts)) {
+        parsed.facts.forEach(f => {
+          if (f && f.key && f.value) upsertMemory(f.key, f.value);
+        });
+      }
+      state.summarizedCount = sliceEnd;
+      scheduleSave();
+      updateMemStats();
+      return { ok: true, moved: sliceEnd - curSummarized };
+    } catch (err) {
+      return { ok: false, reason: err.message };
+    } finally {
+      isCompressing = false;
+    }
   }
 
   // ---- Built-in Demo Engine (Clean White-Blue Styled Widgets) ----
@@ -1896,10 +2141,15 @@
       let raw = '';
 
       if (hasKey) {
-        raw = await callLiveLLM(isEvent ? userText : null, partial => {
+        raw = await callLiveLLMWithRetry(isEvent ? userText : null, partial => {
           const widgetPos = partial.search(/<widget/i);
           let visible = widgetPos >= 0 ? partial.slice(0, widgetPos) : partial;
-          visible = visible.replace(/<affection[\s\S]*$/i, '').replace(/\|\|\|/g, '\n');
+          visible = visible
+            .replace(/<affection[\s\S]*$/i, '')
+            .replace(/<memory[\s\S]*$/i, '')
+            .replace(/<affection\b[^>]*?\/?>(?:<\/affection>)?/gi, '')
+            .replace(/<memory\b[^>]*?\/?>(?:<\/memory>)?/gi, '')
+            .replace(/\|\|\|/g, '\n');
 
           if (widgetPos >= 0) {
             setTyping(true, `${state.settings.name}正在为你现做小组件`);
@@ -1909,7 +2159,7 @@
             row.querySelector('.bubble').textContent = visible.trim();
             scrollChatBottom();
           }
-        });
+        }, isEvent);
       } else {
         raw = await callDemoEngine(userText, isEvent);
       }
@@ -1947,6 +2197,7 @@
       scheduleSave();
       renderHeader();
       renderChat();
+      if (hasKey) maybeCompressHistory(false);
     } catch (err) {
       if (streamPreviewRow) {
         streamPreviewRow.remove();
@@ -2183,6 +2434,7 @@
       setModelStatus('');
       renderModelSuggestions();
     }
+    updateMemStats();
     settingsModal.classList.add('show');
   };
   document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.remove('show');
@@ -2268,6 +2520,111 @@
     renderChat();
     renderWidgets();
     settingsModal.classList.remove('show');
+  };
+
+  // ---- Long-Term Memory Modal ----
+  const memoryModal = document.getElementById('memoryModal');
+  const memSummaryInput = document.getElementById('memSummaryInput');
+  const memListEl = document.getElementById('memList');
+  const memCompressStatus = document.getElementById('memCompressStatus');
+
+  function updateMemStats() {
+    const el = document.getElementById('memStatsText');
+    if (!el) return;
+    const memCount = Array.isArray(state.memories) ? state.memories.length : 0;
+    const summarized = Math.min(state.summarizedCount || 0, state.messages.length);
+    const pending = Math.max(0, state.messages.length - summarized - 6);
+    el.textContent = `${memCount} 条长期记忆 · 已归档 ${summarized} 条 · 待压缩 ${pending} 条`;
+  }
+
+  function renderMemoryModalList() {
+    const list = Array.isArray(state.memories) ? state.memories : [];
+    memListEl.innerHTML = '';
+    if (!list.length) {
+      memListEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:12px;text-align:center;background:var(--bg-sub);border-radius:10px;">暂时还没有长期记忆，聊到你的偏好/作息时会自动记下来</div>`;
+      return;
+    }
+    list.forEach((m, idx) => {
+      const row = document.createElement('div');
+      row.className = 'mem-item';
+      row.innerHTML = `
+        <div style="flex:1;min-width:0;"><span class="mem-item-key">${escapeHtml(m.key)}</span><span>${escapeHtml(m.value)}</span></div>
+        <button type="button" class="mini-btn danger" data-idx="${idx}" title="删除">✕</button>`;
+      row.querySelector('button').onclick = () => {
+        state.memories.splice(idx, 1);
+        scheduleSave();
+        renderMemoryModalList();
+        updateMemStats();
+      };
+      memListEl.appendChild(row);
+    });
+  }
+
+  document.getElementById('openMemoryBtn').onclick = () => {
+    memSummaryInput.value = state.memorySummary || '';
+    memCompressStatus.textContent = '';
+    memCompressStatus.className = 'model-status';
+    renderMemoryModalList();
+    memoryModal.classList.add('show');
+  };
+  document.getElementById('closeMemoryBtn').onclick = () => memoryModal.classList.remove('show');
+  memoryModal.addEventListener('click', e => {
+    if (e.target === memoryModal) memoryModal.classList.remove('show');
+  });
+
+  document.getElementById('memAddBtn').onclick = () => {
+    const kEl = document.getElementById('memNewKey');
+    const vEl = document.getElementById('memNewVal');
+    if (upsertMemory(kEl.value, vEl.value)) {
+      kEl.value = '';
+      vEl.value = '';
+      scheduleSave();
+      renderMemoryModalList();
+      updateMemStats();
+    }
+  };
+
+  document.getElementById('compressNowBtn').onclick = async () => {
+    const btn = document.getElementById('compressNowBtn');
+    btn.disabled = true;
+    btn.textContent = '压缩中…';
+    memCompressStatus.textContent = '正在整理旧对话并提取记忆…';
+    memCompressStatus.className = 'model-status';
+    const res = await maybeCompressHistory(true);
+    btn.disabled = false;
+    btn.textContent = '↻ 立即压缩旧对话';
+    if (res.ok) {
+      memSummaryInput.value = state.memorySummary || '';
+      renderMemoryModalList();
+      memCompressStatus.textContent = `✓ 已成功压缩 ${res.moved} 条旧对话并更新档案`;
+      memCompressStatus.className = 'model-status ok';
+    } else if (res.reason === 'no_api') {
+      memCompressStatus.textContent = '演示模式无法调用模型压缩，请先配置 API Key';
+      memCompressStatus.className = 'model-status err';
+    } else if (res.reason === 'few') {
+      memCompressStatus.textContent = '当前旧消息较少，暂不需要压缩（会保留最新 6 条对话）';
+    } else {
+      memCompressStatus.textContent = `压缩失败：${res.reason}`;
+      memCompressStatus.className = 'model-status err';
+    }
+  };
+
+  document.getElementById('clearMemBtn').onclick = () => {
+    if (!confirm('确定清空全部长期记忆和前情摘要吗？（聊天记录不会被删除）')) return;
+    state.memories = [];
+    state.memorySummary = '';
+    state.summarizedCount = 0;
+    memSummaryInput.value = '';
+    scheduleSave();
+    renderMemoryModalList();
+    updateMemStats();
+  };
+
+  document.getElementById('saveMemBtn').onclick = () => {
+    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+    scheduleSave();
+    updateMemStats();
+    memoryModal.classList.remove('show');
   };
 
   // ---- Code Inspector Modal ----
