@@ -3537,14 +3537,13 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     return '';
   }
 
-  function compressImageSrcToJpeg(srcUrl) {
+  function compressImageSrcToJpeg(srcUrl, maxSide = 2560, quality = 0.94) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       if (!srcUrl.startsWith('data:')) img.crossOrigin = 'anonymous';
       img.onerror = () => reject(new Error('图片解码失败'));
       img.onload = () => {
         try {
-          const maxSide = 1280;
           let w = img.width || 1024;
           let h = img.height || 1024;
           if (w > maxSide || h > maxSide) {
@@ -3563,7 +3562,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, w, h);
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.84));
+          resolve(canvas.toDataURL('image/jpeg', quality));
         } catch (err) {
           reject(err);
         }
@@ -3584,23 +3583,22 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
 
   async function downloadAndCompressImage(url) {
     if (String(url).startsWith('data:')) {
-      return compressImageSrcToJpeg(url);
+      return url;
     }
     try {
       const res = await fetchWithTimeout(url, {}, 40000);
       if (res.ok) {
         const blob = await res.blob();
-        const dataUri = await new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
           reader.onerror = () => reject(new Error('读取图片流失败'));
           reader.readAsDataURL(blob);
         });
-        return await compressImageSrcToJpeg(dataUri);
       }
     } catch {}
     try {
-      return await compressImageSrcToJpeg(url);
+      return await compressImageSrcToJpeg(url, 2560, 0.94);
     } catch {
       return url;
     }
@@ -3630,7 +3628,13 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       prompt,
       size: cleanSize
     };
-    if (refImg) body.image_url = [refImg];
+    if (refImg) {
+      let safeRef = refImg;
+      if (safeRef.startsWith('data:') && safeRef.length > 2500000) {
+        try { safeRef = await compressImageSrcToJpeg(safeRef, 1536, 0.9); } catch {}
+      }
+      body.image_url = [safeRef];
+    }
 
     const submitRes = await fetchWith429Backoff('https://api-inference.modelscope.cn/v1/images/generations', {
       method: 'POST',
@@ -3707,7 +3711,9 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     const json = await res.json();
     const first = json.data?.[0];
     if (first?.b64_json) {
-      return await compressImageSrcToJpeg(`data:image/png;base64,${first.b64_json}`);
+      const b64 = String(first.b64_json).trim();
+      const mime = b64.startsWith('/9j/') ? 'image/jpeg' : (b64.startsWith('UklGR') ? 'image/webp' : 'image/png');
+      return `data:${mime};base64,${b64}`;
     }
     if (first?.url) {
       return await downloadAndCompressImage(first.url);
