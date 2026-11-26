@@ -376,6 +376,39 @@
     outline: none;
   }
   .composer textarea::placeholder { color: var(--text-dim); }
+  .img-pick-btn {
+    width: 32px; height: 34px; border: none; border-radius: 50%;
+    background: transparent; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: color 0.16s, background 0.16s, opacity 0.16s;
+  }
+  .img-pick-btn:hover { background: var(--surface-muted); color: var(--blue); }
+  .img-pick-btn.unsupported { opacity: 0.42; color: var(--text-dim); }
+  .img-preview-bar {
+    display: none; align-items: center; gap: 10px;
+    padding: 6px 10px; margin-bottom: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow-sm);
+  }
+  .img-preview-bar.show { display: flex; }
+  .img-preview-thumb {
+    width: 42px; height: 42px; border-radius: 8px; object-fit: cover;
+    border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .img-preview-meta { flex: 1; font-size: 11.5px; color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bubble-img {
+    display: block; max-width: 220px; max-height: 240px;
+    border-radius: 11px; object-fit: cover; cursor: zoom-in;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .bubble-img + .bubble-text { margin-top: 6px; }
+  .img-lightbox {
+    position: absolute; inset: 0; z-index: 70;
+    background: rgba(15, 23, 42, 0.85);
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .img-lightbox.show { display: flex; }
+  .img-lightbox img { max-width: 100%; max-height: 86dvh; border-radius: 14px; object-fit: contain; }
 
   .send-btn {
     width: 34px; height: 34px; border: none; border-radius: 50%;
@@ -549,6 +582,19 @@
     border-radius: 10px; padding: 8px 10px; font-size: 12.5px; outline: none; font-family: inherit;
   }
   .mem-add-row input:focus { border-color: var(--blue); background: #fff; }
+  .about-bar {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+    font-size: 11.5px; color: var(--text-muted);
+  }
+  .about-links { display: flex; gap: 6px; flex-wrap: wrap; }
+  .about-link {
+    border: 1px solid var(--border); background: var(--bg-sub); color: var(--text-2);
+    font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+    cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+    transition: all 0.16s;
+  }
+  .about-link:hover { border-color: var(--blue-border); color: var(--blue); background: var(--blue-soft); }
   .toggle-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-radius: 12px;
@@ -648,7 +694,20 @@
           <button class="chip" data-prompt="帮我做个心情玻璃罐，我点情绪就能往里丢一颗彩球">🫧 心情玻璃罐</button>
         </div>
         <div class="composer-wrap">
+          <div class="img-preview-bar" id="imgPreviewBar">
+            <img class="img-preview-thumb" id="imgPreviewThumb" alt="预览" />
+            <div class="img-preview-meta" id="imgPreviewMeta">已压缩待发送</div>
+            <button type="button" class="mini-btn" id="clearImgBtn" title="移除图片">✕</button>
+          </div>
           <div class="composer">
+            <input type="file" id="imgFileInput" accept="image/*" style="display:none" />
+            <button type="button" class="img-pick-btn" id="pickImgBtn" title="发送图片" aria-label="发送图片">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </button>
             <textarea id="chatInput" rows="1" placeholder="给林澈发消息，或让 TA 现做个小组件…"></textarea>
             <button class="send-btn" id="sendBtn" aria-label="发送">
               <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -752,7 +811,19 @@
       <div class="hint">
         存储优先写入本地 IndexedDB（兼容旧版 localStorage 自动迁移），后续可直接替换原生存储打包 APK；所有生成的小组件运行在无 <code>allow-same-origin</code> 且开启 CSP 断网隔离的沙盒 iframe 中。
       </div>
+      <div class="about-bar">
+        <span>Roomi · 关于与反馈</span>
+        <div class="about-links">
+          <button type="button" class="about-link" data-ext-url="https://github.com/lede100/roomi">GitHub 开源</button>
+          <button type="button" class="about-link" data-ext-url="https://v.douyin.com/v6fncBugjAU/">抖音反馈</button>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Image Lightbox -->
+  <div class="img-lightbox" id="imgLightbox">
+    <img id="imgLightboxSrc" alt="查看大图" />
   </div>
 
   <!-- Source Code Inspector Modal -->
@@ -995,6 +1066,7 @@
       memories: [],
       memorySummary: '',
       summarizedCount: 0,
+      nonVisionModels: [],
       messages: [
         { role: 'assistant', text: '来了？我刚把右边的「小窝看板」收拾妥当。' },
         { role: 'assistant', text: '以后需要什么小工具——早睡打卡、吃什么转盘、倒计时，直接跟我说一声，我现写一个挂到看板上。' }
@@ -1170,6 +1242,7 @@
     modeBadge.textContent = isLive ? (state.settings.model || '未选模型') : '演示模式';
     modeBadge.classList.toggle('live', isLive);
     widgetCount.textContent = String(state.widgets.length);
+    updateVisionBtnState();
   }
 
   const CHAT_PAGE_SIZE = 60;
@@ -1200,7 +1273,26 @@
     if (m.role === 'user') {
       const row = document.createElement('div');
       row.className = 'msg-row user';
-      row.innerHTML = `<div class="bubble">${escapeHtml(m.text)}</div>`;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      if (m.image) {
+        const img = document.createElement('img');
+        img.className = 'bubble-img';
+        img.src = m.image;
+        img.alt = '图片';
+        img.onclick = () => {
+          document.getElementById('imgLightboxSrc').src = m.image;
+          document.getElementById('imgLightbox').classList.add('show');
+        };
+        bubble.appendChild(img);
+      }
+      if (m.text) {
+        const span = document.createElement('div');
+        span.className = 'bubble-text';
+        span.textContent = m.text;
+        bubble.appendChild(span);
+      }
+      row.appendChild(bubble);
       return row;
     }
     const row = document.createElement('div');
@@ -1566,14 +1658,17 @@
   }
 
   function formatMessageForModel(m) {
-    if (m.role === 'user') return { role: 'user', content: m.text };
+    if (m.role === 'user') {
+      const txt = (m.text || '').trim();
+      return { role: 'user', content: m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt };
+    }
     if (m.role === 'assistant') return { role: 'assistant', content: m.text };
     if (m.role === 'event') return { role: 'user', content: `[看板互动记录] ${m.text}` };
     if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
     return null;
   }
 
-  function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null) {
+  function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null, allowVisionForLast = true) {
     const limit = budgetChars || state.settings.maxContextChars || 3600;
     const total = state.messages.length;
     const selected = [];
@@ -1582,13 +1677,16 @@
     // Walk backwards within character budget (always keep at least last 4 valid messages, cap at 28)
     let windowStartIndex = total;
     for (let i = total - 1; i >= 0; i--) {
-      const entry = formatMessageForModel(state.messages[i]);
+      const rawMsg = state.messages[i];
+      const entry = formatMessageForModel(rawMsg);
       if (!entry || !entry.content) continue;
       const len = entry.content.length;
       if (selected.length >= 4 && (usedChars + len > limit || selected.length >= 28)) {
         break;
       }
-      selected.unshift({ index: i, ...entry });
+      // Only attach multimodal image payload to the very latest user message if allowed
+      const attachImage = allowVisionForLast && i === total - 1 && rawMsg.role === 'user' && rawMsg.image;
+      selected.unshift({ index: i, ...entry, image: attachImage ? rawMsg.image : null, rawText: rawMsg.text || '' });
       usedChars += len;
       windowStartIndex = i;
     }
@@ -1596,7 +1694,21 @@
     const msgs = [];
     for (const item of selected) {
       const prev = msgs[msgs.length - 1];
-      if (prev && prev.role === item.role) {
+      if (item.image) {
+        const textPart = item.rawText || '请看看这张图片';
+        const mergedText = (prev && prev.role === 'user' && typeof prev.content === 'string')
+          ? `${prev.content}\n${textPart}`
+          : textPart;
+        const multiContent = [
+          { type: 'text', text: mergedText },
+          { type: 'image_url', image_url: { url: item.image } }
+        ];
+        if (prev && prev.role === 'user') {
+          prev.content = multiContent;
+        } else {
+          msgs.push({ role: 'user', content: multiContent });
+        }
+      } else if (prev && prev.role === item.role && typeof prev.content === 'string') {
         prev.content += '\n' + item.content;
       } else {
         msgs.push({ role: item.role, content: item.content });
@@ -1606,9 +1718,9 @@
     if (promptOverride) {
       const prev = msgs[msgs.length - 1];
       // Avoid duplicating the latest event text if it's already in the trailing message
-      if (isEvent && prev && prev.role === 'user' && prev.content.includes('[看板互动记录]')) {
+      if (isEvent && prev && prev.role === 'user' && typeof prev.content === 'string' && prev.content.includes('[看板互动记录]')) {
         prev.content += '\n（请用自然亲密的伴侣口吻简短回应上面的看板互动，不要重复创建组件。）';
-      } else if (prev && prev.role === 'user') {
+      } else if (prev && prev.role === 'user' && typeof prev.content === 'string') {
         prev.content += '\n' + promptOverride;
       } else {
         msgs.push({ role: 'user', content: promptOverride });
@@ -1702,13 +1814,36 @@ ${memoryBlock}${summaryBlock}
     return /(context|length|token|too long|exceed|maximum|limit|413)/.test(msg);
   }
 
-  async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null) {
+  function isVisionUnsupportedError(err) {
+    const msg = String(err?.message || '').toLowerCase();
+    return /(vision|image_url|image|multimodal|does not support|not support.*media|content must be a string|expected a string|invalid type.*array|415|422)/.test(msg);
+  }
+
+  function isModelMarkedNonVision(modelName) {
+    const m = String(modelName || '').trim().toLowerCase();
+    if (!m || !Array.isArray(state.nonVisionModels)) return false;
+    return state.nonVisionModels.some(item => item.toLowerCase() === m);
+  }
+
+  function markModelNonVision(modelName) {
+    const m = String(modelName || '').trim();
+    if (!m) return;
+    if (!Array.isArray(state.nonVisionModels)) state.nonVisionModels = [];
+    if (!isModelMarkedNonVision(m)) {
+      state.nonVisionModels.push(m);
+      scheduleSave();
+    }
+    updateVisionBtnState();
+  }
+
+  async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
     const { baseUrl, apiKey, model, stream } = state.settings;
     if (!baseUrl.trim() || !model.trim()) {
       throw new Error('请先在设置中填写 API Base URL 和模型名称');
     }
     const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
-    const built = buildConversationHistory(promptOverride, isEvent, budgetChars);
+    const allowVision = hasPendingImg && !isModelMarkedNonVision(model);
+    const built = buildConversationHistory(promptOverride, isEvent, budgetChars, allowVision);
     lastWindowStartIndex = built.windowStartIndex;
 
     const messages = [
@@ -1773,16 +1908,26 @@ ${memoryBlock}${summaryBlock}
     return fullText || '刚才走神了，再跟我说一遍？';
   }
 
-  async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isEvent = false) {
+  async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isEvent = false, hasPendingImg = false) {
+    if (hasPendingImg && isModelMarkedNonVision(state.settings.model)) {
+      const err = new Error(`当前模型「${state.settings.model}」不支持识图，请在设置中切换到支持视觉的模型（如 GPT-4o / Claude / Gemini / Qwen-VL）后重试。`);
+      err.isVisionNotice = true;
+      throw err;
+    }
     let budget = state.settings.maxContextChars || 3600;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget);
+        return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
       } catch (err) {
+        if (hasPendingImg && isVisionUnsupportedError(err)) {
+          markModelNonVision(state.settings.model);
+          const vErr = new Error(`当前模型「${state.settings.model}」不支持图片输入，已为你记住该限制。以后直接发文字即可，或换一个支持视觉的模型再发图。`);
+          vErr.isVisionNotice = true;
+          throw vErr;
+        }
         if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 2) {
           throw err;
         }
-        // Shrink context budget on context-limit error and retry
         budget = Math.max(600, Math.floor(budget / 2));
         state.settings.maxContextChars = Math.max(1800, budget);
         scheduleSave();
@@ -1879,8 +2024,11 @@ ${chunk.slice(0, 4200)}
   }
 
   // ---- Built-in Demo Engine (Clean White-Blue Styled Widgets) ----
-  async function callDemoEngine(userText, isEvent) {
+  async function callDemoEngine(userText, isEvent, hasImage = false) {
     await sleep(500);
+    if (hasImage) {
+      return `收到你发的照片啦！|||不过现在是离线演示模式，我还看不到图片里面的内容；在右上角填上支持识图的模型 API Key，我就能真看懂了。<AFFECTION delta="+1" mood="好奇张望" />`;
+    }
     if (isEvent) {
       if (userText.includes('早睡')) {
         return `不错嘛，今晚真挺听话的！|||奖励你一朵小红花，快去躺好盖被子。<AFFECTION delta="+2" mood="很满意" />`;
@@ -2170,7 +2318,7 @@ ${chunk.slice(0, 4200)}
   }
 
   // ---- Orchestrate AI Reply ----
-  async function triggerCompanionReply(userText, isEvent = false) {
+  async function triggerCompanionReply(userText, isEvent = false, hasImage = false) {
     isBusy = true;
     sendBtn.innerHTML = STOP_SVG;
     sendBtn.classList.add('stop');
@@ -2219,9 +2367,9 @@ ${chunk.slice(0, 4200)}
             row.querySelector('.bubble').textContent = visible.trim();
             scrollChatBottom();
           }
-        }, isEvent);
+        }, isEvent, hasImage);
       } else {
-        raw = await callDemoEngine(userText, isEvent);
+        raw = await callDemoEngine(userText, isEvent, hasImage);
       }
 
       if (streamPreviewRow) {
@@ -2289,6 +2437,8 @@ ${chunk.slice(0, 4200)}
       setTyping(false);
       if (err.name === 'AbortError') {
         appendChatMessage({ role: 'event', text: '已停止本次生成' });
+      } else if (err.isVisionNotice) {
+        appendChatMessage({ role: 'assistant', text: err.message });
       } else {
         appendChatMessage({
           role: 'assistant',
@@ -2311,19 +2461,108 @@ ${chunk.slice(0, 4200)}
     }
   }
 
+  // ---- Image Picking & Compression ----
+  const pickImgBtn = document.getElementById('pickImgBtn');
+  const imgFileInput = document.getElementById('imgFileInput');
+  const imgPreviewBar = document.getElementById('imgPreviewBar');
+  const imgPreviewThumb = document.getElementById('imgPreviewThumb');
+  const imgPreviewMeta = document.getElementById('imgPreviewMeta');
+  const imgLightbox = document.getElementById('imgLightbox');
+  let pendingImageUrl = '';
+
+  function updateVisionBtnState() {
+    const blocked = Boolean(state.settings.apiKey.trim()) && isModelMarkedNonVision(state.settings.model);
+    pickImgBtn.classList.toggle('unsupported', blocked);
+    pickImgBtn.title = blocked ? `当前模型「${state.settings.model}」不支持识图` : '发送图片';
+  }
+
+  function clearPendingImage() {
+    pendingImageUrl = '';
+    imgFileInput.value = '';
+    imgPreviewBar.classList.remove('show');
+    imgPreviewThumb.removeAttribute('src');
+  }
+
+  function compressImageFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('读取图片失败'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('图片格式暂不支持解析'));
+        img.onload = () => {
+          const maxSide = 1024;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxSide || h > maxSide) {
+            if (w >= h) {
+              h = Math.round((h * maxSide) / w);
+              w = maxSide;
+            } else {
+              w = Math.round((w * maxSide) / h);
+              h = maxSide;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+          resolve({ dataUrl, width: w, height: h, kb: Math.round((dataUrl.length * 3) / 4 / 1024) });
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  pickImgBtn.onclick = () => {
+    if (isBusy) return;
+    if (state.settings.apiKey.trim() && isModelMarkedNonVision(state.settings.model)) {
+      showWarn(`当前模型「${state.settings.model}」暂不支持识图，请在右上角设置更换支持视觉的模型`, true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2800);
+      return;
+    }
+    imgFileInput.click();
+  };
+
+  imgFileInput.onchange = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await compressImageFile(file);
+      pendingImageUrl = res.dataUrl;
+      imgPreviewThumb.src = res.dataUrl;
+      imgPreviewMeta.textContent = `已压缩至 ${res.width}×${res.height}（约 ${res.kb} KB）`;
+      imgPreviewBar.classList.add('show');
+      chatInput.focus();
+    } catch (err) {
+      showWarn(err.message);
+      clearPendingImage();
+    }
+  };
+  document.getElementById('clearImgBtn').onclick = clearPendingImage;
+  imgLightbox.onclick = () => imgLightbox.classList.remove('show');
+
   function handleSend(overrideText) {
     if (isBusy) {
       if (activeAbortController) activeAbortController.abort();
       return;
     }
     const text = (overrideText ?? chatInput.value).trim();
-    if (!text) return;
+    const image = overrideText ? '' : pendingImageUrl;
+    if (!text && !image) return;
 
     chatInput.value = '';
     chatInput.style.height = 'auto';
-    appendChatMessage({ role: 'user', text });
+    if (image) clearPendingImage();
+
+    appendChatMessage({ role: 'user', text, image: image || undefined });
     scheduleSave();
-    triggerCompanionReply(text, false);
+    triggerCompanionReply(text, false, Boolean(image));
   }
 
   sendBtn.addEventListener('click', () => handleSend());
@@ -2726,6 +2965,21 @@ ${chunk.slice(0, 4200)}
     return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
   }
 
+  async function openExternalUrl(url) {
+    const browser = window.Capacitor?.Plugins?.Browser;
+    if (browser?.open) {
+      try {
+        await browser.open({ url });
+        return;
+      } catch {}
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  document.querySelectorAll('[data-ext-url]').forEach(btn => {
+    btn.addEventListener('click', () => openExternalUrl(btn.dataset.extUrl));
+  });
+
   // ---- Init Async ----
   (async () => {
     try {
@@ -2759,6 +3013,10 @@ ${chunk.slice(0, 4200)}
     if (capApp?.addListener) {
       let lastBackTime = 0;
       capApp.addListener('backButton', () => {
+        if (imgLightbox.classList.contains('show')) {
+          imgLightbox.classList.remove('show');
+          return;
+        }
         if (codeModal.classList.contains('show')) {
           codeModal.classList.remove('show');
           return;
