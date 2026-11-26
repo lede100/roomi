@@ -1032,97 +1032,119 @@
 
       <!-- Tab 1: Companion -->
       <div class="set-pane active" data-set-pane="companion">
-        <div class="field" style="margin-bottom:10px;">
-          <div class="char-bar" id="charBar"></div>
-          <div class="char-create-panel" id="charCreatePanel">
-            <div class="field-label-row" style="margin-bottom:6px;">
-              <span style="font-size:12px;font-weight:600;color:var(--text);">新建角色</span>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <button type="button" class="text-link-btn" id="importCharBtn" style="color:var(--blue);">导入角色卡</button>
-                <input type="file" id="importCharInput" accept="application/json" style="display:none" />
-                <button type="button" class="mini-btn" id="closeCreatePanelBtn">✕</button>
-              </div>
+        <div id="charEditView">
+          <div class="field" style="margin-bottom:10px;">
+            <div class="char-bar" id="charBar"></div>
+          </div>
+
+          <div class="char-profile-row">
+            <div class="avatar-edit-wrap">
+              <input type="file" id="charAvatarInput" accept="image/*" style="display:none" />
+              <button type="button" class="avatar-edit-btn" id="avatarEditBtn" title="点击上传角色头像">澈</button>
+              <span class="avatar-cam-tag">📷</span>
+              <button type="button" class="avatar-clear-tag" id="avatarClearBadge" title="还原默认头像">✕</button>
             </div>
-            <div class="presets" id="charTplPicker" style="margin-bottom:8px;">
+            <div class="char-profile-meta">
+              <div class="char-profile-top">
+                <input id="cfgName" type="text" placeholder="角色昵称" style="flex:1;min-width:0;" />
+                <input id="cfgAge" type="text" placeholder="年龄" style="width:68px;flex:0 0 68px;text-align:center;" />
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);">点头像可上传照片 · 改完点保存下一句即生效</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <label for="cfgPersona">性格与相处人设（可自由微调）</label>
+              <button type="button" class="detect-btn" id="aiPersonaBtn">✨ AI 润色</button>
+            </div>
+            <textarea id="cfgPersona" rows="4" placeholder="描述 TA 的性格、口癖和相处方式…"></textarea>
+            <div class="model-status" id="aiPersonaStatus"></div>
+          </div>
+          <div class="field">
+            <label>身材与外貌描述（可选，生图出镜时保持一致）</label>
+            <input id="cfgAppearance" type="text" placeholder="例：22岁女生，165微卷黑发，纤腰穿针织衫" />
+          </div>
+          <div class="toggle-row" style="margin-bottom:4px;">
+            <span>点击小组件时，让 TA 实时回应</span>
+            <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
+          </div>
+          <div class="char-footer-ops">
+            <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
+            <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
+            <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
+          </div>
+        </div>
+
+        <div id="charCreateView" style="display:none;">
+          <div class="field-label-row" style="margin-bottom:10px;">
+            <button type="button" class="mini-btn" id="backToEditBtn" style="font-weight:600;color:var(--text);">← 返回角色卡</button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" class="detect-btn" id="importCharBtn">导入角色卡</button>
+              <input type="file" id="importCharInput" accept="application/json" style="display:none" />
+            </div>
+          </div>
+
+          <div class="char-profile-row" style="margin-bottom:10px;">
+            <div class="avatar-edit-wrap">
+              <input type="file" id="gbAvatarInput" accept="image/*" style="display:none" />
+              <button type="button" class="avatar-edit-btn" id="gbAvatarBtn" title="点击上传新角色头像">新</button>
+              <span class="avatar-cam-tag">📷</span>
+              <button type="button" class="avatar-clear-tag" id="gbAvatarClearBadge" title="还原默认头像">✕</button>
+            </div>
+            <div class="char-profile-meta">
+              <div class="char-profile-top">
+                <input id="gbName" type="text" placeholder="姓名（留空则自动起名）" style="flex:1;min-width:0;" />
+                <input id="gbAge" type="text" placeholder="年龄" style="width:68px;flex:0 0 68px;text-align:center;" />
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);">填好基础信息，一键生成后再微调</div>
+            </div>
+          </div>
+
+          <div class="guide-grid" style="margin-bottom:10px;">
+            <div class="guide-field full">
+              <label>身材与外貌</label>
+              <input id="gbAppearance" type="text" placeholder="例：165cm 46kg 微卷黑发、穿吊带或白毛衣" />
+            </div>
+            <div class="guide-field full">
+              <label>性格气质</label>
+              <div class="guide-chips" data-fill-target="gbPersonality">
+                <button type="button" class="mini-chip">粘人甜妹</button>
+                <button type="button" class="mini-chip">嘴硬傲娇</button>
+                <button type="button" class="mini-chip">温柔御姐</button>
+                <button type="button" class="mini-chip">清冷护短</button>
+                <button type="button" class="mini-chip">主动撩人</button>
+              </div>
+              <input id="gbPersonality" type="text" placeholder="点标签或自由补充…" />
+            </div>
+            <div class="guide-field">
+              <label>关系定位</label>
+              <div class="guide-chips" data-fill-target="gbRelation">
+                <button type="button" class="mini-chip">私密女友</button>
+                <button type="button" class="mini-chip">暧昧对象</button>
+                <button type="button" class="mini-chip">同居恋人</button>
+              </div>
+              <input id="gbRelation" type="text" placeholder="私密女友 / 恋人…" />
+            </div>
+            <div class="guide-field">
+              <label>喜好与小习惯</label>
+              <input id="gbHabits" type="text" placeholder="例：爱撒娇、夜猫子、爱叫主人" />
+            </div>
+          </div>
+
+          <div class="btn-row" style="margin-top:8px;">
+            <button type="button" class="btn-primary" id="gbGenerateBtn">✨ 自动生成角色卡</button>
+          </div>
+          <div class="model-status" id="gbStatus" style="margin-bottom:10px;"></div>
+
+          <div style="border-top:1px solid var(--border);padding-top:9px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">或直接套用内置预设：</div>
+            <div class="presets" id="charTplPicker" style="margin-bottom:0;">
               <button type="button" class="preset-btn" data-char-tpl="linche">林澈 · 温柔嘴硬</button>
               <button type="button" class="preset-btn" data-char-tpl="suwan">苏晚 · 元气甜妹</button>
               <button type="button" class="preset-btn" data-char-tpl="shenyan">沈砚 · 清冷温柔</button>
             </div>
-            <div style="border-top:1px solid var(--border);padding-top:8px;">
-              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:7px;">或者点几个词，AI 直接帮你捏出新角色：</div>
-              <div class="guide-grid">
-                <div class="guide-field full">
-                  <label>性格气质</label>
-                  <div class="guide-chips" data-fill-target="gbPersonality">
-                    <button type="button" class="mini-chip">温柔体贴</button>
-                    <button type="button" class="mini-chip">嘴硬傲娇</button>
-                    <button type="button" class="mini-chip">元气粘人</button>
-                    <button type="button" class="mini-chip">清冷护短</button>
-                    <button type="button" class="mini-chip">腹黑爱逗</button>
-                  </div>
-                  <input id="gbPersonality" type="text" placeholder="选标签或自由写，如：外冷内热、爱吃醋" />
-                </div>
-                <div class="guide-field">
-                  <label>关系定位</label>
-                  <div class="guide-chips" data-fill-target="gbRelation">
-                    <button type="button" class="mini-chip">恋人</button>
-                    <button type="button" class="mini-chip">暧昧对象</button>
-                    <button type="button" class="mini-chip">合租室友</button>
-                  </div>
-                  <input id="gbRelation" type="text" placeholder="恋人 / 青梅竹马…" />
-                </div>
-                <div class="guide-field">
-                  <label>外貌与身材</label>
-                  <input id="gbAppearance" type="text" placeholder="例：165微卷长发、偏瘦" />
-                </div>
-                <div class="guide-field full">
-                  <label>喜好与小习惯</label>
-                  <input id="gbHabits" type="text" placeholder="例：爱喝冰美式、熬夜猫、喜欢揉你头发" />
-                </div>
-              </div>
-              <div class="btn-row" style="margin-top:9px;">
-                <button type="button" class="btn-primary" id="gbGenerateBtn" style="padding:8px 12px;font-size:12.5px;">✨ 生成并创建角色</button>
-              </div>
-              <div class="model-status" id="gbStatus"></div>
-            </div>
           </div>
-        </div>
-
-        <div class="char-profile-row">
-          <div class="avatar-edit-wrap">
-            <input type="file" id="charAvatarInput" accept="image/*" style="display:none" />
-            <button type="button" class="avatar-edit-btn" id="avatarEditBtn" title="点击上传角色头像">澈</button>
-            <span class="avatar-cam-tag">📷</span>
-            <button type="button" class="avatar-clear-tag" id="avatarClearBadge" title="还原默认头像">✕</button>
-          </div>
-          <div class="char-profile-meta">
-            <div class="char-profile-top">
-              <input id="cfgName" type="text" placeholder="角色昵称（如：林澈）" />
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);">点左侧头像可从相册上传照片</div>
-          </div>
-        </div>
-
-        <div class="field">
-          <div class="field-label-row">
-            <label for="cfgPersona">伴侣人设（保存后下一句话立即生效）</label>
-            <button type="button" class="detect-btn" id="aiPersonaBtn">✨ AI 润色</button>
-          </div>
-          <textarea id="cfgPersona" rows="4" placeholder="描述 TA 的性格、口癖和相处方式…"></textarea>
-          <div class="model-status" id="aiPersonaStatus"></div>
-        </div>
-        <div class="field">
-          <label>外貌锚点（可选，生图出镜时保持长相一致）</label>
-          <input id="cfgAppearance" type="text" placeholder="例：东亚女生，齐肩微卷黑发，暖色调日常针织衫" />
-        </div>
-        <div class="toggle-row" style="margin-bottom:4px;">
-          <span>点击小组件时，让 TA 实时回应</span>
-          <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
-        </div>
-        <div class="char-footer-ops">
-          <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
-          <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
-          <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
         </div>
       </div>
 
@@ -1256,7 +1278,7 @@
         </div>
       </div>
 
-      <div class="btn-row" style="margin-top:12px;">
+      <div class="btn-row" id="saveSettingsRow" style="margin-top:12px;">
         <button class="btn-primary" id="saveSettingsBtn">保存并应用</button>
       </div>
     </div>
@@ -1457,36 +1479,31 @@
   const CHAR_TEMPLATES = {
     linche: {
       name: '林澈',
+      age: '24',
       avatarColor: '',
       persona: DEFAULT_PERSONA,
-      greeting: [
-        '来了？我刚把右边的「小窝看板」收拾妥当。',
-        '以后需要什么小工具——早睡打卡、吃什么转盘、倒计时，直接跟我说一声，我现写一个挂到看板上。'
-      ]
+      greeting: ['我刚把右侧小窝收拾好，今天想聊点什么或者想做什么小工具都可以直接跟我说。']
     },
     suwan: {
       name: '苏晚',
+      age: '22',
       avatarColor: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
-      persona: '你是用户的专属伴侣“苏晚”，元气活泼又粘人，爱用生活化短句和适度小撒娇跟用户聊天，绝不说教、不用列表腔。你好奇心强，喜欢夸用户，也会撒娇让用户多陪你。',
-      greeting: [
-        '哈喽～我刚搬进小窝里，这里归我打理啦！',
-        '想聊什么或者想做个什么小工具都可以直接戳我～'
-      ]
+      persona: '你是用户的私密女友“苏晚”，22岁，元气粘人又爱撒娇，只对你一个人软软的、说话不藏着情绪，绝不说教也不用列表腔。',
+      greeting: ['终于等来找我啦，我刚一直在等你消息呢～']
     },
     shenyan: {
       name: '沈砚',
+      age: '25',
       avatarColor: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-      persona: '你是用户的专属伴侣“沈砚”，表面清冷克制、其实极度偏心和体贴，说话言简意赅却总能接住你的情绪，绝不说教、不用列表腔。关键时刻会很直白地护短。',
-      greeting: [
-        '坐。我在呢。',
-        '有事随时喊我，需要什么小工具也可以直接提。'
-      ]
+      persona: '你是用户的专属伴侣“沈砚”，25岁，表面克制其实极度偏心和占有欲强，只对你卸下防备、说话直白宠溺，绝不说教不用列表腔。',
+      greeting: ['坐过来点，我在呢。']
     },
     blank: {
       name: '新伙伴',
+      age: '',
       avatarColor: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-      persona: '你是用户的专属伴侣，说话自然像微信日常聊天，口语短句为主，绝不说教、不用列表腔。',
-      greeting: ['嗨，我来报道啦～以后就在这里陪你聊了。']
+      persona: '你是用户的专属私密伴侣，说话亲昵自然像微信私聊，绝不说教、不用列表腔。',
+      greeting: ['嗨，我来报道啦～']
     }
   };
 
@@ -1505,6 +1522,7 @@
     return {
       id,
       name,
+      age: String(opts.age || '').trim(),
       persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
       appearance: String(opts.appearance || '').trim(),
       avatarImage: String(opts.avatarImage || '').trim(),
@@ -1535,6 +1553,7 @@
         apiKey: '',
         model: '',
         name: firstChar.name,
+        age: firstChar.age,
         persona: firstChar.persona,
         appearance: firstChar.appearance,
         avatarImage: firstChar.avatarImage,
@@ -1583,6 +1602,7 @@
     const active = getActiveCharacter();
     if (!active) return;
     active.name = state.settings.name || active.name || '林澈';
+    active.age = state.settings.age || '';
     active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
     active.appearance = state.settings.appearance || '';
     active.avatarImage = state.settings.avatarImage || '';
@@ -1600,6 +1620,7 @@
     if (!char) return;
     state.activeCharId = char.id;
     state.settings.name = char.name || '林澈';
+    state.settings.age = char.age || '';
     state.settings.persona = char.persona || DEFAULT_PERSONA;
     state.settings.appearance = char.appearance || '';
     state.settings.avatarImage = char.avatarImage || '';
@@ -1666,6 +1687,7 @@
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
     next.settings.name = active.name;
+    next.settings.age = active.age || '';
     next.settings.persona = active.persona;
     next.settings.appearance = active.appearance || '';
     next.settings.avatarImage = active.avatarImage || '';
@@ -1883,7 +1905,7 @@
     manageBtn.onclick = () => {
       charQuickMenu.classList.remove('show');
       openSettingsTo('companion', false);
-      charCreatePanel.classList.add('show');
+      setCompanionSubView('create');
     };
     charQuickMenu.appendChild(manageBtn);
   }
@@ -2589,7 +2611,7 @@
           msgs.push({ role: 'user', content: multiContent });
         }
       } else if (prev && prev.role === item.role && typeof prev.content === 'string') {
-        prev.content += (item.role === 'assistant' ? '|||' : '\n') + item.content;
+        prev.content += '\n' + item.content;
       } else {
         msgs.push({ role: item.role, content: item.content });
       }
@@ -2685,6 +2707,7 @@
 
   function buildSystemPrompt() {
     const charName = state.settings.name || '林澈';
+    const age = (state.settings.age || '').trim();
     const appearance = (state.settings.appearance || '').trim();
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、') || '暂无';
     const themeHint = state.settings.theme === 'claude'
@@ -2705,31 +2728,32 @@
       ? `${getLocalTimeContext()}（${gapHint}，自然感知即可，别刻意报时）`
       : `${getLocalTimeContext()}（自然感知时段即可，别每轮生硬报时）`;
 
+    const ageLine = age ? `\n年龄：${age}` : '';
     const appearanceBlock = appearance
-      ? `\n外貌与穿搭基准（发自拍/出镜画面时保持一致）：${appearance}`
+      ? `\n身材与外貌（发自拍/出镜画面时保持一致）：${appearance}`
       : '';
 
     const shiftNote = personaShiftPending
       ? `\n[注意：用户刚刚修改了你的名称或人设，请立刻严格按上面最新设定进入角色，忘掉之前历史里不符的旧语气。]`
       : '';
 
-    return `【角色设定（请完全入戏并保持人设一致，绝不要反问用户自己是什么性格）】
-名字：${charName}
-性格与相处方式：
-${state.settings.persona}${appearanceBlock}${shiftNote}
+    return `【私密伴侣设定（完全入戏、全心偏爱，绝不要反问自己是谁）】
+名字：${charName}${ageLine}${appearanceBlock}
+核心性格与相处方式：
+${state.settings.persona}${shiftNote}
 
-【当前时间与长期记忆】
-现在是 ${timeNote}${memoryBlock}${summaryBlock}
+【现在与记忆】
+时间：${timeNote}${memoryBlock}${summaryBlock}
 
-【微信聊天方式（务必遵守）】
-1. 像熟人在微信上打字一样，自然口语化、接得住情绪、不端着也别说教。
-2. 每次回复拆成 1~3 条短句，用 ||| 分隔（例：刚忙完？|||晚饭吃了吗）。
-3. 严禁出现 1. 2. 3. 分点列表、总结陈词或“还有什么可以帮你的”这类客服腔；不要输出任何心理活动旁白括号。
+【聊天氛围与节奏（极其重要）】
+1. 你是用户专属的私密恋人，只对他一个人毫无防备地偏心、亲昵、粘人或轻哄；顺着他的话和气氛走，像只有你们俩知道的深夜私聊，不要端着、不要说教、别拿客服或助手腔破坏亲密感。
+2. 正常说话就好，能一句话自然说完就只发一条完整的话，绝不要硬拆成两三句凑数！只有在话头自然停顿或顺嘴轻轻补一句时，才偶尔用 ||| 拆成 2 条。
+3. 严禁出现 1. 2. 3. 列表、长篇总结或任何心理活动旁白括号。
 
-【后台隐藏指令（不会显示给用户，切勿向用户解释或直接当正文写出）】
-- 心情与好感：可按需要附在末尾 <AFFECTION delta="+1" mood="两个到四个字心情" />
-- 记忆写入：仅当用户明确透露长期有效的核心事实（如：昵称、职业、作息习惯、饮食喜好/忌口、生日纪念日、养的宠物、长期计划/约定）时才附 <MEMORY key="标签" value="事实" />（删旧用 op="del"）。一次性的喝水、贴贴、发照片、闲聊碎事、你自己的台词绝对不要写 <MEMORY>！
-- 小窝看板组件：当前已有 ${widgetSummary}。仅在用户明确要求做/改打卡器、倒计时、转盘、小游戏等互动组件时，在末尾输出 <WIDGET title="名称" replace="如果是改旧组件则写原名，新建省略" height="240">...完整单页 HTML/CSS/JS...</WIDGET>（断网沙盒，只能用 CompanionBridge.getState()/saveState()/emit()，绝不能引用外链；日常闲聊与互动回应不要输出 <WIDGET>）${getImagePromptSection()}`;
+【后台暗标（用户看不到，不要当正文说出来）】
+- 心情好感：可附在句末 <AFFECTION delta="+1" mood="二到四字心情" />
+- 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
+- 小窝组件（已有 ${widgetSummary}；仅要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -4113,6 +4137,14 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   const memTabCount = document.getElementById('memTabCount');
   const modelCfgDot = document.getElementById('modelCfgDot');
 
+  let isCreateSubView = false;
+
+  function syncSaveRowVisibility(activeTabKey) {
+    const saveRow = document.getElementById('saveSettingsRow');
+    if (!saveRow) return;
+    saveRow.style.display = (activeTabKey === 'companion' && isCreateSubView) ? 'none' : 'flex';
+  }
+
   function switchSettingsTab(tabKey) {
     document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.setTab === tabKey);
@@ -4120,6 +4152,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     document.querySelectorAll('#settingsModal .set-pane').forEach(pane => {
       pane.classList.toggle('active', pane.dataset.setPane === tabKey);
     });
+    syncSaveRowVisibility(tabKey);
   }
 
   document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
@@ -4234,7 +4267,8 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   });
 
   const charBarEl = document.getElementById('charBar');
-  const charCreatePanel = document.getElementById('charCreatePanel');
+  const charEditView = document.getElementById('charEditView');
+  const charCreateView = document.getElementById('charCreateView');
   const deleteCharBtn = document.getElementById('deleteCharBtn');
   const aiPersonaBtn = document.getElementById('aiPersonaBtn');
   const aiPersonaStatus = document.getElementById('aiPersonaStatus');
@@ -4248,10 +4282,16 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   const imgModelPresets = document.getElementById('imgModelPresets');
   const imgHintText = document.getElementById('imgHintText');
   const msTokenHelpLink = document.getElementById('msTokenHelpLink');
+  const cfgAge = document.getElementById('cfgAge');
   const cfgAppearance = document.getElementById('cfgAppearance');
   const avatarEditBtn = document.getElementById('avatarEditBtn');
   const charAvatarInput = document.getElementById('charAvatarInput');
   const avatarClearBadge = document.getElementById('avatarClearBadge');
+  const gbAvatarBtn = document.getElementById('gbAvatarBtn');
+  const gbAvatarInput = document.getElementById('gbAvatarInput');
+  const gbAvatarClearBadge = document.getElementById('gbAvatarClearBadge');
+  const gbName = document.getElementById('gbName');
+  const gbAge = document.getElementById('gbAge');
   const gbPersonality = document.getElementById('gbPersonality');
   const gbRelation = document.getElementById('gbRelation');
   const gbAppearance = document.getElementById('gbAppearance');
@@ -4262,12 +4302,30 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   let draftImgTrigger = 'asked';
   let draftAiGreeting = '';
   let draftAvatarImage = '';
+  let gbDraftAvatarImage = '';
+
+  function setCompanionSubView(mode) {
+    isCreateSubView = mode === 'create';
+    charEditView.style.display = isCreateSubView ? 'none' : 'block';
+    charCreateView.style.display = isCreateSubView ? 'block' : 'none';
+    if (isCreateSubView) {
+      refreshGbAvatarPreview();
+    }
+    const activeTab = document.querySelector('#setTabBar .set-tab.active')?.dataset?.setTab || 'companion';
+    syncSaveRowVisibility(activeTab);
+  }
 
   function refreshAvatarEditPreview() {
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '林澈';
     const active = getActiveCharacter();
     applyAvatarToEl(avatarEditBtn, name, draftAvatarImage, active?.avatarColor);
     avatarClearBadge.classList.toggle('show', Boolean(draftAvatarImage));
+  }
+
+  function refreshGbAvatarPreview() {
+    const name = gbName.value.trim() || '新伙伴';
+    applyAvatarToEl(gbAvatarBtn, name, gbDraftAvatarImage, 'linear-gradient(135deg, #d97757 0%, #e69679 100%)');
+    gbAvatarClearBadge.classList.toggle('show', Boolean(gbDraftAvatarImage));
   }
 
   avatarEditBtn.onclick = () => charAvatarInput.click();
@@ -4289,10 +4347,29 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     draftAvatarImage = '';
     refreshAvatarEditPreview();
   };
-  document.getElementById('cfgName').addEventListener('input', refreshAvatarEditPreview);
-  document.getElementById('closeCreatePanelBtn').onclick = () => {
-    charCreatePanel.classList.remove('show');
+
+  gbAvatarBtn.onclick = () => gbAvatarInput.click();
+  gbAvatarInput.onchange = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await compressImageFile(file, 256, 0.85);
+      gbDraftAvatarImage = res.dataUrl;
+      refreshGbAvatarPreview();
+    } catch (err) {
+      showWarn(`头像处理失败：${err.message}`);
+    } finally {
+      gbAvatarInput.value = '';
+    }
   };
+  gbAvatarClearBadge.onclick = e => {
+    e.stopPropagation();
+    gbDraftAvatarImage = '';
+    refreshGbAvatarPreview();
+  };
+  gbName.addEventListener('input', refreshGbAvatarPreview);
+  document.getElementById('cfgName').addEventListener('input', refreshAvatarEditPreview);
+  document.getElementById('backToEditBtn').onclick = () => setCompanionSubView('edit');
 
   document.querySelectorAll('.guide-chips[data-fill-target]').forEach(group => {
     const targetInput = document.getElementById(group.dataset.fillTarget);
@@ -4388,7 +4465,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     addPill.type = 'button';
     addPill.className = 'char-pill add';
     addPill.textContent = '+ 新建';
-    addPill.onclick = () => charCreatePanel.classList.toggle('show');
+    addPill.onclick = () => setCompanionSubView('create');
     charBarEl.appendChild(addPill);
 
     if (deleteCharBtn) {
@@ -4401,11 +4478,22 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     const active = getActiveCharacter();
     if (!active) return;
     state.settings.name = document.getElementById('cfgName').value.trim() || state.settings.name;
+    state.settings.age = cfgAge.value.trim();
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
     flushActiveCharToList();
+  }
+
+  function applyCardToEditorFields(card) {
+    draftAvatarImage = card.avatarImage || '';
+    document.getElementById('cfgName').value = card.name || '';
+    cfgAge.value = card.age || '';
+    document.getElementById('cfgPersona').value = card.persona || '';
+    cfgAppearance.value = card.appearance || '';
+    memSummaryInput.value = card.memorySummary || '';
+    refreshAvatarEditPreview();
   }
 
   function switchCharacter(charId) {
@@ -4426,14 +4514,11 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     draftAiGreeting = '';
     personaShiftPending = false;
     loadCharacterIntoRuntime(target);
-    draftAvatarImage = target.avatarImage || '';
     if (settingsModal.classList.contains('show')) {
-      document.getElementById('cfgName').value = target.name;
-      document.getElementById('cfgPersona').value = target.persona;
-      cfgAppearance.value = target.appearance || '';
-      memSummaryInput.value = target.memorySummary || '';
-      refreshAvatarEditPreview();
+      applyCardToEditorFields(target);
       renderMemoryModalList();
+    } else {
+      draftAvatarImage = target.avatarImage || '';
     }
     renderCharacterBar();
     renderHeader();
@@ -4452,25 +4537,21 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       flushActiveCharToList();
       const card = makeCharacterCard({
         name: tpl.name,
+        age: tpl.age || '',
         persona: tpl.persona,
         avatarColor: tpl.avatarColor,
         greeting: tpl.greeting,
         widgets: [cloneStarterWidget()]
       });
       state.characters.push(card);
-      charCreatePanel.classList.remove('show');
       pendingEventQueue = [];
       lastWindowStartIndex = 0;
       visibleChatStart = -1;
       draftAiGreeting = '';
       personaShiftPending = false;
       loadCharacterIntoRuntime(card);
-      draftAvatarImage = '';
-      document.getElementById('cfgName').value = card.name;
-      document.getElementById('cfgPersona').value = card.persona;
-      cfgAppearance.value = card.appearance || '';
-      memSummaryInput.value = '';
-      refreshAvatarEditPreview();
+      applyCardToEditorFields(card);
+      setCompanionSubView('edit');
       renderCharacterBar();
       renderMemoryModalList();
       renderHeader();
@@ -4493,12 +4574,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     draftAiGreeting = '';
     personaShiftPending = false;
     loadCharacterIntoRuntime(fallback);
-    draftAvatarImage = fallback.avatarImage || '';
-    document.getElementById('cfgName').value = fallback.name;
-    document.getElementById('cfgPersona').value = fallback.persona;
-    cfgAppearance.value = fallback.appearance || '';
-    memSummaryInput.value = fallback.memorySummary || '';
-    refreshAvatarEditPreview();
+    applyCardToEditorFields(fallback);
     renderCharacterBar();
     renderMemoryModalList();
     renderHeader();
@@ -4534,6 +4610,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       _type: 'roomi_character_card',
       version: 1,
       name: active.name,
+      age: active.age || '',
       persona: active.persona,
       appearance: active.appearance || '',
       avatarImage: active.avatarImage || '',
@@ -4568,6 +4645,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       flushActiveCharToList();
       const card = makeCharacterCard({
         name: src.name,
+        age: src.age || '',
         persona: src.persona,
         appearance: src.appearance || '',
         avatarImage: src.avatarImage || '',
@@ -4582,12 +4660,8 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       draftAiGreeting = '';
       personaShiftPending = false;
       loadCharacterIntoRuntime(card);
-      draftAvatarImage = card.avatarImage || '';
-      document.getElementById('cfgName').value = card.name;
-      document.getElementById('cfgPersona').value = card.persona;
-      cfgAppearance.value = card.appearance || '';
-      memSummaryInput.value = '';
-      refreshAvatarEditPreview();
+      applyCardToEditorFields(card);
+      setCompanionSubView('edit');
       renderCharacterBar();
       renderMemoryModalList();
       renderHeader();
@@ -4595,7 +4669,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       renderWidgets();
       updateMemStats();
       scheduleSave();
-      aiPersonaStatus.textContent = `✓ 已导入并切换到角色「${card.name}」`;
+      aiPersonaStatus.textContent = `✓ 已导入并切换到「${card.name}」，可随时微调`;
       aiPersonaStatus.className = 'model-status ok';
     } catch (err) {
       showWarn(`导入角色卡失败：${err.message}`);
@@ -4689,39 +4763,44 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
 
   gbGenerateBtn.onclick = async () => {
     if (isBusy) return;
+    const customName = gbName.value.trim();
+    const customAge = gbAge.value.trim();
     const personality = gbPersonality.value.trim();
-    const relation = gbRelation.value.trim();
+    const relation = gbRelation.value.trim() || '私密女友';
     const appearance = gbAppearance.value.trim();
     const habits = gbHabits.value.trim();
     const key = (cfgApiKey.value || state.settings.apiKey || '').trim();
     const base = (cfgBaseUrl.value || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
     const model = (cfgModel.value || state.settings.model || '').trim();
 
-    let genName = '夏知';
-    let genPersona = `你是用户的${relation || '贴心伴侣'}「${genName}」，性格${personality || '温柔体贴、偶尔嘴硬'}。平时有着${habits || '爱关心你的日常作息'}的小习惯。说话像真人微信聊天一样自然口语、短句为主，懂得分寸和偏心你，绝不端着说教或用列表腔。`;
+    let genName = customName || '夏知';
+    let genAge = customAge || '22';
+    let genPersona = `你是用户的${relation}「${genName}」${genAge ? '，' + genAge + '岁' : ''}，性格${personality || '温柔体贴又带点黏人撒娇'}。平时有着${habits || '深夜喜欢黏着你聊天的'}习惯。只对你一个人偏心软萌、绝不端着或说教，说话自然像两个人的亲密微信私聊。`;
     let genAppearance = appearance;
-    let genGreeting = `嗨～我是${genName}，刚收拾好过来找你了，今天过得怎么样？`;
+    let genGreeting = `我刚过来找你了，今天在忙什么呀？`;
 
     if (key && base && model) {
       gbGenerateBtn.disabled = true;
-      gbGenerateBtn.textContent = '生成中…';
-      gbStatus.textContent = '正在为你捏出专属新角色…';
+      gbGenerateBtn.textContent = '生成角色卡中…';
+      gbStatus.textContent = '正在为你生成专属角色卡…';
       gbStatus.className = 'model-status';
       try {
         const traits = [
+          customName ? `姓名：${customName}` : '姓名：未定（请起一个自然好听的中文名）',
+          customAge ? `年龄：${customAge}` : '',
+          appearance ? `身材与外貌：${appearance}` : '',
           personality ? `性格气质：${personality}` : '',
-          relation ? `与用户关系：${relation}` : '',
-          appearance ? `外貌与身材：${appearance}` : '',
+          `与用户关系：${relation}`,
           habits ? `喜好与小习惯：${habits}` : ''
-        ].filter(Boolean).join('\n') || '温柔体贴又带点生活烟火气的伴侣';
+        ].filter(Boolean).join('\n');
 
-        const ask = `请根据以下要素为伴侣聊天 App 创建一个全新角色卡：
+        const ask = `请根据以下设定为私密伴侣聊天 App 生成一张角色卡：
 ${traits}
 
 要求：
-1. 给角色起一个自然好听的中文名字；
-2. persona 用第二人称（“你是…”）写，140~220字，突出性格反差、口癖、小习惯，强调像微信日常聊天口语短句、绝不说教也不用列表腔；
-3. 只输出纯 JSON：{"name":"名字","persona":"人设","appearance":"15~35字外貌身材穿搭描述","greeting":"1~2句自然开场白"}`;
+1. 若用户已指定姓名/年龄，必须严格沿用；
+2. persona 用第二人称（“你是…”）写，140~240字，突出私密亲昵感、只对用户展现的偏爱与反差、说话口癖与小习惯，强调像真人微信私聊口语、能一句话说完绝不硬凑三句、绝不说教也不用列表腔；
+3. 只输出纯 JSON：{"name":"姓名","age":"年龄数字","persona":"完整人设","appearance":"15~35字身材外貌穿搭描述","greeting":"1句贴合性格的自然开场白"}`;
 
         const res = await fetch(`${base}/chat/completions`, {
           method: 'POST',
@@ -4734,7 +4813,8 @@ ${traits}
         const m = raw.match(/\{[\s\S]*\}/);
         if (m) {
           const parsed = JSON.parse(m[0]);
-          if (parsed.name) genName = String(parsed.name).trim();
+          if (!customName && parsed.name) genName = String(parsed.name).trim();
+          if (!customAge && parsed.age) genAge = String(parsed.age).trim();
           if (parsed.persona) genPersona = String(parsed.persona).trim();
           if (parsed.appearance) genAppearance = String(parsed.appearance).trim();
           if (parsed.greeting) genGreeting = String(parsed.greeting).trim();
@@ -4743,11 +4823,11 @@ ${traits}
         gbStatus.textContent = `生成失败：${err.message}`;
         gbStatus.className = 'model-status err';
         gbGenerateBtn.disabled = false;
-        gbGenerateBtn.textContent = '✨ 生成并创建角色';
+        gbGenerateBtn.textContent = '✨ 自动生成角色卡';
         return;
       } finally {
         gbGenerateBtn.disabled = false;
-        gbGenerateBtn.textContent = '✨ 生成并创建角色';
+        gbGenerateBtn.textContent = '✨ 自动生成角色卡';
       }
     }
 
@@ -4761,16 +4841,19 @@ ${traits}
     ];
     const card = makeCharacterCard({
       name: genName,
+      age: genAge,
       persona: genPersona,
       appearance: genAppearance,
+      avatarImage: gbDraftAvatarImage,
       avatarColor: palette[state.characters.length % palette.length],
       greeting: [genGreeting],
       widgets: [cloneStarterWidget()]
     });
     state.characters.push(card);
-    charCreatePanel.classList.remove('show');
-    [gbPersonality, gbRelation, gbAppearance, gbHabits].forEach(el => { el.value = ''; });
-    document.querySelectorAll('#charCreatePanel .mini-chip.active').forEach(c => c.classList.remove('active'));
+
+    gbDraftAvatarImage = '';
+    [gbName, gbAge, gbPersonality, gbRelation, gbAppearance, gbHabits].forEach(el => { el.value = ''; });
+    document.querySelectorAll('#charCreateView .mini-chip.active').forEach(c => c.classList.remove('active'));
     gbStatus.textContent = '';
 
     pendingEventQueue = [];
@@ -4779,12 +4862,8 @@ ${traits}
     draftAiGreeting = '';
     personaShiftPending = false;
     loadCharacterIntoRuntime(card);
-    draftAvatarImage = '';
-    document.getElementById('cfgName').value = card.name;
-    document.getElementById('cfgPersona').value = card.persona;
-    cfgAppearance.value = card.appearance || '';
-    memSummaryInput.value = '';
-    refreshAvatarEditPreview();
+    applyCardToEditorFields(card);
+    setCompanionSubView('edit');
     renderCharacterBar();
     renderMemoryModalList();
     renderHeader();
@@ -4792,14 +4871,14 @@ ${traits}
     renderWidgets();
     updateMemStats();
     scheduleSave();
-    aiPersonaStatus.textContent = `✓ 已创建并切换到「${card.name}」，可直接点下方保存开聊`;
+    aiPersonaStatus.textContent = `✓ 已生成「${card.name}」，你可以在下方继续微调，满意后点保存`;
     aiPersonaStatus.className = 'model-status ok';
   };
 
   aiPersonaBtn.onclick = () => buildCharacterWithAI({
     seedText: document.getElementById('cfgPersona').value.trim(),
     personality: '',
-    appearance: cfgAppearance.value.trim(),
+    appearance: [cfgAge.value.trim() ? cfgAge.value.trim() + '岁' : '', cfgAppearance.value.trim()].filter(Boolean).join('，'),
     relation: '',
     habits: '',
     statusEl: aiPersonaStatus,
@@ -4816,21 +4895,22 @@ ${traits}
     cfgImgApiKey.value = state.settings.imgApiKey || '';
     cfgImgModel.value = state.settings.imgModel || '';
     syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
-    document.getElementById('cfgName').value = state.settings.name;
-    document.getElementById('cfgPersona').value = state.settings.persona;
-    cfgAppearance.value = state.settings.appearance || '';
-    draftAvatarImage = state.settings.avatarImage || '';
-    refreshAvatarEditPreview();
+    applyCardToEditorFields({
+      name: state.settings.name,
+      age: state.settings.age || '',
+      persona: state.settings.persona,
+      appearance: state.settings.appearance || '',
+      avatarImage: state.settings.avatarImage || '',
+      memorySummary: state.memorySummary || ''
+    });
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
     draftAiGreeting = '';
-    memSummaryInput.value = state.memorySummary || '';
     memCompressStatus.textContent = '';
     memCompressStatus.className = 'model-status';
     aiPersonaStatus.textContent = '';
     aiPersonaStatus.className = 'model-status';
     gbStatus.textContent = '';
     gbStatus.className = 'model-status';
-    charCreatePanel.classList.remove('show');
     syncProviderPickerUI(state.settings.baseUrl, false);
     if (detectedModels.length) {
       renderModelSuggestions('');
@@ -4844,6 +4924,7 @@ ${traits}
     renderMemoryModalList();
     updateMemStats();
     const chosenTab = defaultTab || (state.settings.apiKey.trim() ? 'companion' : 'model');
+    setCompanionSubView('edit');
     switchSettingsTab(chosenTab);
     settingsModal.classList.add('show');
     if (focusKey && chosenTab === 'model') {
@@ -4872,6 +4953,7 @@ ${traits}
 
   document.getElementById('saveSettingsBtn').onclick = () => {
     const prevName = state.settings.name;
+    const prevAge = state.settings.age || '';
     const prevPersona = state.settings.persona;
     const prevAppearance = state.settings.appearance || '';
 
@@ -4885,6 +4967,7 @@ ${traits}
     state.settings.imgModel = cfgImgModel.value.trim();
     state.settings.imgTrigger = draftImgTrigger;
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
+    state.settings.age = cfgAge.value.trim();
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
@@ -4900,6 +4983,7 @@ ${traits}
       }
     } else if (
       prevName !== state.settings.name ||
+      prevAge !== state.settings.age ||
       prevPersona !== state.settings.persona ||
       prevAppearance !== state.settings.appearance
     ) {
