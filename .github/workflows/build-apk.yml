@@ -1,0 +1,72 @@
+name: Build Roomi Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up JDK 21
+        id: setup-java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare web assets
+        run: |
+          mkdir -p www
+          cp index.html www/index.html
+
+      - name: Install Capacitor dependencies
+        run: npm install
+
+      - name: Generate and sync Android project
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Patch AndroidManifest for soft keyboard and HTTP gateways
+        run: |
+          python3 - <<'EOF'
+          import pathlib
+          p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          xml = p.read_text(encoding='utf-8')
+          if 'android:usesCleartextTraffic' not in xml:
+              xml = xml.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          if 'android:windowSoftInputMode' not in xml:
+              xml = xml.replace('android:name=".MainActivity"', 'android:name=".MainActivity" android:windowSoftInputMode="adjustResize"', 1)
+          p.write_text(xml, encoding='utf-8')
+          EOF
+
+      - name: Grant gradlew permission and build Debug APK
+        working-directory: android
+        env:
+          JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roomi-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

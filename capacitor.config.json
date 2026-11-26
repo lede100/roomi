@@ -1,0 +1,10 @@
+{
+  "appId": "com.roomi.companion",
+  "appName": "Roomi",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

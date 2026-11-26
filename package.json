@@ -1,0 +1,16 @@
+{
+  "name": "roomi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Roomi - AI Companion Chat & Sandboxed Widget Space",
+  "scripts": {
+    "cap:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}
