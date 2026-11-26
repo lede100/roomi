@@ -6,21 +6,21 @@
 <title>Roomi · 伴侣空间</title>
 <style>
   :root {
-    --bg: #ffffff;
-    --bg-sub: #f7f8fa;
+    --bg: #fdfeff;
+    --bg-sub: #f5f8fc;
     --surface: #ffffff;
-    --surface-muted: #f2f4f8;
-    --border: #e6e9f0;
-    --border-strong: #d5dbe6;
-    --text: #111827;
-    --text-2: #374151;
-    --text-muted: #6b7280;
-    --text-dim: #9ca3af;
-    --blue: #4d6bfe;
-    --blue-hover: #3b5bdb;
-    --blue-soft: #eef2ff;
-    --blue-bubble: #eff4ff;
-    --blue-border: rgba(77, 107, 254, 0.24);
+    --surface-muted: #ebf0f8;
+    --border: #e4ebf5;
+    --border-strong: #d3deef;
+    --text: #1c2433;
+    --text-2: #3d485c;
+    --text-muted: #6e7a91;
+    --text-dim: #9aa5b8;
+    --blue: #5b8def;
+    --blue-hover: #487be0;
+    --blue-soft: #eef4fd;
+    --blue-bubble: #edf3fc;
+    --blue-border: rgba(91, 141, 239, 0.25);
     --green: #10b981;
     --green-soft: #ecfdf5;
     --red: #ef4444;
@@ -32,8 +32,8 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --app-height: 100dvh;
-    --header-bg: rgba(255, 255, 255, 0.92);
-    --avatar-grad: linear-gradient(135deg, #4d6bfe 0%, #7c97ff 100%);
+    --header-bg: rgba(253, 254, 255, 0.92);
+    --avatar-grad: linear-gradient(135deg, #6896f2 0%, #92b5f7 100%);
   }
 
   /* Claude App Warm Paper Minimal Theme */
@@ -207,6 +207,10 @@
     display: none; align-items: center; justify-content: space-between; gap: 8px;
   }
   .warn-toast.show { display: flex; }
+  .warn-toast.info {
+    background: var(--surface); border-color: var(--border-strong); color: var(--text-2);
+    box-shadow: var(--shadow-float);
+  }
 
   /* Dual-Pane Horizontal Viewport */
   .viewport { flex: 1; width: 100%; overflow: hidden; position: relative; touch-action: pan-y; }
@@ -683,8 +687,8 @@
       <div class="field">
         <label>界面风格</label>
         <div class="presets" id="themePicker" style="margin-bottom:4px;">
-          <button type="button" class="preset-btn" data-theme-choice="deepseek">白蓝极简（DeepSeek 风）</button>
           <button type="button" class="preset-btn" data-theme-choice="claude">暖纸极简（Claude 风）</button>
+          <button type="button" class="preset-btn" data-theme-choice="deepseek">柔蓝暖白（温馨白蓝）</button>
         </div>
       </div>
 
@@ -975,8 +979,8 @@
   function defaultState() {
     return {
       settings: {
-        _v: 2,
-        theme: 'deepseek',
+        _v: 3,
+        theme: 'claude',
         baseUrl: '',
         apiKey: '',
         model: '',
@@ -1011,9 +1015,10 @@
   let pendingEventQueue = [];
   let eventFlushTimer = null;
 
-  function showWarn(msg) {
+  function showWarn(msg, isInfo = false) {
     const box = document.getElementById('warnToast');
     document.getElementById('warnToastText').textContent = msg;
+    box.classList.toggle('info', Boolean(isInfo));
     box.classList.add('show');
   }
   document.getElementById('closeWarnBtn').onclick = () => {
@@ -1167,46 +1172,83 @@
     widgetCount.textContent = String(state.widgets.length);
   }
 
-  function renderChat() {
+  const CHAT_PAGE_SIZE = 60;
+  let visibleChatStart = -1;
+
+  function createMsgRowElement(m, miniChar) {
+    if (m.role === 'event') {
+      const row = document.createElement('div');
+      row.className = 'msg-row event';
+      row.innerHTML = `<div class="event-pill">⚡ ${escapeHtml(m.text)}</div>`;
+      return row;
+    }
+    if (m.role === 'spawn') {
+      const row = document.createElement('div');
+      row.className = 'msg-row ai';
+      const tagLabel = m.updated ? '✨ 小窝看板已更新' : '✨ 小窝看板已上新';
+      row.innerHTML = `
+        <div class="spawn-card" data-jump="${escapeHtml(m.widgetId)}">
+          <div class="spawn-meta">
+            <div class="spawn-tag">${tagLabel}</div>
+            <div class="spawn-title">${escapeHtml(m.title)}</div>
+          </div>
+          <div class="spawn-go">去互动 →</div>
+        </div>`;
+      row.querySelector('.spawn-card').onclick = () => switchPage(1, m.widgetId);
+      return row;
+    }
+    if (m.role === 'user') {
+      const row = document.createElement('div');
+      row.className = 'msg-row user';
+      row.innerHTML = `<div class="bubble">${escapeHtml(m.text)}</div>`;
+      return row;
+    }
+    const row = document.createElement('div');
+    row.className = 'msg-row ai';
+    row.innerHTML = `
+      <div class="ai-row-wrap">
+        <div class="ai-mini-avatar">${miniChar}</div>
+        <div class="bubble">${escapeHtml(m.text)}</div>
+      </div>`;
+    return row;
+  }
+
+  function appendChatMessage(m) {
+    state.messages.push(m);
     const miniChar = escapeHtml((state.settings.name || '林澈').slice(-1));
+    const row = createMsgRowElement(m, miniChar);
+    chatScroll.insertBefore(row, typingRow);
+    scrollChatBottom();
+  }
+
+  function renderChat(keepWindow = false) {
+    const miniChar = escapeHtml((state.settings.name || '林澈').slice(-1));
+    const total = state.messages.length;
+    if (!keepWindow || visibleChatStart < 0 || visibleChatStart > total) {
+      visibleChatStart = Math.max(0, total - CHAT_PAGE_SIZE);
+    }
     chatScroll.innerHTML = '';
-    state.messages.forEach(m => {
-      if (m.role === 'event') {
-        const row = document.createElement('div');
-        row.className = 'msg-row event';
-        row.innerHTML = `<div class="event-pill">⚡ ${escapeHtml(m.text)}</div>`;
-        chatScroll.appendChild(row);
-      } else if (m.role === 'spawn') {
-        const row = document.createElement('div');
-        row.className = 'msg-row ai';
-        row.innerHTML = `
-          <div class="spawn-card" data-jump="${escapeHtml(m.widgetId)}">
-            <div class="spawn-meta">
-              <div class="spawn-tag">✨ 小窝看板已上新</div>
-              <div class="spawn-title">${escapeHtml(m.title)}</div>
-            </div>
-            <div class="spawn-go">去互动 →</div>
-          </div>`;
-        row.querySelector('.spawn-card').onclick = () => switchPage(1, m.widgetId);
-        chatScroll.appendChild(row);
-      } else if (m.role === 'user') {
-        const row = document.createElement('div');
-        row.className = 'msg-row user';
-        row.innerHTML = `<div class="bubble">${escapeHtml(m.text)}</div>`;
-        chatScroll.appendChild(row);
-      } else {
-        const row = document.createElement('div');
-        row.className = 'msg-row ai';
-        row.innerHTML = `
-          <div class="ai-row-wrap">
-            <div class="ai-mini-avatar">${miniChar}</div>
-            <div class="bubble">${escapeHtml(m.text)}</div>
-          </div>`;
-        chatScroll.appendChild(row);
-      }
+
+    if (visibleChatStart > 0) {
+      const loadRow = document.createElement('div');
+      loadRow.className = 'msg-row event';
+      loadRow.innerHTML = `<button type="button" class="event-pill" style="cursor:pointer;">↑ 查看更早消息（还有 ${visibleChatStart} 条）</button>`;
+      loadRow.querySelector('button').onclick = () => {
+        const prevH = chatScroll.scrollHeight;
+        visibleChatStart = Math.max(0, visibleChatStart - CHAT_PAGE_SIZE);
+        renderChat(true);
+        requestAnimationFrame(() => {
+          chatScroll.scrollTop = Math.max(0, chatScroll.scrollHeight - prevH);
+        });
+      };
+      chatScroll.appendChild(loadRow);
+    }
+
+    state.messages.slice(visibleChatStart).forEach(m => {
+      chatScroll.appendChild(createMsgRowElement(m, miniChar));
     });
     chatScroll.appendChild(typingRow);
-    scrollChatBottom();
+    if (!keepWindow) scrollChatBottom();
   }
 
   function scrollChatBottom() {
@@ -1244,10 +1286,10 @@
     const safeTitle = JSON.stringify(widget.title).replace(/</g, '\\u003c');
     const bodyHtml = sanitizeWidgetHtml(widget.html);
     const isClaude = state.settings.theme === 'claude';
-    const wAccent = isClaude ? '#d97757' : '#4d6bfe';
-    const wSoft = isClaude ? '#fdf2ee' : '#eff4ff';
-    const wMuted = isClaude ? '#f3f1ea' : '#f2f4f8';
-    const wBorder = isClaude ? '#e5e0d4' : '#e6e9f0';
+    const wAccent = isClaude ? '#d97757' : '#5b8def';
+    const wSoft = isClaude ? '#fdf2ee' : '#eef4fd';
+    const wMuted = isClaude ? '#f3f1ea' : '#f5f8fc';
+    const wBorder = isClaude ? '#e5e0d4' : '#e4ebf5';
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1381,9 +1423,8 @@
       scheduleSave();
     } else if (data.type === 'loom:emit' && data.message) {
       const eventText = `在「${data.title}」中：${data.message}`;
-      state.messages.push({ role: 'event', text: eventText });
+      appendChatMessage({ role: 'event', text: eventText });
       scheduleSave();
-      renderChat();
 
       if (state.settings.autoReact) {
         enqueueWidgetEvent(eventText);
@@ -1499,6 +1540,7 @@
         newWidgets.push({
           id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
           title: attrs.title || '专属小组件',
+          replace: attrs.replace || '',
           height: !Number.isNaN(parsedH) && parsedH > 0 ? Math.max(140, Math.min(460, parsedH)) : 220,
           createdAt: Date.now(),
           html: body
@@ -1575,11 +1617,21 @@
     return { msgs, windowStartIndex };
   }
 
+  function getLocalTimeContext() {
+    const d = new Date();
+    const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const h = d.getHours();
+    const period = h < 5 ? '深夜' : h < 9 ? '清晨' : h < 12 ? '上午' : h < 14 ? '中午' : h < 18 ? '下午' : h < 23 ? '晚上' : '深夜';
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(h).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${dateStr} ${days[d.getDay()]} ${timeStr}（${period}）`;
+  }
+
   function buildSystemPrompt() {
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、') || '暂无';
     const themeHint = state.settings.theme === 'claude'
       ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
-      : '极简白蓝主题：背景 #ffffff，正文 #111827，次级文字 #6b7280，主色 #4d6bfe，浅蓝底 #eff4ff，边框 #e6e9f0';
+      : '温馨柔蓝白主题：背景 #ffffff，正文 #1c2433，次级文字 #6e7a91，主色 #5b8def，浅蓝底 #eef4fd，边框 #e4ebf5';
 
     const memList = Array.isArray(state.memories) ? state.memories.slice(0, 25) : [];
     const memoryBlock = memList.length
@@ -1591,6 +1643,9 @@
       : '';
 
     return `${state.settings.persona}
+
+【当前时间】
+${getLocalTimeContext()}（请自然感知此时段，但无需每轮生硬报时）
 ${memoryBlock}${summaryBlock}
 
 【对话风格与记忆规则】
@@ -1598,11 +1653,11 @@ ${memoryBlock}${summaryBlock}
 2. 可在回复末尾附带状态标签（不会展示给用户）：<AFFECTION delta="+1" mood="有点开心" />。
 3. 当用户提到重要个人信息、作息习惯、饮食喜好、重要约定或变化时，可在末尾附带记忆标签悄悄记住：<MEMORY key="作息" value="通常凌晨1点睡" />（需要删除旧事实时用 op="del"）。只记录值得长期记住的事实，日常寒暄不要写。
 
-【小窝看板·现场造组件能力】
+【小窝看板·现场造组件与原地修改能力】
 当前看板已有组件：${widgetSummary}。
-当用户希望你做一个工具、打卡器、倒计时、转盘、小游戏、记录卡、清单等互动组件时，你可以在回复中直接附带一个 <WIDGET> 代码块，系统会自动把它挂载到右侧「小窝看板」的独立沙盒里：
+当用户希望你做一个工具、打卡器、倒计时、转盘、小游戏、记录卡、清单等互动组件，或者让你修改/升级上面已有的某个组件时，你可以在回复中附带一个 <WIDGET> 代码块，系统会自动挂载或原地更新到右侧「小窝看板」里：
 
-<WIDGET title="组件名称" height="240">
+<WIDGET title="组件名称" replace="如果是修改已有组件，写原组件名；新建则省略" height="240">
 <style>/* 适配${themeHint}，圆角精致，padding:14px */</style>
 <!-- 简洁美观的 HTML 结构 -->
 <script>
@@ -1614,8 +1669,9 @@ ${memoryBlock}${summaryBlock}
 </WIDGET>
 
 注意：
-- 只在用户明确要求新建/制作组件时输出 <WIDGET>；日常闲聊和回应组件事件时绝对不要输出 <WIDGET>。
-- 组件必须完整可运行、无需联网、视觉极简清爽（白底蓝字主调）且适配手机宽度（约 340px）。`;
+- 只在用户明确要求新建或修改组件时输出 <WIDGET>；日常闲聊和回应组件事件时绝对不要输出 <WIDGET>。
+- 修改已有组件时务必带上 replace="原组件名"，这样会保留用户原来的打卡/记录数据并原地更新卡片。
+- 组件必须完整可运行、无需联网、视觉极简温馨且适配手机宽度（约 340px）。`;
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -2136,6 +2192,10 @@ ${chunk.slice(0, 4200)}
       return streamPreviewRow;
     };
 
+    const slowHintTimer = setTimeout(() => {
+      if (isBusy) setTyping(true, `${state.settings.name}正在认真组织语言 / 准备组件…`);
+    }, 3800);
+
     try {
       const hasKey = Boolean(state.settings.apiKey.trim());
       let raw = '';
@@ -2170,9 +2230,34 @@ ${chunk.slice(0, 4200)}
       }
 
       const { bubbles, newWidgets } = parseAssistantOutput(raw);
+      const mountedWidgets = [];
 
       if (newWidgets.length) {
-        newWidgets.forEach(w => state.widgets.unshift(w));
+        newWidgets.forEach(w => {
+          const targetName = (w.replace || '').trim().replace(/[「」]/g, '');
+          const matchFn = item => {
+            const t = item.title.trim();
+            if (targetName) return t === targetName || t.includes(targetName) || targetName.includes(t);
+            return t === w.title.trim();
+          };
+          const existingIdx = state.widgets.findIndex(matchFn);
+          if (existingIdx >= 0) {
+            const existing = state.widgets[existingIdx];
+            existing.title = w.title || existing.title;
+            existing.html = w.html;
+            existing.height = w.height;
+            mountedWidgets.push({ id: existing.id, title: existing.title, updated: true });
+          } else {
+            state.widgets.unshift({
+              id: w.id,
+              title: w.title,
+              height: w.height,
+              createdAt: w.createdAt,
+              html: w.html
+            });
+            mountedWidgets.push({ id: w.id, title: w.title, updated: false });
+          }
+        });
         renderWidgets();
         if (currentPage === 0) boardDot.classList.add('show');
       }
@@ -2184,19 +2269,17 @@ ${chunk.slice(0, 4200)}
           await sleep(420 + Math.min(420, finalBubbles[i].length * 14));
         }
         setTyping(false);
-        state.messages.push({ role: 'assistant', text: finalBubbles[i] });
+        appendChatMessage({ role: 'assistant', text: finalBubbles[i] });
         scheduleSave();
-        renderChat();
         if (i === 0) showFloatingBanner(finalBubbles[i]);
       }
 
-      newWidgets.forEach(w => {
-        state.messages.push({ role: 'spawn', widgetId: w.id, title: w.title });
+      mountedWidgets.forEach(w => {
+        appendChatMessage({ role: 'spawn', widgetId: w.id, title: w.title, updated: w.updated });
       });
 
       scheduleSave();
       renderHeader();
-      renderChat();
       if (hasKey) maybeCompressHistory(false);
     } catch (err) {
       if (streamPreviewRow) {
@@ -2205,16 +2288,16 @@ ${chunk.slice(0, 4200)}
       }
       setTyping(false);
       if (err.name === 'AbortError') {
-        state.messages.push({ role: 'event', text: '已停止本次生成' });
+        appendChatMessage({ role: 'event', text: '已停止本次生成' });
       } else {
-        state.messages.push({
+        appendChatMessage({
           role: 'assistant',
           text: `哎呀，接口连不上（${err.message}）。请检查右上角设置里的 Base URL、Model 或 API Key。`
         });
       }
       scheduleSave();
-      renderChat();
     } finally {
+      clearTimeout(slowHintTimer);
       activeAbortController = null;
       setTyping(false);
       isBusy = false;
@@ -2238,9 +2321,8 @@ ${chunk.slice(0, 4200)}
 
     chatInput.value = '';
     chatInput.style.height = 'auto';
-    state.messages.push({ role: 'user', text });
+    appendChatMessage({ role: 'user', text });
     scheduleSave();
-    renderChat();
     triggerCompanionReply(text, false);
   }
 
@@ -2652,13 +2734,16 @@ ${chunk.slice(0, 4200)}
         state = Object.assign(defaultState(), saved, {
           settings: Object.assign(defaultState().settings, saved.settings || {})
         });
-        // Clear legacy prefilled defaults from earlier prototype saves
-        if (!saved.settings || (saved.settings._v || 0) < 2) {
-          if (!state.settings.apiKey.trim()) {
+        // Clear legacy prefilled defaults and migrate default theme to warm Claude style on v3
+        if (!saved.settings || (saved.settings._v || 0) < 3) {
+          if ((saved.settings?._v || 0) < 2 && !state.settings.apiKey.trim()) {
             state.settings.baseUrl = '';
             state.settings.model = '';
           }
-          state.settings._v = 2;
+          if (state.settings.theme === 'deepseek') {
+            state.settings.theme = 'claude';
+          }
+          state.settings._v = 3;
           scheduleSave();
         }
       }
@@ -2668,6 +2753,38 @@ ${chunk.slice(0, 4200)}
     renderHeader();
     renderChat();
     renderWidgets();
+
+    // Android hardware/gesture back button handling via @capacitor/app
+    const capApp = window.Capacitor?.Plugins?.App;
+    if (capApp?.addListener) {
+      let lastBackTime = 0;
+      capApp.addListener('backButton', () => {
+        if (codeModal.classList.contains('show')) {
+          codeModal.classList.remove('show');
+          return;
+        }
+        if (memoryModal.classList.contains('show')) {
+          memoryModal.classList.remove('show');
+          return;
+        }
+        if (settingsModal.classList.contains('show')) {
+          settingsModal.classList.remove('show');
+          return;
+        }
+        if (currentPage === 1) {
+          switchPage(0);
+          return;
+        }
+        const now = Date.now();
+        if (now - lastBackTime < 1800) {
+          capApp.exitApp();
+        } else {
+          lastBackTime = now;
+          showWarn('再按一次返回退出 Roomi', true);
+          setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
+        }
+      });
+    }
   })();
 })();
 </script>
