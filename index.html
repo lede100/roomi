@@ -86,9 +86,7 @@
   /* Header — Clean White-Blue / Warm Paper Top Bar */
   .header {
     padding: calc(10px + var(--safe-top)) 16px 10px;
-    background: var(--header-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--bg);
     border-bottom: 1px solid var(--border);
     z-index: 20;
     flex-shrink: 0;
@@ -404,10 +402,12 @@
   .bubble-img + .bubble-text { margin-top: 6px; }
   .img-lightbox {
     position: absolute; inset: 0; z-index: 70;
-    background: rgba(15, 23, 42, 0.85);
-    display: none; align-items: center; justify-content: center; padding: 20px;
+    background: rgba(15, 23, 42, 0.86);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
   }
-  .img-lightbox.show { display: flex; }
+  .img-lightbox.show { opacity: 1; visibility: visible; pointer-events: auto; }
   .img-lightbox img { max-width: 100%; max-height: 86dvh; border-radius: 14px; object-fit: contain; }
 
   .send-btn {
@@ -485,25 +485,29 @@
     border: 1px dashed var(--border-strong); border-radius: 18px;
   }
 
-  /* Modal (Light Sheet) */
+  /* Modal (Light Sheet — GPU flicker-free on Android WebView) */
   .modal-backdrop {
     position: absolute; inset: 0; z-index: 60;
-    background: rgba(15, 23, 42, 0.36);
-    backdrop-filter: blur(4px);
-    display: none; align-items: flex-end; justify-content: center;
+    background: rgba(15, 23, 42, 0.42);
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
   }
-  .modal-backdrop.show { display: flex; }
+  .modal-backdrop.show {
+    opacity: 1; visibility: visible; pointer-events: auto;
+  }
   .modal-sheet {
     width: 100%; max-height: 86%; overflow-y: auto;
     background: #ffffff; border-top: 1px solid var(--border);
     border-radius: 22px 22px 0 0;
     padding: 18px 18px calc(22px + var(--safe-bottom));
     box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.12);
-    animation: slideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateY(28px);
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
   }
-  @keyframes slideUp {
-    from { transform: translateY(36px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+  .modal-backdrop.show .modal-sheet {
+    transform: translateY(0);
   }
   .modal-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -2590,7 +2594,9 @@ ${chunk.slice(0, 4200)}
 
   function applyTheme(theme) {
     const t = theme === 'claude' ? 'claude' : 'deepseek';
-    document.documentElement.setAttribute('data-theme', t);
+    if (document.documentElement.getAttribute('data-theme') !== t) {
+      document.documentElement.setAttribute('data-theme', t);
+    }
     document.querySelectorAll('#themePicker [data-theme-choice]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.themeChoice === t);
     });
