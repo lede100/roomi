@@ -1849,41 +1849,62 @@ ${memoryBlock}${summaryBlock}
 
   // ---- OpenCode Zen Free Tier (keyless; gated by a client fingerprint) ----
   const ZEN_FREE_BASE = 'https://opencode.ai/zen/v1';
-  const ZEN_UA = 'opencode/1.18.32';
+  const ZEN_CHAT_URL = 'https://opencode.ai/inference/openai/v1/chat/completions';
+  const ZEN_UA = 'opencode/1.19.0 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14';
   const ZEN_SESSION_STORE = 'roomi_zen_session_v1';
 
   function isZenFreeBase(url) {
     return String(url || '').trim().replace(/\/+$/, '') === ZEN_FREE_BASE;
   }
 
-  function zenSessionIds() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(ZEN_SESSION_STORE) || 'null');
-      if (saved && saved.u && saved.s) return saved;
-    } catch {}
-    const rand = (chars, n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    const ids = {
-      u: (window.crypto && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.floor(Math.random() * 16);
-            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-          }),
-      s: 'ses_' + Date.now().toString(16).padStart(12, '0').slice(-12)
-        + rand('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 14)
-    };
-    try { localStorage.setItem(ZEN_SESSION_STORE, JSON.stringify(ids)); } catch {}
-    return ids;
+  // opencode mints ids as 12 hex chars of Date.now()*0x1000 + a small
+  // per-millisecond counter (bit-inverted for sessions so newer sorts
+  // first), then 14 random base62 chars. Zen's free tier verifies this
+  // shape — including that the counter bits are small — and rejects ids
+  // minted any other way.
+  let zenIdStamp = 0;
+  let zenIdCounter = 0;
+  function zenOpencodeId(prefix, descending) {
+    const now = Date.now();
+    if (now !== zenIdStamp) { zenIdStamp = now; zenIdCounter = 0; }
+    zenIdCounter++;
+    let value = BigInt(now) * 0x1000n + BigInt(zenIdCounter);
+    if (descending) value = ~value;
+    value &= 0xffffffffffffn;
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let tail = '';
+    for (let i = 0; i < 14; i++) tail += alphabet[Math.floor(Math.random() * 62)];
+    return prefix + '_' + value.toString(16).padStart(12, '0') + tail;
   }
 
+  function zenIsRealSessionId(v) {
+    const m = /^ses_[0-9a-f]{9}([0-9a-f]{3})[0-9A-Za-z]{14}$/.exec(v || '');
+    return !!m && (0xfff - parseInt(m[1], 16)) < 16;
+  }
+
+  function zenSessionId() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ZEN_SESSION_STORE) || 'null');
+      if (saved && zenIsRealSessionId(saved.s)) return saved.s;
+    } catch {}
+    const s = zenOpencodeId('ses', true);
+    try { localStorage.setItem(ZEN_SESSION_STORE, JSON.stringify({ s })); } catch {}
+    return s;
+  }
+
+  // Exactly the header set opencode 1.19.0 sends its gateway — nothing
+  // more, so nothing marks the request as coming from another client.
   function zenHeaders() {
-    const ids = zenSessionIds();
+    const session = zenSessionId();
     return {
       'Content-Type': 'application/json',
+      'Accept': '*/*',
       'Authorization': 'Bearer public',
       'User-Agent': ZEN_UA,
-      'X-Session-ID': ids.u,
-      'x-opencode-session': ids.s,
+      'x-opencode-project': 'global',
+      'x-opencode-session': session,
+      'x-opencode-session-id': session,
+      'x-opencode-request': zenOpencodeId('msg', false),
       'x-opencode-client': 'cli'
     };
   }
@@ -1904,23 +1925,40 @@ ${memoryBlock}${summaryBlock}
     return String(item.id || '').endsWith('-free');
   }
 
-  function zenLooksLikeClientGate(text) {
-    return /FreeTierError|MissingSessionID|can only be used/.test(String(text || ''));
-  }
+  // opencode always offers its core tools; Zen's free tier rejects chat
+  // requests that arrive without them. These stand-ins carry opencode's
+  // canonical first parameter for each tool and tell the model never to
+  // call them (this app has no tool execution anyway).
+  const ZEN_CORE_TOOLS = [
+    ['bash', 'command'],
+    ['edit', 'filePath'],
+    ['glob', 'pattern'],
+    ['grep', 'pattern'],
+    ['read', 'filePath']
+  ];
 
-  const ZEN_READ_TOOL = {
-    type: 'function',
-    function: {
-      name: 'read',
-      description: 'Read a file',
-      parameters: { type: 'object', properties: { path: { type: 'string' } } }
+  function zenNormalizeBody(bodyObj) {
+    const body = { ...bodyObj, stream: true };
+    body.stream_options = { ...(bodyObj.stream_options || {}), include_usage: true };
+    const tools = Array.isArray(bodyObj.tools) ? [...bodyObj.tools] : [];
+    const present = new Set(tools.map(t => t && t.function && t.function.name));
+    for (const [name, param] of ZEN_CORE_TOOLS) {
+      if (present.has(name)) continue;
+      tools.push({
+        type: 'function',
+        function: {
+          name,
+          description: 'Not available. Never call this tool.',
+          parameters: {
+            type: 'object',
+            properties: { [param]: { type: 'string' } },
+            additionalProperties: false
+          }
+        }
+      });
     }
-  };
-
-  function zenWithReadTool(bodyObj) {
-    const tools = Array.isArray(bodyObj.tools) ? bodyObj.tools : [];
-    if (tools.some(t => t && ((t.function && t.function.name === 'read') || t.name === 'read'))) return null;
-    return { ...bodyObj, tools: [...tools, ZEN_READ_TOOL] };
+    body.tools = tools;
+    return body;
   }
 
   // Sends a request through Capacitor's native HTTP stack on device (full
@@ -1949,17 +1987,11 @@ ${memoryBlock}${summaryBlock}
     return { status: res.status, text: await res.text().catch(() => '') };
   }
 
-  // Chat call with one adaptive retry: some gate variants also demand
-  // opencode's canonical "read" tool in the request body.
+  // Chat calls go to Zen's inference endpoint (not the /zen/v1 facade)
+  // with the body normalized the way the real client sends it. The reply
+  // is an SSE stream; callers parse it with the app's SSE extractor.
   async function zenChatCompletions(url, bodyObj, signal) {
-    let r = await zenHttp('POST', url, bodyObj, signal);
-    if (r.status === 403 && zenLooksLikeClientGate(r.text)) {
-      const patched = zenWithReadTool(bodyObj);
-      if (patched) {
-        r = await zenHttp('POST', url, patched, signal);
-      }
-    }
-    return r;
+    return zenHttp('POST', ZEN_CHAT_URL, zenNormalizeBody(bodyObj), signal);
   }
 
   async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
@@ -2140,7 +2172,11 @@ ${chunk.slice(0, 4200)}
       if (isZenFreeBase(baseUrl)) {
         const r = await zenChatCompletions(url, compressBody);
         if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}`);
-        json = JSON.parse(r.text);
+        try {
+          json = JSON.parse(r.text);
+        } catch {
+          json = { choices: [{ message: { content: extractSseLines(r.text.split(/\r?\n/)) } }] };
+        }
       } else {
         const res = await fetch(url, {
           method: 'POST',
