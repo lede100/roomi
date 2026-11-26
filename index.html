@@ -818,43 +818,42 @@
 
       <!-- Tab 3: Model & Data -->
       <div class="set-pane" data-set-pane="model">
-        <div class="presets">
-          <button class="preset-btn" data-url="https://api.deepseek.com/v1">DeepSeek 官方</button>
-          <button class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动 (免费额度)</button>
-          <button class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter (:free)</button>
-          <button class="preset-btn" data-url="https://api.groq.com/openai/v1">Groq (免费层)</button>
-          <button class="preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai">Gemini (免费层)</button>
-          <button class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
-        </div>
         <div class="field">
+          <label>接口服务商</label>
+          <div class="presets" id="providerPicker" style="margin-bottom:2px;">
+            <button type="button" class="preset-btn" data-url="https://api.deepseek.com/v1">DeepSeek</button>
+            <button type="button" class="preset-btn" data-url="https://api.openai.com/v1">OpenAI</button>
+            <button type="button" class="preset-btn" data-url="https://open.bigmodel.cn/api/paas/v4">智谱 GLM</button>
+            <button type="button" class="preset-btn" data-url="https://api.siliconflow.cn/v1">硅基流动</button>
+            <button type="button" class="preset-btn" data-url="https://openrouter.ai/api/v1">OpenRouter</button>
+            <button type="button" class="preset-btn" data-custom="1">自定义 / 中转</button>
+          </div>
+        </div>
+        <div class="field" id="customUrlField" style="display:none;">
           <label>API Base URL（兼容 OpenAI 格式）</label>
-          <input id="cfgBaseUrl" type="text" placeholder="https://api.deepseek.com/v1" />
+          <input id="cfgBaseUrl" type="text" placeholder="https://example.com/v1" />
         </div>
         <div class="field">
-          <label>API Key（留空则为离线演示模式）</label>
+          <label>API Key（留空为离线演示模式）</label>
           <input id="cfgApiKey" type="password" placeholder="sk-..." />
         </div>
         <div class="field">
           <div class="field-label-row">
-            <label for="cfgModel">模型名称（Model）</label>
-            <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测可用模型</button>
+            <label for="cfgModel">模型名称</label>
+            <button type="button" class="detect-btn" id="fetchModelsBtn">↻ 检测模型</button>
           </div>
-          <input id="cfgModel" type="text" placeholder="可手动输入，或填入 Key 后自动检测" autocomplete="off" />
+          <input id="cfgModel" type="text" placeholder="填入 Key 后自动检测，或手动输入" autocomplete="off" />
           <div class="model-status" id="modelStatus"></div>
           <div class="model-list" id="modelSuggestions"></div>
         </div>
-        <div class="toggle-row">
-          <span>网页端启用流式输出（逐字显示）</span>
-          <input id="cfgStream" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
-        </div>
-        <div class="btn-row" style="margin-top:4px;">
+        <div class="btn-row" style="margin-top:6px;">
           <button class="btn-ghost" style="flex:1;" id="exportDataBtn">导出备份</button>
           <button class="btn-ghost" style="flex:1;" id="importDataBtn">导入恢复</button>
           <input type="file" id="importFileInput" accept="application/json" style="display:none" />
           <button class="btn-ghost" id="resetAllBtn">重置数据</button>
         </div>
         <div class="about-bar">
-          <span>数据与 Key 仅存手机本地沙盒</span>
+          <span>数据与 Key 仅存本地沙盒</span>
           <div class="about-links">
             <button type="button" class="about-link" data-ext-url="https://github.com/lede100/roomi">GitHub 开源</button>
           </div>
@@ -2678,7 +2677,7 @@ ${chunk.slice(0, 4200)}
     const base = cfgBaseUrl.value.trim().replace(/\/+$/, '');
     const key = cfgApiKey.value.trim();
     if (!base || !key) {
-      setModelStatus('填入 API Base URL 和 API Key 后可自动检测可用模型');
+      setModelStatus('选择服务商并填入 API Key 后会自动检测模型');
       detectedModels = [];
       renderModelSuggestions();
       return;
@@ -2723,7 +2722,7 @@ ${chunk.slice(0, 4200)}
     } finally {
       if (mySeq === detectSeq) {
         fetchModelsBtn.disabled = false;
-        fetchModelsBtn.textContent = '↻ 检测可用模型';
+        fetchModelsBtn.textContent = '↻ 检测模型';
       }
     }
   }
@@ -2803,6 +2802,43 @@ ${chunk.slice(0, 4200)}
     });
   }
 
+  const customUrlField = document.getElementById('customUrlField');
+
+  function syncProviderPickerUI(urlVal, forceCustom = false) {
+    const clean = String(urlVal || '').trim().replace(/\/+$/, '');
+    let matchedBtn = null;
+    document.querySelectorAll('#providerPicker .preset-btn').forEach(btn => {
+      const u = (btn.dataset.url || '').replace(/\/+$/, '');
+      const isMatch = !forceCustom && clean && u === clean;
+      if (isMatch) matchedBtn = btn;
+      btn.classList.toggle('active', isMatch);
+    });
+    const customBtn = document.querySelector('#providerPicker .preset-btn[data-custom]');
+    const showCustom = forceCustom || (Boolean(clean) && !matchedBtn);
+    if (customBtn) customBtn.classList.toggle('active', showCustom);
+    customUrlField.style.display = showCustom ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('#providerPicker .preset-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.custom) {
+        syncProviderPickerUI(cfgBaseUrl.value, true);
+        cfgBaseUrl.focus();
+        return;
+      }
+      cfgBaseUrl.value = btn.dataset.url;
+      cfgModel.value = '';
+      detectedModels = [];
+      renderModelSuggestions();
+      syncProviderPickerUI(btn.dataset.url, false);
+      if (cfgApiKey.value.trim()) {
+        detectAvailableModels(true);
+      } else {
+        setModelStatus('填入 API Key 后会自动检测可用模型');
+      }
+    };
+  });
+
   document.getElementById('openSettingsBtn').onclick = () => {
     applyTheme(state.settings.theme);
     cfgBaseUrl.value = state.settings.baseUrl;
@@ -2811,14 +2847,14 @@ ${chunk.slice(0, 4200)}
     document.getElementById('cfgName').value = state.settings.name;
     document.getElementById('cfgPersona').value = state.settings.persona;
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
-    document.getElementById('cfgStream').checked = state.settings.stream !== false;
     memSummaryInput.value = state.memorySummary || '';
     memCompressStatus.textContent = '';
     memCompressStatus.className = 'model-status';
+    syncProviderPickerUI(state.settings.baseUrl, false);
     if (detectedModels.length) {
       renderModelSuggestions('');
     } else if (cfgApiKey.value.trim()) {
-      setModelStatus('点右上「↻ 检测可用模型」可拉取最新列表');
+      setModelStatus('点右上「↻ 检测模型」可拉取最新列表');
     } else {
       setModelStatus('');
       renderModelSuggestions();
@@ -2833,20 +2869,6 @@ ${chunk.slice(0, 4200)}
     if (e.target === settingsModal) settingsModal.classList.remove('show');
   });
 
-  settingsModal.querySelectorAll('.preset-btn[data-url]').forEach(btn => {
-    btn.onclick = () => {
-      cfgBaseUrl.value = btn.dataset.url;
-      cfgModel.value = '';
-      detectedModels = [];
-      renderModelSuggestions();
-      if (cfgApiKey.value.trim()) {
-        detectAvailableModels(true);
-      } else {
-        setModelStatus('填入 API Key 后会自动检测可用模型');
-      }
-    };
-  });
-
   document.getElementById('saveSettingsBtn').onclick = () => {
     state.settings._v = 3;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
@@ -2855,7 +2877,7 @@ ${chunk.slice(0, 4200)}
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
-    state.settings.stream = document.getElementById('cfgStream').checked;
+    state.settings.stream = true;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
     scheduleSave();
     renderHeader();
