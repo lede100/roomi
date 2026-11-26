@@ -1374,7 +1374,7 @@
       avatarColor: opts.avatarColor || '',
       lastActiveAt: Number(opts.lastActiveAt) || Date.now(),
       affection: typeof opts.affection === 'number' ? opts.affection : 68,
-      mood: opts.mood || '在线等你',
+      mood: (!opts.mood || opts.mood === '正在传照片…') ? '在线等你' : opts.mood,
       memories: Array.isArray(opts.memories) ? opts.memories : [],
       memorySummary: String(opts.memorySummary || ''),
       summarizedCount: Number(opts.summarizedCount) || 0,
@@ -1742,6 +1742,8 @@
     }
   });
 
+  const pendingImgCountByChar = new Map();
+
   function renderHeader() {
     const activeChar = getActiveCharacter();
     const name = state.settings.name || activeChar?.name || '林澈';
@@ -1750,7 +1752,8 @@
     avatarText.style.background = activeChar?.avatarColor || '';
     chatInput.placeholder = `给${name}发消息…`;
     affectionDisplay.textContent = `♥ ${state.affection}`;
-    moodDisplay.textContent = state.mood;
+    const sendingImg = (pendingImgCountByChar.get(state.activeCharId) || 0) > 0;
+    moodDisplay.textContent = sendingImg ? '正在传照片…' : (state.mood === '正在传照片…' ? '在线等你' : state.mood);
     const isLive = Boolean(state.settings.apiKey.trim());
     if (isLive) {
       modeBadge.textContent = state.settings.model || '已连线 · 未选模型';
@@ -2338,8 +2341,14 @@
       return { role: 'user', content: m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt };
     }
     if (m.role === 'assistant') {
-      const txt = (m.text || '').trim();
-      if (m.image) return { role: 'assistant', content: txt ? `${txt}\n[已发送一张照片/图片]` : '[已发送一张照片/图片]' };
+      const txt = (m.text || '')
+        .replace(/\[已发送一张(?:照片|图片)(?:\/图片)?\]/g, '')
+        .trim();
+      if (m.image) {
+        const safePrompt = String(m.imgPrompt || '刚才发给用户的照片').replace(/"/g, "'");
+        const imgTag = `<IMAGE prompt="${safePrompt}" />`;
+        return { role: 'assistant', content: txt ? `${txt}\n${imgTag}` : imgTag };
+      }
       return txt ? { role: 'assistant', content: txt } : null;
     }
     if (m.role === 'event') return { role: 'user', content: `[看板互动记录] ${m.text}` };
@@ -3124,10 +3133,10 @@ ${chunk.slice(0, 4200)}
 
 【拍照 / 发照片能力】
 ${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
-需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（用户看不到标签本身）：
+需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（只有输出该标签系统才会真正生成并发送图片）：
 <IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="1152x1536" />
-${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景，可附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”。' : ''}
-注意：严禁在文字里说“正在画图中”“正在为你生成图片”这类机械台词，直接像真人微信顺口聊一句然后发图即可；prompt 避开露骨敏感词。`;
+${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背景/P一下”时才附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”；若是要求“重拍/再来一张新照片”，请勿加 ref="last"，直接写新的 prompt（速度更快）。' : ''}
+注意：严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；prompt 避开露骨敏感词。`;
   }
 
   function normalizeImageSize(rawSize) {
@@ -3188,12 +3197,22 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     });
   }
 
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function downloadAndCompressImage(url) {
     if (String(url).startsWith('data:')) {
       return compressImageSrcToJpeg(url);
     }
     try {
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url, {}, 40000);
       if (res.ok) {
         const blob = await res.blob();
         const dataUri = await new Promise((resolve, reject) => {
@@ -3214,7 +3233,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
 
   async function fetchWith429Backoff(url, options, maxRetries = 4) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const res = await fetch(url, options);
+      const res = await fetchWithTimeout(url, options, 45000);
       if (res.status === 429 && attempt < maxRetries) {
         await sleep(45000);
         continue;
@@ -3292,7 +3311,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     const model = (state.settings.imgModel || '').trim();
     if (!key || !base || !model) throw new Error('生图接口 Base URL、Key 或模型未填完整');
 
-    const res = await fetch(`${base}/images/generations`, {
+    const res = await fetchWithTimeout(`${base}/images/generations`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${key}`,
@@ -3305,7 +3324,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
         n: 1,
         response_format: 'b64_json'
       })
-    });
+    }, 60000);
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
       throw new Error(`生图请求失败 (${res.status}) ${txt.slice(0, 80)}`);
@@ -3323,7 +3342,7 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
 
   let imgTaskChain = Promise.resolve();
 
-  function replaceImagePlaceholder(charId, placeholderId, finalDataUrl) {
+  function replaceImagePlaceholder(charId, placeholderId, finalDataUrl, imgPrompt = '') {
     const isCurrent = state.activeCharId === charId;
     const msgs = isCurrent
       ? state.messages
@@ -3333,7 +3352,14 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
     let finalMsg = null;
     if (idx >= 0) {
       if (finalDataUrl) {
-        finalMsg = { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '', createdAt: Date.now() };
+        finalMsg = {
+          id: placeholderId,
+          role: 'assistant',
+          image: finalDataUrl,
+          imgPrompt: String(imgPrompt || '').slice(0, 240),
+          text: '',
+          createdAt: Date.now()
+        };
         msgs[idx] = finalMsg;
       } else {
         msgs.splice(idx, 1);
@@ -3355,23 +3381,17 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
   }
 
   function enqueueImageTask(task) {
+    pendingImgCountByChar.set(task.charId, (pendingImgCountByChar.get(task.charId) || 0) + 1);
+    if (state.activeCharId === task.charId) renderHeader();
     imgTaskChain = imgTaskChain.then(async () => {
       const targetChar = state.characters.find(c => c.id === task.charId);
       if (!targetChar) return;
-      const isCurrent = state.activeCharId === task.charId;
-      const prevMood = isCurrent ? state.mood : targetChar.mood;
-      if (isCurrent) {
-        state.mood = '正在传照片…';
-        moodDisplay.textContent = state.mood;
-      } else {
-        targetChar.mood = '正在传照片…';
-      }
       try {
         const provider = state.settings.imgProvider;
         const dataUrl = provider === 'modelscope'
           ? await generateImageViaModelScope(task)
           : await generateImageViaOpenAI(task);
-        replaceImagePlaceholder(task.charId, task.placeholderId, dataUrl);
+        replaceImagePlaceholder(task.charId, task.placeholderId, dataUrl, task.prompt);
         if (state.activeCharId === task.charId && currentPage === 1) {
           showFloatingBanner('刚给你发了一张照片');
         }
@@ -3380,15 +3400,9 @@ ${canEdit ? '若用户让你基于刚才发过的照片修改/换装/换场景�
         showWarn(err.message || '图片没发出来，稍后再试试', true);
         setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4200);
       } finally {
-        const curChar = state.characters.find(c => c.id === task.charId);
-        if (state.activeCharId === task.charId) {
-          if (state.mood === '正在传照片…') {
-            state.mood = prevMood || '在线等你';
-            moodDisplay.textContent = state.mood;
-          }
-        } else if (curChar && curChar.mood === '正在传照片…') {
-          curChar.mood = prevMood || '在线等你';
-        }
+        const left = Math.max(0, (pendingImgCountByChar.get(task.charId) || 1) - 1);
+        pendingImgCountByChar.set(task.charId, left);
+        if (state.activeCharId === task.charId) renderHeader();
         scheduleSave();
       }
     }).catch(() => {});
