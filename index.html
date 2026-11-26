@@ -826,6 +826,30 @@
     font-size: 11px; display: flex; align-items: center; justify-content: center;
     pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   }
+  .avatar-clear-tag {
+    position: absolute; right: -3px; top: -3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    color: var(--text-muted); font-size: 10px; line-height: 1;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .avatar-clear-tag.show { display: flex; }
+  .char-pill.add {
+    border-style: dashed; border-color: var(--blue-border);
+    background: transparent; color: var(--blue); font-weight: 600;
+    padding: 5px 12px;
+  }
+  .char-footer-ops {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    margin-top: 8px; padding: 0 2px;
+  }
+  .text-link-btn {
+    border: none; background: transparent; color: var(--text-muted);
+    font-size: 11.5px; cursor: pointer; padding: 2px 4px; font-family: inherit;
+  }
+  .text-link-btn:hover { color: var(--blue); }
+  .text-link-btn.danger:hover { color: var(--red); }
   .char-profile-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .char-profile-top { display: flex; gap: 6px; align-items: center; }
   .char-profile-top input { flex: 1; background: var(--surface); padding: 7px 10px; font-size: 13.5px; }
@@ -1009,25 +1033,57 @@
       <!-- Tab 1: Companion -->
       <div class="set-pane active" data-set-pane="companion">
         <div class="field" style="margin-bottom:10px;">
-          <div class="field-label-row">
-            <label>伴侣切换（各自独立聊天与记忆）</label>
-            <button type="button" class="detect-btn" id="newCharToggleBtn">+ 新建角色</button>
-          </div>
           <div class="char-bar" id="charBar"></div>
-          <div class="char-ops">
-            <button type="button" class="about-link" id="importCharBtn">导入卡</button>
-            <input type="file" id="importCharInput" accept="application/json" style="display:none" />
-            <button type="button" class="about-link" id="exportCharBtn">导出卡</button>
-            <button type="button" class="about-link" id="clearCurrentChatBtn">清空聊天</button>
-            <button type="button" class="about-link" id="deleteCharBtn" style="color:var(--red);display:none;">删除</button>
-          </div>
           <div class="char-create-panel" id="charCreatePanel">
-            <div class="char-create-title">选个预设直接开聊，或选「✨ 引导捏人」填几个词自动生成：</div>
-            <div class="presets" id="charTplPicker" style="margin-bottom:0;">
+            <div class="field-label-row" style="margin-bottom:6px;">
+              <span style="font-size:12px;font-weight:600;color:var(--text);">新建角色</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" class="text-link-btn" id="importCharBtn" style="color:var(--blue);">导入角色卡</button>
+                <input type="file" id="importCharInput" accept="application/json" style="display:none" />
+                <button type="button" class="mini-btn" id="closeCreatePanelBtn">✕</button>
+              </div>
+            </div>
+            <div class="presets" id="charTplPicker" style="margin-bottom:8px;">
               <button type="button" class="preset-btn" data-char-tpl="linche">林澈 · 温柔嘴硬</button>
               <button type="button" class="preset-btn" data-char-tpl="suwan">苏晚 · 元气甜妹</button>
               <button type="button" class="preset-btn" data-char-tpl="shenyan">沈砚 · 清冷温柔</button>
-              <button type="button" class="preset-btn" data-char-tpl="blank">✨ 引导捏人</button>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:8px;">
+              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:7px;">或者点几个词，AI 直接帮你捏出新角色：</div>
+              <div class="guide-grid">
+                <div class="guide-field full">
+                  <label>性格气质</label>
+                  <div class="guide-chips" data-fill-target="gbPersonality">
+                    <button type="button" class="mini-chip">温柔体贴</button>
+                    <button type="button" class="mini-chip">嘴硬傲娇</button>
+                    <button type="button" class="mini-chip">元气粘人</button>
+                    <button type="button" class="mini-chip">清冷护短</button>
+                    <button type="button" class="mini-chip">腹黑爱逗</button>
+                  </div>
+                  <input id="gbPersonality" type="text" placeholder="选标签或自由写，如：外冷内热、爱吃醋" />
+                </div>
+                <div class="guide-field">
+                  <label>关系定位</label>
+                  <div class="guide-chips" data-fill-target="gbRelation">
+                    <button type="button" class="mini-chip">恋人</button>
+                    <button type="button" class="mini-chip">暧昧对象</button>
+                    <button type="button" class="mini-chip">合租室友</button>
+                  </div>
+                  <input id="gbRelation" type="text" placeholder="恋人 / 青梅竹马…" />
+                </div>
+                <div class="guide-field">
+                  <label>外貌与身材</label>
+                  <input id="gbAppearance" type="text" placeholder="例：165微卷长发、偏瘦" />
+                </div>
+                <div class="guide-field full">
+                  <label>喜好与小习惯</label>
+                  <input id="gbHabits" type="text" placeholder="例：爱喝冰美式、熬夜猫、喜欢揉你头发" />
+                </div>
+              </div>
+              <div class="btn-row" style="margin-top:9px;">
+                <button type="button" class="btn-primary" id="gbGenerateBtn" style="padding:8px 12px;font-size:12.5px;">✨ 生成并创建角色</button>
+              </div>
+              <div class="model-status" id="gbStatus"></div>
             </div>
           </div>
         </div>
@@ -1037,57 +1093,14 @@
             <input type="file" id="charAvatarInput" accept="image/*" style="display:none" />
             <button type="button" class="avatar-edit-btn" id="avatarEditBtn" title="点击上传角色头像">澈</button>
             <span class="avatar-cam-tag">📷</span>
+            <button type="button" class="avatar-clear-tag" id="avatarClearBadge" title="还原默认头像">✕</button>
           </div>
           <div class="char-profile-meta">
             <div class="char-profile-top">
               <input id="cfgName" type="text" placeholder="角色昵称（如：林澈）" />
             </div>
-            <div class="char-profile-sub">
-              <button type="button" class="detect-btn" id="toggleGuideBuilderBtn">✨ 引导式捏人</button>
-              <button type="button" class="mini-btn" id="resetAvatarBtn" style="display:none;">还原字头</button>
-            </div>
+            <div style="font-size:11px;color:var(--text-muted);">点左侧头像可从相册上传照片</div>
           </div>
-        </div>
-
-        <div class="guide-builder" id="guideBuilderPanel">
-          <div class="guide-builder-title">
-            <span>填几个关键词，一键捏出完整角色</span>
-            <button type="button" class="mini-btn" id="closeGuideBuilderBtn">收起</button>
-          </div>
-          <div class="guide-grid">
-            <div class="guide-field full">
-              <label>性格气质</label>
-              <div class="guide-chips" data-fill-target="gbPersonality">
-                <button type="button" class="mini-chip">温柔体贴</button>
-                <button type="button" class="mini-chip">嘴硬傲娇</button>
-                <button type="button" class="mini-chip">元气粘人</button>
-                <button type="button" class="mini-chip">清冷护短</button>
-                <button type="button" class="mini-chip">腹黑爱逗</button>
-              </div>
-              <input id="gbPersonality" type="text" placeholder="点上方标签或自己写，如：外冷内热、爱吃醋" />
-            </div>
-            <div class="guide-field">
-              <label>关系定位</label>
-              <div class="guide-chips" data-fill-target="gbRelation">
-                <button type="button" class="mini-chip">恋人</button>
-                <button type="button" class="mini-chip">暧昧对象</button>
-                <button type="button" class="mini-chip">合租室友</button>
-              </div>
-              <input id="gbRelation" type="text" placeholder="恋人 / 青梅竹马…" />
-            </div>
-            <div class="guide-field">
-              <label>外貌与身材</label>
-              <input id="gbAppearance" type="text" placeholder="例：165微卷长发、偏瘦穿白毛衣" />
-            </div>
-            <div class="guide-field full">
-              <label>喜好与小习惯</label>
-              <input id="gbHabits" type="text" placeholder="例：爱喝冰美式、熬夜刷手机、喜欢叫你笨蛋" />
-            </div>
-          </div>
-          <div class="btn-row" style="margin-top:9px;">
-            <button type="button" class="btn-primary" id="gbGenerateBtn" style="padding:8px 12px;font-size:12.5px;">✨ AI 自动捏出角色卡</button>
-          </div>
-          <div class="model-status" id="gbStatus"></div>
         </div>
 
         <div class="field">
@@ -1102,16 +1115,21 @@
           <label>外貌锚点（可选，生图出镜时保持长相一致）</label>
           <input id="cfgAppearance" type="text" placeholder="例：东亚女生，齐肩微卷黑发，暖色调日常针织衫" />
         </div>
-        <div class="toggle-row">
+        <div class="toggle-row" style="margin-bottom:4px;">
           <span>点击小组件时，让 TA 实时回应</span>
           <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
+        </div>
+        <div class="char-footer-ops">
+          <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
+          <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
+          <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
         </div>
       </div>
 
       <!-- Tab 2: Memory (Human-readable, no jargon) -->
       <div class="set-pane" data-set-pane="memory">
         <div class="hint" style="margin-top:0;margin-bottom:10px;">
-          聊天中 TA 会顺手把你的习惯、喜好记进小本本；聊长了也会自动整理前情，不用手动管。
+          只会自动记录对长期相处有用的个人习惯、喜好与重要约定；一次性碎事不会乱记。
         </div>
         <div class="field">
           <div class="field-label-row">
@@ -1511,7 +1529,7 @@
     });
     return {
       settings: {
-        _v: 4,
+        _v: 5,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
@@ -1522,7 +1540,7 @@
         avatarImage: firstChar.avatarImage,
         autoReact: true,
         stream: true,
-        maxContextChars: 3600,
+        maxContextChars: 16000,
         imgProvider: 'off',
         imgBaseUrl: '',
         imgApiKey: '',
@@ -1640,7 +1658,10 @@
       mergedSettings.apiKey = '';
       mergedSettings.model = '';
     }
-    mergedSettings._v = 4;
+    if ((mergedSettings._v || 0) < 5 && (mergedSettings.maxContextChars || 3600) <= 3600) {
+      mergedSettings.maxContextChars = 16000;
+    }
+    mergedSettings._v = 5;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
@@ -2353,10 +2374,16 @@
   }
 
   // ---- Long-Term Memory Helpers ----
-  function upsertMemory(key, value, targetMemories = null, forcePinned = null) {
+  function isTrivialEventFact(key, value) {
+    const text = `${key || ''} ${value || ''}`;
+    return /(今日第\s*\d+\s*次|隔空贴贴|贴贴互动|喝水提醒|喝了一杯|喝满\s*\d|看板互动|照片事件|照片互动|发了一张|重拍照片|再发一张|发照片|本轮|刚才|截止目前|截至本轮|已记录为)/.test(text);
+  }
+
+  function upsertMemory(key, value, targetMemories = null, forcePinned = null, allowAny = false) {
     const k = String(key || '').trim().slice(0, 24);
     const v = String(value || '').trim().slice(0, 120);
     if (!k || !v) return false;
+    if (!allowAny && isTrivialEventFact(k, v)) return false;
     const list = Array.isArray(targetMemories)
       ? targetMemories
       : (Array.isArray(state.memories) ? state.memories : (state.memories = []));
@@ -2522,19 +2549,19 @@
   }
 
   function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null, allowVisionForLast = true) {
-    const limit = budgetChars || state.settings.maxContextChars || 3600;
+    const limit = budgetChars || state.settings.maxContextChars || 16000;
     const total = state.messages.length;
     const selected = [];
     let usedChars = 0;
 
-    // Walk backwards within character budget (always keep at least last 4 valid messages, cap at 28)
+    // Walk backwards within character budget (always keep at least last 4 valid messages, cap at 100)
     let windowStartIndex = total;
     for (let i = total - 1; i >= 0; i--) {
       const rawMsg = state.messages[i];
       const entry = formatMessageForModel(rawMsg);
       if (!entry || !entry.content) continue;
       const len = entry.content.length;
-      if (selected.length >= 4 && (usedChars + len > limit || selected.length >= 28)) {
+      if (selected.length >= 4 && (usedChars + len > limit || selected.length >= 100)) {
         break;
       }
       // Only attach multimodal image payload to the very latest user message if allowed
@@ -2670,7 +2697,7 @@
       : '';
 
     const summaryBlock = state.memorySummary
-      ? `\n【前情记忆】\n${state.memorySummary.slice(0, 600)}`
+      ? `\n【前情记忆】\n${state.memorySummary.slice(0, 1200)}`
       : '';
 
     const gapHint = getTimeGapContext();
@@ -2701,7 +2728,7 @@ ${state.settings.persona}${appearanceBlock}${shiftNote}
 
 【后台隐藏指令（不会显示给用户，切勿向用户解释或直接当正文写出）】
 - 心情与好感：可按需要附在末尾 <AFFECTION delta="+1" mood="两个到四个字心情" />
-- 记忆写入：仅遇到值得长期记住的事实（作息、忌口、喜好、约定等）时附 <MEMORY key="标签" value="事实" />（删除过时事实时用 op="del"）
+- 记忆写入：仅当用户明确透露长期有效的核心事实（如：昵称、职业、作息习惯、饮食喜好/忌口、生日纪念日、养的宠物、长期计划/约定）时才附 <MEMORY key="标签" value="事实" />（删旧用 op="del"）。一次性的喝水、贴贴、发照片、闲聊碎事、你自己的台词绝对不要写 <MEMORY>！
 - 小窝看板组件：当前已有 ${widgetSummary}。仅在用户明确要求做/改打卡器、倒计时、转盘、小游戏等互动组件时，在末尾输出 <WIDGET title="名称" replace="如果是改旧组件则写原名，新建省略" height="240">...完整单页 HTML/CSS/JS...</WIDGET>（断网沙盒，只能用 CompanionBridge.getState()/saveState()/emit()，绝不能引用外链；日常闲聊与互动回应不要输出 <WIDGET>）${getImagePromptSection()}`;
   }
 
@@ -2851,7 +2878,7 @@ ${state.settings.persona}${appearanceBlock}${shiftNote}
       err.isVisionNotice = true;
       throw err;
     }
-    let budget = state.settings.maxContextChars || 3600;
+    let budget = state.settings.maxContextChars || 16000;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
@@ -2865,8 +2892,8 @@ ${state.settings.persona}${appearanceBlock}${shiftNote}
         if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 2) {
           throw err;
         }
-        budget = Math.max(600, Math.floor(budget / 2));
-        state.settings.maxContextChars = Math.max(1800, budget);
+        budget = Math.max(2400, Math.floor(budget / 2));
+        state.settings.maxContextChars = Math.max(2400, budget);
         scheduleSave();
       }
     }
@@ -2889,14 +2916,14 @@ ${state.settings.persona}${appearanceBlock}${shiftNote}
     const msgsRef = state.messages;
     const curSummarized = Math.max(0, Math.min(state.summarizedCount || 0, msgsRef.length));
     const safeEnd = force
-      ? Math.max(0, msgsRef.length - 6)
-      : Math.min(lastWindowStartIndex, Math.max(0, msgsRef.length - 6));
+      ? Math.max(0, msgsRef.length - 8)
+      : Math.min(lastWindowStartIndex, Math.max(0, msgsRef.length - 8));
 
     const pendingCount = safeEnd - curSummarized;
-    if (!force && pendingCount < 10) return { ok: false, reason: 'few' };
+    if (!force && pendingCount < 12) return { ok: false, reason: 'few' };
     if (pendingCount < 3) return { ok: false, reason: 'few' };
 
-    const sliceEnd = Math.min(safeEnd, curSummarized + 24);
+    const sliceEnd = Math.min(safeEnd, curSummarized + 36);
     const chunk = msgsRef.slice(curSummarized, sliceEnd)
       .map(formatMessageForModel)
       .filter(Boolean)
@@ -2915,19 +2942,24 @@ ${state.settings.persona}${appearanceBlock}${shiftNote}
       const memSnapshot = Array.isArray(targetChar.memories) ? targetChar.memories : [];
       const existingKeys = memSnapshot.slice(0, 40).map(m => `${m.key}:${m.value}`).join('；') || '无';
       const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
-      const prompt = `请把下面这段刚滑出对话窗口的旧聊天记录与原有前情提要合并压缩，并顺便整理长期记忆（新增重要事实，并列出被替代/过时的矛盾旧标签）。
+      const prompt = `请把下面滑出对话窗口的旧聊天记录与原有前情摘要合并压缩，并按严格门槛整理长期记忆。
 
-【原有前情提要】
+【原有前情摘要】
 ${targetChar.memorySummary || '（暂无）'}
 
 【已有长期记忆】
 ${existingKeys}
 
 【待归档的新增旧对话】
-${chunk.slice(0, 4200)}
+${chunk.slice(0, 6000)}
 
-请严格只输出一个 JSON 对象，格式如下：
-{"summary":"250字以内的连贯前情摘要，保留关键事件、情绪变化和未完成约定","facts":[{"key":"简短标签(如作息/喜好/约定)","value":"客观具体的长期事实"}],"dropKeys":["已过时或互相矛盾需删除的旧标签，没有则空数组"]}`;
+【记忆筛选红线（极其重要）】
+1. facts 只能记录对未来一个月后依然成立的用户个人长期事实（如：昵称/职业/城市、作息习惯、饮食喜好或忌口、生日纪念日、养的宠物、重要约定）。
+2. 严禁写入一次性琐事与流水账（例如：喝了几杯水、隔空贴贴第几次、拍过照/重拍照片、看板点击、AI 自己说过的话、当时一时的玩笑话）。若没有值得长期记录的新事实，facts 必须输出空数组 []！
+3. 如果【已有长期记忆】里已经混入了上述流水账/废话，或有被新事实推翻的旧标签，请把它们的标签名放进 dropKeys 清理掉。
+
+请严格只输出一个 JSON 对象：
+{"summary":"450字以内的连贯前情摘要，保留重要经历、关系进展与未完成约定","facts":[],"dropKeys":[]}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -2955,7 +2987,7 @@ ${chunk.slice(0, 4200)}
       const destMemories = isStillActive ? state.memories : destChar.memories;
 
       if (typeof parsed.summary === 'string' && parsed.summary.trim()) {
-        const cleanSummary = parsed.summary.trim().slice(0, 600);
+        const cleanSummary = parsed.summary.trim().slice(0, 1200);
         destChar.memorySummary = cleanSummary;
         if (isStillActive) state.memorySummary = cleanSummary;
       }
@@ -4219,8 +4251,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   const cfgAppearance = document.getElementById('cfgAppearance');
   const avatarEditBtn = document.getElementById('avatarEditBtn');
   const charAvatarInput = document.getElementById('charAvatarInput');
-  const resetAvatarBtn = document.getElementById('resetAvatarBtn');
-  const guideBuilderPanel = document.getElementById('guideBuilderPanel');
+  const avatarClearBadge = document.getElementById('avatarClearBadge');
   const gbPersonality = document.getElementById('gbPersonality');
   const gbRelation = document.getElementById('gbRelation');
   const gbAppearance = document.getElementById('gbAppearance');
@@ -4236,7 +4267,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '林澈';
     const active = getActiveCharacter();
     applyAvatarToEl(avatarEditBtn, name, draftAvatarImage, active?.avatarColor);
-    resetAvatarBtn.style.display = draftAvatarImage ? 'inline-flex' : 'none';
+    avatarClearBadge.classList.toggle('show', Boolean(draftAvatarImage));
   }
 
   avatarEditBtn.onclick = () => charAvatarInput.click();
@@ -4253,17 +4284,14 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       charAvatarInput.value = '';
     }
   };
-  resetAvatarBtn.onclick = () => {
+  avatarClearBadge.onclick = e => {
+    e.stopPropagation();
     draftAvatarImage = '';
     refreshAvatarEditPreview();
   };
   document.getElementById('cfgName').addEventListener('input', refreshAvatarEditPreview);
-
-  document.getElementById('toggleGuideBuilderBtn').onclick = () => {
-    guideBuilderPanel.classList.toggle('show');
-  };
-  document.getElementById('closeGuideBuilderBtn').onclick = () => {
-    guideBuilderPanel.classList.remove('show');
+  document.getElementById('closeCreatePanelBtn').onclick = () => {
+    charCreatePanel.classList.remove('show');
   };
 
   document.querySelectorAll('.guide-chips[data-fill-target]').forEach(group => {
@@ -4356,6 +4384,13 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       pill.onclick = () => switchCharacter(c.id);
       charBarEl.appendChild(pill);
     });
+    const addPill = document.createElement('button');
+    addPill.type = 'button';
+    addPill.className = 'char-pill add';
+    addPill.textContent = '+ 新建';
+    addPill.onclick = () => charCreatePanel.classList.toggle('show');
+    charBarEl.appendChild(addPill);
+
     if (deleteCharBtn) {
       deleteCharBtn.style.display = chars.length > 1 ? 'inline-flex' : 'none';
     }
@@ -4369,7 +4404,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
-    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+    state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
     flushActiveCharToList();
   }
 
@@ -4408,10 +4443,6 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     scheduleSave();
   }
 
-  document.getElementById('newCharToggleBtn').onclick = () => {
-    charCreatePanel.classList.toggle('show');
-  };
-
   document.querySelectorAll('#charTplPicker [data-char-tpl]').forEach(btn => {
     btn.onclick = () => {
       if (isBusy) return;
@@ -4440,7 +4471,6 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       cfgAppearance.value = card.appearance || '';
       memSummaryInput.value = '';
       refreshAvatarEditPreview();
-      guideBuilderPanel.classList.toggle('show', tplKey === 'blank');
       renderCharacterBar();
       renderMemoryModalList();
       renderHeader();
@@ -4657,23 +4687,121 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     }
   }
 
-  gbGenerateBtn.onclick = () => buildCharacterWithAI({
-    seedText: document.getElementById('cfgPersona').value.trim(),
-    personality: gbPersonality.value.trim(),
-    appearance: gbAppearance.value.trim(),
-    relation: gbRelation.value.trim(),
-    habits: gbHabits.value.trim(),
-    statusEl: gbStatus,
-    btnEl: gbGenerateBtn,
-    idleLabel: '✨ AI 自动捏出角色卡'
-  });
+  gbGenerateBtn.onclick = async () => {
+    if (isBusy) return;
+    const personality = gbPersonality.value.trim();
+    const relation = gbRelation.value.trim();
+    const appearance = gbAppearance.value.trim();
+    const habits = gbHabits.value.trim();
+    const key = (cfgApiKey.value || state.settings.apiKey || '').trim();
+    const base = (cfgBaseUrl.value || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
+    const model = (cfgModel.value || state.settings.model || '').trim();
+
+    let genName = '夏知';
+    let genPersona = `你是用户的${relation || '贴心伴侣'}「${genName}」，性格${personality || '温柔体贴、偶尔嘴硬'}。平时有着${habits || '爱关心你的日常作息'}的小习惯。说话像真人微信聊天一样自然口语、短句为主，懂得分寸和偏心你，绝不端着说教或用列表腔。`;
+    let genAppearance = appearance;
+    let genGreeting = `嗨～我是${genName}，刚收拾好过来找你了，今天过得怎么样？`;
+
+    if (key && base && model) {
+      gbGenerateBtn.disabled = true;
+      gbGenerateBtn.textContent = '生成中…';
+      gbStatus.textContent = '正在为你捏出专属新角色…';
+      gbStatus.className = 'model-status';
+      try {
+        const traits = [
+          personality ? `性格气质：${personality}` : '',
+          relation ? `与用户关系：${relation}` : '',
+          appearance ? `外貌与身材：${appearance}` : '',
+          habits ? `喜好与小习惯：${habits}` : ''
+        ].filter(Boolean).join('\n') || '温柔体贴又带点生活烟火气的伴侣';
+
+        const ask = `请根据以下要素为伴侣聊天 App 创建一个全新角色卡：
+${traits}
+
+要求：
+1. 给角色起一个自然好听的中文名字；
+2. persona 用第二人称（“你是…”）写，140~220字，突出性格反差、口癖、小习惯，强调像微信日常聊天口语短句、绝不说教也不用列表腔；
+3. 只输出纯 JSON：{"name":"名字","persona":"人设","appearance":"15~35字外貌身材穿搭描述","greeting":"1~2句自然开场白"}`;
+
+        const res = await fetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+          body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const raw = json.choices?.[0]?.message?.content || '';
+        const m = raw.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          if (parsed.name) genName = String(parsed.name).trim();
+          if (parsed.persona) genPersona = String(parsed.persona).trim();
+          if (parsed.appearance) genAppearance = String(parsed.appearance).trim();
+          if (parsed.greeting) genGreeting = String(parsed.greeting).trim();
+        }
+      } catch (err) {
+        gbStatus.textContent = `生成失败：${err.message}`;
+        gbStatus.className = 'model-status err';
+        gbGenerateBtn.disabled = false;
+        gbGenerateBtn.textContent = '✨ 生成并创建角色';
+        return;
+      } finally {
+        gbGenerateBtn.disabled = false;
+        gbGenerateBtn.textContent = '✨ 生成并创建角色';
+      }
+    }
+
+    syncDraftCharFieldsIfModalOpen();
+    flushActiveCharToList();
+    const palette = [
+      'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
+      'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+      'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+      'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
+    ];
+    const card = makeCharacterCard({
+      name: genName,
+      persona: genPersona,
+      appearance: genAppearance,
+      avatarColor: palette[state.characters.length % palette.length],
+      greeting: [genGreeting],
+      widgets: [cloneStarterWidget()]
+    });
+    state.characters.push(card);
+    charCreatePanel.classList.remove('show');
+    [gbPersonality, gbRelation, gbAppearance, gbHabits].forEach(el => { el.value = ''; });
+    document.querySelectorAll('#charCreatePanel .mini-chip.active').forEach(c => c.classList.remove('active'));
+    gbStatus.textContent = '';
+
+    pendingEventQueue = [];
+    lastWindowStartIndex = 0;
+    visibleChatStart = -1;
+    draftAiGreeting = '';
+    personaShiftPending = false;
+    loadCharacterIntoRuntime(card);
+    draftAvatarImage = '';
+    document.getElementById('cfgName').value = card.name;
+    document.getElementById('cfgPersona').value = card.persona;
+    cfgAppearance.value = card.appearance || '';
+    memSummaryInput.value = '';
+    refreshAvatarEditPreview();
+    renderCharacterBar();
+    renderMemoryModalList();
+    renderHeader();
+    renderChat();
+    renderWidgets();
+    updateMemStats();
+    scheduleSave();
+    aiPersonaStatus.textContent = `✓ 已创建并切换到「${card.name}」，可直接点下方保存开聊`;
+    aiPersonaStatus.className = 'model-status ok';
+  };
 
   aiPersonaBtn.onclick = () => buildCharacterWithAI({
     seedText: document.getElementById('cfgPersona').value.trim(),
-    personality: gbPersonality.value.trim(),
-    appearance: cfgAppearance.value.trim() || gbAppearance.value.trim(),
-    relation: gbRelation.value.trim(),
-    habits: gbHabits.value.trim(),
+    personality: '',
+    appearance: cfgAppearance.value.trim(),
+    relation: '',
+    habits: '',
     statusEl: aiPersonaStatus,
     btnEl: aiPersonaBtn,
     idleLabel: '✨ AI 润色'
@@ -4703,7 +4831,6 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     gbStatus.textContent = '';
     gbStatus.className = 'model-status';
     charCreatePanel.classList.remove('show');
-    guideBuilderPanel.classList.remove('show');
     syncProviderPickerUI(state.settings.baseUrl, false);
     if (detectedModels.length) {
       renderModelSuggestions('');
@@ -4748,7 +4875,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     const prevPersona = state.settings.persona;
     const prevAppearance = state.settings.appearance || '';
 
-    state.settings._v = 4;
+    state.settings._v = 5;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
@@ -4763,7 +4890,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     state.settings.avatarImage = draftAvatarImage;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
     state.settings.stream = true;
-    state.memorySummary = memSummaryInput.value.trim().slice(0, 600);
+    state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
 
     const hasUserChatted = state.messages.some(m => m && (m.role === 'user' || m.role === 'event'));
     if (!hasUserChatted) {
@@ -4859,7 +4986,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
   document.getElementById('memAddBtn').onclick = () => {
     const kEl = document.getElementById('memNewKey');
     const vEl = document.getElementById('memNewVal');
-    if (upsertMemory(kEl.value, vEl.value)) {
+    if (upsertMemory(kEl.value, vEl.value, null, null, true)) {
       kEl.value = '';
       vEl.value = '';
       scheduleSave();
@@ -4943,7 +5070,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
       if (saved) {
         const hadPrevVersion = saved?.settings?._v || 0;
         state = normalizeState(saved);
-        if (hadPrevVersion < 4) scheduleSave();
+        if (hadPrevVersion < 5) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
