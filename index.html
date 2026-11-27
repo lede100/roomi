@@ -2297,7 +2297,7 @@
     });
     return {
       settings: {
-        _v: 9,
+        _v: 10,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
@@ -2345,7 +2345,7 @@
       stickers: [],
       nonVisionModels: [],
       nonThinkingModels: [],
-      noMidSystemModels: [],
+      noReasoningModels: [],
       messages: firstChar.messages,
       widgets: firstChar.widgets,
       widgetStates: firstChar.widgetStates
@@ -2485,8 +2485,13 @@
     if (!['calm', 'balanced', 'vivid'].includes(mergedSettings.temperatureMode)) {
       mergedSettings.temperatureMode = 'balanced';
     }
+    if ((mergedSettings._v || 0) < 10) {
+      // Reset previously over-broad noThinking cache so high reasoning_effort probes cleanly per field
+      next.nonThinkingModels = [];
+      next.noReasoningModels = [];
+    }
     if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
-    if (!Array.isArray(next.noMidSystemModels)) next.noMidSystemModels = [];
+    if (!Array.isArray(next.noReasoningModels)) next.noReasoningModels = [];
     if (!Array.isArray(next.stickers)) next.stickers = [];
     if (typeof mergedSettings.autoGreetOnOpen !== 'boolean') mergedSettings.autoGreetOnOpen = true;
     mergedSettings.debounceSend = Boolean(mergedSettings.debounceSend);
@@ -2496,7 +2501,7 @@
     if (!/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgDefaultSize || '')) mergedSettings.imgDefaultSize = '1152x1536';
     mergedSettings.privacyLock = Boolean(mergedSettings.privacyLock);
     mergedSettings.privacyPin = String(mergedSettings.privacyPin || '').replace(/\D/g, '').slice(0, 4);
-    mergedSettings._v = 9;
+    mergedSettings._v = 10;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
@@ -4228,8 +4233,8 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
       : '';
 
     const modeRule = isStory
-      ? '1. 「小剧场」模式开启：入戏扮演用户私密恋人，自然带有 *神态、动作、眼神* 描写推进互动；严禁说教与 1.2.3. 列表腔。\n2. 长短完全随场景流动，可一句话直出，需要换气停顿时再用 ||| 拆成 1~3 条。'
-      : '1. 当前为日常微信打字模式：只输出真人直接发给对方的纯说话口语！禁止使用星号符号、括号旁白、动作神态描写、内心独白，也不要写 1.2.3. 列表说教。\n2. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n3. 别像客服一样每轮反问安抚，顺着此刻情绪直接接茬就好。';
+      ? '1. 「小剧场」模式开启：入戏扮演用户私密恋人，自然带有 *神态、动作、眼神* 描写推进互动；严禁说教与 1.2.3. 列表腔。\n2. 长短完全随场景流动，可一句话直出，需要换气停顿时再用 ||| 拆成 1~3 条。\n3. 严格保持前后事实、物理场景与刚答应的约定连贯一致，绝不自相矛盾。'
+      : '1. 当前为日常微信打字模式：只输出真人直接发给对方的纯说话口语！禁止使用星号符号、括号旁白、动作神态描写、内心独白，也不要写 1.2.3. 列表说教。\n2. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n3. 严格记住近几轮刚说过的事实与答应过的事（比如约定开着灯、还没睡、在做什么），绝不自相矛盾；别像客服一样每轮反问安抚。';
 
     const widgetRule = needWidget
       ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
@@ -4315,13 +4320,10 @@ ${modeRule}
     const widgetSummary = needWidget ? state.widgets.map(w => `「${w.title}」`).join('、') : '';
     const specialCue = getSpecialDateCue();
     const lines = [
-      `[后台实时情景与口吻校准]`,
+      `[后台实时情景与一致性校准]`,
       `当前时间：${timeNote}`
     ];
     if (specialCue) lines.push(specialCue);
-    if (state.dailyNote?.text && state.dailyNote.date === todayKey()) {
-      lines.push(`你今日贴在家里的心情便签：${state.dailyNote.text}`);
-    }
     if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`命中长期记忆：\n${memLines}`);
     if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 500)}`);
@@ -4331,7 +4333,7 @@ ${modeRule}
         : '即时提醒：小剧场已关闭或设定刚更新，从本条起严禁任何星号或括号神态旁白，只发纯口语短句！');
     }
     lines.push(
-      `口吻强校准：此刻请以「${charName}」本人语气直觉回应下方用户发言${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，禁止出现动作旁白、星号和客服说教腔'}。`
+      `一致性与口吻校准：回答前先核对近几轮对话里刚确认过的状态与约定（绝不推翻或忘记刚刚说过的话），再以「${charName}」本人语气接下方这句${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，禁止动作旁白与客服说教'}。`
     );
     return lines.join('\n');
   }
@@ -4391,36 +4393,28 @@ ${modeRule}
     updateVisionBtnState();
   }
 
+  function isModelFieldUnsupported(list, modelName) {
+    const m = String(modelName || '').trim().toLowerCase();
+    if (!m || !Array.isArray(list)) return false;
+    return list.some(item => item.toLowerCase() === m);
+  }
+
+  function markModelFieldUnsupported(prop, modelName) {
+    const m = String(modelName || '').trim();
+    if (!m) return;
+    if (!Array.isArray(state[prop])) state[prop] = [];
+    if (!isModelFieldUnsupported(state[prop], m)) {
+      state[prop].push(m);
+      scheduleSave();
+    }
+  }
+
   function isModelMarkedNoThinking(modelName) {
-    const m = String(modelName || '').trim().toLowerCase();
-    if (!m || !Array.isArray(state.nonThinkingModels)) return false;
-    return state.nonThinkingModels.some(item => item.toLowerCase() === m);
+    return isModelFieldUnsupported(state.nonThinkingModels, modelName);
   }
 
-  function markModelNoThinking(modelName) {
-    const m = String(modelName || '').trim();
-    if (!m) return;
-    if (!Array.isArray(state.nonThinkingModels)) state.nonThinkingModels = [];
-    if (!isModelMarkedNoThinking(m)) {
-      state.nonThinkingModels.push(m);
-      scheduleSave();
-    }
-  }
-
-  function isModelMarkedNoMidSystem(modelName) {
-    const m = String(modelName || '').trim().toLowerCase();
-    if (!m || !Array.isArray(state.noMidSystemModels)) return false;
-    return state.noMidSystemModels.some(item => item.toLowerCase() === m);
-  }
-
-  function markModelNoMidSystem(modelName) {
-    const m = String(modelName || '').trim();
-    if (!m) return;
-    if (!Array.isArray(state.noMidSystemModels)) state.noMidSystemModels = [];
-    if (!isModelMarkedNoMidSystem(m)) {
-      state.noMidSystemModels.push(m);
-      scheduleSave();
-    }
+  function isModelMarkedNoReasoning(modelName) {
+    return isModelFieldUnsupported(state.noReasoningModels, modelName);
   }
 
   async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
@@ -4467,7 +4461,9 @@ ${modeRule}
     activeAbortController = new AbortController();
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
-    const thinkingMode = isModelMarkedNoThinking(model) ? 'auto' : (state.settings.thinkingMode || 'auto');
+    const thinkingMode = state.settings.thinkingMode || 'auto';
+    const allowThinkingField = !isModelMarkedNoThinking(model);
+    const allowReasoningField = !isModelMarkedNoReasoning(model);
 
     const reqBody = {
       model: model.trim(),
@@ -4476,13 +4472,10 @@ ${modeRule}
       messages
     };
     if (thinkingMode === 'off') {
-      reqBody.thinking = { type: 'disabled' };
-    } else if (thinkingMode === 'low') {
-      reqBody.thinking = { type: 'enabled' };
-      reqBody.reasoning_effort = 'low';
-    } else if (thinkingMode === 'high') {
-      reqBody.thinking = { type: 'enabled' };
-      reqBody.reasoning_effort = 'high';
+      if (allowThinkingField) reqBody.thinking = { type: 'disabled' };
+    } else if (thinkingMode === 'low' || thinkingMode === 'high') {
+      if (allowThinkingField) reqBody.thinking = { type: 'enabled' };
+      if (allowReasoningField) reqBody.reasoning_effort = thinkingMode;
     }
 
     const postOnce = bodyObj => fetch(url, {
@@ -4501,16 +4494,34 @@ ${modeRule}
       const errText = await res.text().catch(() => '');
       if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
         const retryBody = { ...reqBody };
-        const onlyThinkingRejected = /thinking/i.test(errText) && !/reasoning/i.test(errText);
-        if (onlyThinkingRejected) {
-          delete retryBody.thinking;
-        } else {
-          delete retryBody.thinking;
+        const onlyReasoningRejected = /reasoning/i.test(errText) && !/thinking/i.test(errText);
+        if (onlyReasoningRejected && retryBody.reasoning_effort) {
           delete retryBody.reasoning_effort;
-        }
-        res = await postOnce(retryBody);
-        if (res.ok) {
-          markModelNoThinking(model);
+          res = await postOnce(retryBody);
+          if (res.ok) markModelFieldUnsupported('noReasoningModels', model);
+        } else if (retryBody.thinking) {
+          // Strip `thinking` first while keeping `reasoning_effort` intact so OpenAI/OpenRouter/Gemini high reasoning stays enabled!
+          delete retryBody.thinking;
+          res = await postOnce(retryBody);
+          if (res.ok) {
+            markModelFieldUnsupported('nonThinkingModels', model);
+          } else if ((res.status === 400 || res.status === 422) && retryBody.reasoning_effort) {
+            const errText2 = await res.text().catch(() => '');
+            if (/(reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText2)) {
+              delete retryBody.reasoning_effort;
+              res = await postOnce(retryBody);
+              if (res.ok) {
+                markModelFieldUnsupported('nonThinkingModels', model);
+                markModelFieldUnsupported('noReasoningModels', model);
+              }
+            } else {
+              throw new Error(`HTTP ${res.status} ${errText2.slice(0, 160)}`);
+            }
+          }
+        } else if (retryBody.reasoning_effort) {
+          delete retryBody.reasoning_effort;
+          res = await postOnce(retryBody);
+          if (res.ok) markModelFieldUnsupported('noReasoningModels', model);
         }
       } else {
         throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
@@ -7756,7 +7767,7 @@ ${traits}
     }
 
     const ctxTier = CONTEXT_TIERS[draftContextMode] || CONTEXT_TIERS.long;
-    state.settings._v = 9;
+    state.settings._v = 10;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
@@ -8165,7 +8176,7 @@ ${traits}
       if (saved) {
         const hadPrevVersion = saved?.settings?._v || 0;
         state = normalizeState(saved);
-        if (hadPrevVersion < 9) scheduleSave();
+        if (hadPrevVersion < 10) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
