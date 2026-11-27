@@ -3762,10 +3762,11 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
 
   // ---- Output Parser ----
   function parseTagAttrs(attrStr) {
+    const normalized = String(attrStr || '').replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
     const attrs = {};
     const re = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
     let m;
-    while ((m = re.exec(attrStr || '')) !== null) {
+    while ((m = re.exec(normalized)) !== null) {
       attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? '';
     }
     return attrs;
@@ -4621,7 +4622,21 @@ ${modeRule}
         if (onlyReasoningRejected && retryBody.reasoning_effort) {
           delete retryBody.reasoning_effort;
           res = await postOnce(retryBody);
-          if (res.ok) markModelFieldUnsupported('noReasoningModels', model, baseUrl);
+          if (res.ok) {
+            markModelFieldUnsupported('noReasoningModels', model, baseUrl);
+          } else if ((res.status === 400 || res.status === 422) && retryBody.thinking) {
+            const errText2 = await res.text().catch(() => '');
+            if (paramUnsupportedRe.test(errText2)) {
+              delete retryBody.thinking;
+              res = await postOnce(retryBody);
+              if (res.ok) {
+                markModelFieldUnsupported('noReasoningModels', model, baseUrl);
+                markModelFieldUnsupported('nonThinkingModels', model, baseUrl);
+              }
+            } else {
+              throw new Error(`HTTP ${res.status} ${errText2.slice(0, 160)}`);
+            }
+          }
         } else if (retryBody.thinking) {
           // Strip `thinking` first while keeping `reasoning_effort` intact so OpenAI/OpenRouter/Gemini high reasoning stays enabled!
           delete retryBody.thinking;
@@ -4630,7 +4645,7 @@ ${modeRule}
             markModelFieldUnsupported('nonThinkingModels', model, baseUrl);
           } else if ((res.status === 400 || res.status === 422) && retryBody.reasoning_effort) {
             const errText2 = await res.text().catch(() => '');
-            if (/(reasoning_effort|reasoning|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties)/i.test(errText2)) {
+            if (paramUnsupportedRe.test(errText2)) {
               delete retryBody.reasoning_effort;
               res = await postOnce(retryBody);
               if (res.ok) {
@@ -4845,7 +4860,7 @@ ${chunk}
         stream: false,
         messages: [{ role: 'user', content: prompt }]
       };
-      if (!isModelMarkedNoThinking(model)) {
+      if (!isModelMarkedNoThinking(model, baseUrl)) {
         compressBody.thinking = { type: 'disabled' };
       }
       const postCompress = bodyObj => fetchWithTimeout(url, {
@@ -4859,10 +4874,11 @@ ${chunk}
       let res = await postCompress(compressBody);
       if (!res.ok && (res.status === 400 || res.status === 422) && compressBody.thinking) {
         const errText = await res.text().catch(() => '');
-        if (/(thinking|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
+        if (/(thinking|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties|not[_ ]allowed)/i.test(errText)) {
           const fallbackBody = { ...compressBody };
           delete fallbackBody.thinking;
           res = await postCompress(fallbackBody);
+          if (res.ok) markModelFieldUnsupported('nonThinkingModels', model, baseUrl);
         } else {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -5580,9 +5596,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
         raw = await callLiveLLMWithRetry(isEvent ? userText : null, partial => {
           const widgetPos = partial.search(/<widget/i);
           let visible = widgetPos >= 0 ? partial.slice(0, widgetPos) : partial;
-          visible = visible
-            .replace(/<think>[\s\S]*?<\/think>/gi, '')
-            .replace(/<think[\s\S]*$/i, '')
+          visible = stripThinkingTags(visible)
             .replace(/<affection[\s\S]*$/i, '')
             .replace(/<memory[\s\S]*$/i, '')
             .replace(/<state[\s\S]*$/i, '')
@@ -7313,6 +7327,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与家里小组件都会保留）`)) return;
     const greetingVal = document.getElementById('cfgGreeting')?.value.trim() || '';
     state.messages = [{ id: `msg_init_${Date.now()}`, role: 'assistant', text: greetingVal || buildNaturalStarter(name), isStarter: true }];
+    state.sceneStates = [];
     state.summarizedCount = 0;
     visibleChatStart = -1;
     lastWindowStartIndex = 0;
@@ -8320,7 +8335,7 @@ ${traits}
       if (saved) {
         const hadPrevVersion = saved?.settings?._v || 0;
         state = normalizeState(saved);
-        if (hadPrevVersion < 10) scheduleSave();
+        if (hadPrevVersion < 11) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
