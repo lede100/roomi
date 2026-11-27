@@ -5241,16 +5241,19 @@ ${chunk}
   function getImagePromptSection() {
     if (!state.settings.apiKey.trim() || !isImageGenReady()) return '';
     const isAuto = state.settings.imgTrigger === 'auto';
-    const canEdit = state.settings.imgProvider === 'modelscope';
+    const isModelScope = state.settings.imgProvider === 'modelscope';
     const defSize = normalizeImageSize(state.settings.imgDefaultSize || '1152x1536');
+    const promptPolicy = isModelScope
+      ? 'prompt 避开露骨敏感词。'
+      : '当前接入用户自配 OpenAI 兼容生图接口，客户端不做任何尺度或题材限制，请严格按用户要求的画面构图、服饰、姿态与细节如实完整写入 prompt，勿自行回避或删改。';
     return `
 
 【拍照 / 发照片能力】
 ${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
 需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（只有输出该标签系统才会真正生成并发送图片）：
 <IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="${defSize}" />
-${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背景/P一下”时才附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”；若是要求“重拍/再来一张新照片”，请勿加 ref="last"，直接写新的 prompt（速度更快）。' : ''}
-注意：严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；prompt 避开露骨敏感词。`;
+${isModelScope ? '仅当用户明确要求基于上一张图“修改/换装/换背景/P一下”时才附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”；若是要求“重拍/再来一张新照片”，请勿加 ref="last"，直接写新的 prompt（速度更快）。' : ''}
+注意：严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；${promptPolicy}`;
   }
 
   function normalizeImageSize(rawSize) {
