@@ -4343,7 +4343,7 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     const widgetRule = needWidget
       ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
       : '';
-    const imgRule = needImage ? getImagePromptSection() : '';
+    const imgRule = getImagePromptSection();
 
     return `【私密伴侣身份档案（静态锚点，绝不跳脱或反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
@@ -5282,6 +5282,7 @@ ${chunk}
 【拍照 / 发照片能力】
 ${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
 需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（只有输出该标签系统才会真正生成并发送图片）：
+拍照意图判定：用户说“拍照、拍一张、拍吧、看看你照片、发照片”都是立即输出 <IMAGE> 标签发图，不是光在正文里演拍照；用户说“拍吧、好、拍”这种短确认，就是确认上一句要图，必须输出 <IMAGE> 标签，别继续光说不发。
 <IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="${defSize}" />
 ${canEdit ? '改图/新图判定规则：当用户明确说基于上一张图“改一下、换装、换背景、P一下”时，必须附带 ref="last"，并在 prompt 里写明保持原图人物五官/主体不变、只修改指定部分；当用户说“拍一张、画一张、重拍、再来一张”时，严禁附带 ref="last"，直接全新画新画面。' : ''}
 prompt 写法铁律（非常重要）：
