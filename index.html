@@ -248,9 +248,69 @@
   }
   .track.dragging { transition: none; }
   .pane {
+    position: relative;
     width: 50%; flex: 0 0 50%; min-width: 0; height: 100%;
     display: flex; flex-direction: column;
     overflow: hidden;
+  }
+  .chat-bg-layer, .chat-bg-veil {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0; display: none;
+  }
+  .chat-bg-layer { background-size: cover; background-position: center; }
+  .chat-bg-veil { background: var(--bg); opacity: 0.72; }
+  .chat-bg-layer.show, .chat-bg-veil.show { display: block; }
+  .pane-chat-inner {
+    position: relative; z-index: 2; flex: 1; min-height: 0;
+    display: flex; flex-direction: column; width: 100%;
+  }
+  .quote-preview-bar {
+    display: none; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 10px; margin-bottom: 6px; border-radius: 10px;
+    background: var(--surface-muted); border-left: 3px solid var(--blue);
+    font-size: 11.5px; color: var(--text-2);
+  }
+  .quote-preview-bar.show { display: flex; }
+  .quote-preview-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .bubble-quote {
+    font-size: 11px; line-height: 1.35; padding: 4px 8px; margin-bottom: 5px;
+    border-radius: 8px; border-left: 2.5px solid rgba(255,255,255,0.6);
+    background: rgba(0,0,0,0.08); cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+  }
+  .msg-row.ai .bubble-quote {
+    border-left-color: var(--blue); background: var(--bg-sub); color: var(--text-muted);
+  }
+  .msg-row.jump-flash .bubble {
+    box-shadow: 0 0 0 3px rgba(77, 107, 254, 0.35); transition: box-shadow 0.25s;
+  }
+  .archive-search-list {
+    display: flex; flex-direction: column; gap: 7px; max-height: 52dvh; overflow-y: auto; margin-top: 8px;
+  }
+  .archive-hit {
+    text-align: left; border: 1px solid var(--border); background: var(--bg-sub);
+    border-radius: 11px; padding: 8px 11px; cursor: pointer; font-family: inherit;
+  }
+  .archive-hit:hover { border-color: var(--blue-border); background: var(--surface); }
+  .archive-hit-meta { font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px; }
+  .archive-hit-txt { font-size: 12.5px; color: var(--text); line-height: 1.45; }
+  .gallery-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    max-height: 56dvh; overflow-y: auto; padding: 2px 0;
+  }
+  .gallery-tile {
+    position: relative; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--border); cursor: pointer; background: var(--bg-sub); padding: 0;
+  }
+  .gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gallery-tag {
+    position: absolute; right: 4px; bottom: 4px; font-size: 9.5px;
+    padding: 1px 5px; border-radius: 999px; background: rgba(15,23,42,0.62); color: #fff;
+  }
+  .notify-times-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--text-2);
+  }
+  .notify-times-row input[type="time"] {
+    width: auto !important; padding: 5px 8px !important; font-size: 12px !important;
   }
   .pane-board { background: var(--bg-sub); }
 
@@ -994,7 +1054,13 @@
         </button>
         <button type="button" class="mode-badge guide" id="modeBadge" title="点击去填 API Key">去填 Key · 演示中</button>
       </div>
-      <div style="display:flex;align-items:center;gap:4px;">
+      <div style="display:flex;align-items:center;gap:2px;">
+        <button class="icon-btn" id="searchChatBtn" title="搜索聊天与相册" aria-label="搜索聊天与相册">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
         <button class="icon-btn" id="quickThemeBtn" title="切换白蓝/暖纸主题" aria-label="切换主题">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="4"></circle>
@@ -1046,6 +1112,9 @@
     <div class="track" id="track">
       <!-- LEFT PANE: Chat -->
       <section class="pane">
+        <div class="chat-bg-layer" id="chatBgLayer"></div>
+        <div class="chat-bg-veil" id="chatBgVeil"></div>
+        <div class="pane-chat-inner">
         <div class="key-guide-banner" id="keyGuideBanner">
           <div class="key-guide-main">
             <span class="key-guide-step">第一步</span>
@@ -1065,6 +1134,10 @@
           <button class="chip" data-prompt="帮我做个心情玻璃罐，我点情绪就能往里丢一颗彩球">🫧 心情玻璃罐</button>
         </div>
         <div class="composer-wrap">
+          <div class="quote-preview-bar" id="quotePreviewBar">
+            <span class="quote-preview-text" id="quotePreviewText"></span>
+            <button type="button" class="mini-btn" id="clearQuoteBtn" title="取消引用">✕</button>
+          </div>
           <div class="img-preview-bar" id="imgPreviewBar">
             <img class="img-preview-thumb" id="imgPreviewThumb" alt="预览" />
             <div class="img-preview-meta" id="imgPreviewMeta">已压缩待发送</div>
@@ -1088,6 +1161,7 @@
             </button>
           </div>
         </div>
+        </div>
       </section>
 
       <!-- RIGHT PANE: Companion Widget Board -->
@@ -1098,7 +1172,10 @@
               <div class="board-hero-title" id="boardHeroTitle">林澈的家</div>
               <div class="board-hero-sub">聊天里现做的小工具都会摆在家里，点击就能直接互动</div>
             </div>
-            <button class="new-widget-btn" id="askNewWidgetBtn">+ 现做一个</button>
+            <div style="display:flex;gap:5px;flex-shrink:0;">
+              <button class="new-widget-btn" id="openGalleryBtn" style="background:var(--surface-muted);color:var(--text-2);">🖼 相册</button>
+              <button class="new-widget-btn" id="askNewWidgetBtn">+ 现做一个</button>
+            </div>
           </div>
           <div class="board-tpl-bar" id="boardTplBar">
             <button type="button" class="board-tpl-chip" data-board-tpl="period">🌸 贴心小日历</button>
@@ -1166,19 +1243,30 @@
             <label>身材与外貌描述（可选，生图出镜时保持一致）</label>
             <input id="cfgAppearance" type="text" placeholder="例：22岁，168cm，黑发微卷，日常温柔休闲穿搭" />
           </div>
+          <div class="field" id="cfgGreetingField">
+            <label for="cfgGreeting">开场白（未开聊前可直接修改）</label>
+            <input id="cfgGreeting" type="text" placeholder="TA 主动发来的第一句话…" />
+          </div>
           <div class="toggle-row" style="margin-bottom:8px;">
             <span>🎭 小剧场模式（开启后带神态与动作描写）</span>
             <input id="cfgStoryMode" type="checkbox" style="width:18px;height:18px;accent-color:var(--blue);" />
           </div>
-          <div class="toggle-row" style="margin-bottom:4px;">
+          <div class="toggle-row" style="margin-bottom:8px;">
             <span>点击小组件时，让 TA 实时回应</span>
             <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
           </div>
-          <div class="char-footer-ops">
-            <button type="button" class="text-link-btn" id="exportChatTxtBtn">导出聊天</button>
-            <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
-            <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
-            <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
+          <div class="char-footer-ops" style="justify-content:space-between;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="file" id="wallpaperFileInput" accept="image/*" style="display:none" />
+              <button type="button" class="detect-btn" id="cfgWallpaperBtn">🖼 聊天壁纸</button>
+              <button type="button" class="text-link-btn" id="cfgWallpaperClearBtn" style="display:none;">清除壁纸</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button type="button" class="text-link-btn" id="exportChatTxtBtn">导出聊天</button>
+              <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
+              <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
+              <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
+            </div>
           </div>
         </div>
 
@@ -1186,8 +1274,8 @@
           <div class="field-label-row" style="margin-bottom:10px;">
             <button type="button" class="mini-btn" id="backToEditBtn" style="font-weight:600;color:var(--text);">← 返回角色卡</button>
             <div style="display:flex;gap:6px;align-items:center;">
-              <button type="button" class="detect-btn" id="importCharBtn">导入角色卡</button>
-              <input type="file" id="importCharInput" accept="application/json" style="display:none" />
+              <button type="button" class="detect-btn" id="importCharBtn">导入卡 (.json / PNG图)</button>
+              <input type="file" id="importCharInput" accept="application/json,.json,image/png,.png" style="display:none" />
             </div>
           </div>
 
@@ -1387,9 +1475,16 @@
             </div>
             <div class="field">
               <label>触发时机</label>
-              <div class="presets" id="imgTriggerPicker" style="margin-bottom:0;">
+              <div class="presets" id="imgTriggerPicker" style="margin-bottom:8px;">
                 <button type="button" class="preset-btn active" data-img-trigger="asked">仅我要求时生图</button>
                 <button type="button" class="preset-btn" data-img-trigger="auto">允许 TA 主动配图</button>
+              </div>
+              <label>默认画幅比例</label>
+              <div class="presets" id="imgSizePicker" style="margin-bottom:0;">
+                <button type="button" class="preset-btn active" data-img-size="1152x1536">3:4 竖图</button>
+                <button type="button" class="preset-btn" data-img-size="1024x1024">1:1 方图</button>
+                <button type="button" class="preset-btn" data-img-size="1536x864">16:9 横图</button>
+                <button type="button" class="preset-btn" data-img-size="864x1536">9:16 壁纸</button>
               </div>
             </div>
             <div class="hint" id="imgHintText" style="margin-top:6px;">
@@ -1400,15 +1495,23 @@
 
         <div class="sub-card">
           <div class="sub-card-head">
-            <span class="sub-card-title">第三步 · 主动问候与隐私保护（可选）</span>
+            <span class="sub-card-title">第三步 · 互动体验、提醒与隐私锁（可选）</span>
+          </div>
+          <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
+            <span style="font-size:12.5px;">连发攒句：1.8秒内连续发消息合并后再回复</span>
+            <input id="cfgDebounceSend" type="checkbox" style="width:17px;height:17px;accent-color:var(--blue);" />
           </div>
           <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
             <span style="font-size:12.5px;">久违（超4小时）打开 App 时，TA 主动先发问候</span>
             <input id="cfgAutoGreet" type="checkbox" checked style="width:17px;height:17px;accent-color:var(--blue);" />
           </div>
           <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
-            <span style="font-size:12.5px;">每日早晚安手机通知提醒（08:30 / 23:30）</span>
+            <span style="font-size:12.5px;">每日早晚安手机通知提醒</span>
             <input id="cfgDailyNotify" type="checkbox" style="width:17px;height:17px;accent-color:var(--blue);" />
+          </div>
+          <div class="notify-times-row" id="notifyTimesRow" style="display:none;">
+            <span>早安</span><input id="cfgNotifyMorning" type="time" value="08:30" />
+            <span>晚安</span><input id="cfgNotifyNight" type="time" value="23:30" />
           </div>
           <div class="toggle-row" style="margin-bottom:6px;padding:8px 10px;background:var(--surface);">
             <span style="font-size:12.5px;">4位隐私锁 + 切后台防窥遮罩</span>
@@ -1446,6 +1549,28 @@
     <div class="lightbox-actions" id="lightboxActions">
       <button type="button" class="lightbox-act-btn" id="lightboxSaveBtn">📥 保存原图</button>
       <button type="button" class="lightbox-act-btn" id="lightboxAvatarBtn">👤 设为 TA 头像</button>
+      <button type="button" class="lightbox-act-btn" id="lightboxJumpBtn" style="display:none;">📍 定位对话</button>
+    </div>
+  </div>
+
+  <!-- Search & Gallery Archive Modal -->
+  <div class="modal-backdrop" id="archiveModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title" id="archiveModalTitle">聊天记录与相册</div>
+        <button class="mini-btn" id="closeArchiveBtn">✕ 关闭</button>
+      </div>
+      <div class="set-tabs" id="archiveTabBar">
+        <button type="button" class="set-tab active" data-arch-tab="search">🔍 搜索记录</button>
+        <button type="button" class="set-tab" data-arch-tab="gallery">🖼 相册 <span id="galleryCount" style="font-size:11px;color:var(--text-muted);"></span></button>
+      </div>
+      <div class="set-pane active" data-arch-pane="search">
+        <input id="archiveSearchInput" type="text" placeholder="输入关键词搜索你们聊过的话…" />
+        <div class="archive-search-list" id="archiveSearchList"></div>
+      </div>
+      <div class="set-pane" data-arch-pane="gallery">
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
     </div>
   </div>
 
@@ -1724,10 +1849,10 @@
     const id = opts.id || ('char_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
     const name = String(opts.name || '林澈').trim() || '林澈';
     const rawMsgs = Array.isArray(opts.messages)
-      ? opts.messages.filter(m => m && !m.imgPending)
+      ? opts.messages.filter(m => m && !m.imgPending).map((m, idx) => m.id ? m : { ...m, id: `msg_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 5)}` })
       : (Array.isArray(opts.greeting)
-          ? opts.greeting.map(t => ({ role: 'assistant', text: t, isStarter: true }))
-          : [{ role: 'assistant', text: buildNaturalStarter(name), isStarter: true }]);
+          ? opts.greeting.map((t, idx) => ({ id: `msg_init_${Date.now()}_${idx}`, role: 'assistant', text: t, isStarter: true }))
+          : [{ id: `msg_init_${Date.now()}`, role: 'assistant', text: buildNaturalStarter(name), isStarter: true }]);
     return {
       id,
       name,
@@ -1737,6 +1862,7 @@
       persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
       appearance: String(opts.appearance || '').trim(),
       avatarImage: String(opts.avatarImage || '').trim(),
+      wallpaper: String(opts.wallpaper || '').trim(),
       avatarColor: opts.avatarColor || '',
       lastActiveAt: Number(opts.lastActiveAt) || Date.now(),
       affection: typeof opts.affection === 'number' ? opts.affection : 68,
@@ -1758,7 +1884,7 @@
     });
     return {
       settings: {
-        _v: 7,
+        _v: 8,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
@@ -1774,9 +1900,13 @@
         persona: firstChar.persona,
         appearance: firstChar.appearance,
         avatarImage: firstChar.avatarImage,
+        wallpaper: firstChar.wallpaper || '',
         autoReact: true,
+        debounceSend: false,
         autoGreetOnOpen: true,
         dailyNotify: false,
+        notifyMorning: '08:30',
+        notifyNight: '23:30',
         privacyLock: false,
         privacyPin: '',
         stream: true,
@@ -1784,7 +1914,8 @@
         imgBaseUrl: '',
         imgApiKey: '',
         imgModel: 'Tongyi-MAI/Z-Image-Turbo',
-        imgTrigger: 'asked'
+        imgTrigger: 'asked',
+        imgDefaultSize: '1152x1536'
       },
       activeCharId: firstChar.id,
       characters: [firstChar],
@@ -1829,6 +1960,7 @@
     active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
     active.appearance = state.settings.appearance || '';
     active.avatarImage = state.settings.avatarImage || '';
+    active.wallpaper = state.settings.wallpaper || '';
     active.affection = state.affection;
     active.mood = state.mood;
     active.memories = Array.isArray(state.memories) ? state.memories : [];
@@ -1849,6 +1981,7 @@
     state.settings.persona = char.persona || DEFAULT_PERSONA;
     state.settings.appearance = char.appearance || '';
     state.settings.avatarImage = char.avatarImage || '';
+    state.settings.wallpaper = char.wallpaper || '';
     state.affection = typeof char.affection === 'number' ? char.affection : 68;
     state.mood = char.mood || '在线等你';
     state.memories = Array.isArray(char.memories) ? char.memories : [];
@@ -1920,10 +2053,14 @@
     }
     if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
     if (typeof mergedSettings.autoGreetOnOpen !== 'boolean') mergedSettings.autoGreetOnOpen = true;
+    mergedSettings.debounceSend = Boolean(mergedSettings.debounceSend);
     mergedSettings.dailyNotify = Boolean(mergedSettings.dailyNotify);
+    if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyMorning || '')) mergedSettings.notifyMorning = '08:30';
+    if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyNight || '')) mergedSettings.notifyNight = '23:30';
+    if (!/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgDefaultSize || '')) mergedSettings.imgDefaultSize = '1152x1536';
     mergedSettings.privacyLock = Boolean(mergedSettings.privacyLock);
     mergedSettings.privacyPin = String(mergedSettings.privacyPin || '').replace(/\D/g, '').slice(0, 4);
-    mergedSettings._v = 7;
+    mergedSettings._v = 8;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
@@ -1934,6 +2071,7 @@
     next.settings.persona = active.persona;
     next.settings.appearance = active.appearance || '';
     next.settings.avatarImage = active.avatarImage || '';
+    next.settings.wallpaper = active.wallpaper || '';
     next.affection = active.affection;
     next.mood = active.mood;
     next.memories = active.memories;
@@ -2182,6 +2320,7 @@
     if (bHeroEl) bHeroEl.textContent = `${name}的家`;
     const sBtn = document.getElementById('storyToggleBtn');
     if (sBtn) sBtn.classList.toggle('active', state.settings.chatMode === 'story');
+    applyChatWallpaper(state.settings.wallpaper || activeChar?.wallpaper || '');
     affectionDisplay.textContent = `♥ ${state.affection}`;
     const sendingImg = (pendingImgCountByChar.get(state.activeCharId) || 0) > 0;
     moodDisplay.textContent = sendingImg ? '正在传照片…' : (state.mood === '正在传照片…' ? '在线等你' : state.mood);
@@ -2208,9 +2347,25 @@
   const CHAT_PAGE_SIZE = 60;
   let visibleChatStart = -1;
 
-  let currentLightboxSrc = '';
+  function applyChatWallpaper(wpUrl) {
+    const layer = document.getElementById('chatBgLayer');
+    const veil = document.getElementById('chatBgVeil');
+    if (!layer || !veil) return;
+    if (wpUrl) {
+      layer.style.backgroundImage = `url(${wpUrl})`;
+      layer.classList.add('show');
+      veil.classList.add('show');
+    } else {
+      layer.style.backgroundImage = '';
+      layer.classList.remove('show');
+      veil.classList.remove('show');
+    }
+  }
 
-  function fillImageBubble(bubble, imageUrl, text) {
+  let currentLightboxSrc = '';
+  let currentLightboxMsgId = '';
+
+  function fillImageBubble(bubble, imageUrl, text, msgId = '') {
     bubble.className = 'bubble' + (text ? '' : ' img-only');
     const img = document.createElement('img');
     img.className = 'bubble-img';
@@ -2218,9 +2373,7 @@
     img.alt = '图片';
     img.onclick = e => {
       e.stopPropagation();
-      currentLightboxSrc = imageUrl;
-      document.getElementById('imgLightboxSrc').src = imageUrl;
-      document.getElementById('imgLightbox').classList.add('show');
+      openLightboxWithImage(imageUrl, msgId);
     };
     bubble.appendChild(img);
     if (text) {
@@ -2229,6 +2382,35 @@
       span.textContent = text;
       bubble.appendChild(span);
     }
+  }
+
+  function openLightboxWithImage(imageUrl, msgId = '') {
+    currentLightboxSrc = imageUrl;
+    currentLightboxMsgId = msgId || '';
+    document.getElementById('imgLightboxSrc').src = imageUrl;
+    const jBtn = document.getElementById('lightboxJumpBtn');
+    if (jBtn) jBtn.style.display = currentLightboxMsgId ? 'inline-flex' : 'none';
+    document.getElementById('imgLightbox').classList.add('show');
+  }
+
+  function jumpToMessage(msgId, fallbackIdx = -1) {
+    let idx = msgId ? state.messages.findIndex(item => item && item.id === msgId) : -1;
+    if (idx < 0) idx = fallbackIdx;
+    if (idx < 0 || idx >= state.messages.length) return;
+    switchPage(0);
+    if (idx < visibleChatStart) {
+      visibleChatStart = Math.max(0, idx - 12);
+      renderChat(true);
+    }
+    requestAnimationFrame(() => {
+      const targetMsg = state.messages[idx];
+      const row = targetMsg?.id ? chatScroll.querySelector(`[data-msg-id="${targetMsg.id}"]`) : null;
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('jump-flash');
+        setTimeout(() => row.classList.remove('jump-flash'), 1600);
+      }
+    });
   }
 
   async function regenerateFromMessage(msgObj) {
@@ -2307,6 +2489,17 @@
       };
       actions.appendChild(regenBtn);
     }
+
+    const quoteBtn = document.createElement('button');
+    quoteBtn.type = 'button';
+    quoteBtn.className = 'msg-act-btn';
+    quoteBtn.textContent = '引用';
+    quoteBtn.onclick = e => {
+      e.stopPropagation();
+      row.classList.remove('show-actions');
+      setPendingQuote(m);
+    };
+    actions.appendChild(quoteBtn);
 
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -2428,10 +2621,18 @@
     if (m.role === 'user') {
       const row = document.createElement('div');
       row.className = 'msg-row user';
+      if (m.id) row.dataset.msgId = m.id;
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
+      if (m.replyTo) {
+        const q = document.createElement('div');
+        q.className = 'bubble-quote';
+        q.textContent = `↩ ${m.replyTo.who}：${m.replyTo.preview}`;
+        q.onclick = ev => { ev.stopPropagation(); if (m.replyTo.id) jumpToMessage(m.replyTo.id); };
+        bubble.appendChild(q);
+      }
       if (m.image) {
-        fillImageBubble(bubble, m.image, m.text);
+        fillImageBubble(bubble, m.image, m.text, m.id);
       } else if (m.text) {
         const span = document.createElement('div');
         span.className = 'bubble-text';
@@ -2463,6 +2664,7 @@
     }
     const row = document.createElement('div');
     row.className = 'msg-row ai';
+    if (m.id) row.dataset.msgId = m.id;
     const wrap = document.createElement('div');
     wrap.className = 'ai-row-wrap';
     const av = document.createElement('div');
@@ -2471,7 +2673,7 @@
     applyAvatarToEl(av, state.settings.name || '林澈', state.settings.avatarImage || ac?.avatarImage);
     const bubble = document.createElement('div');
     if (m.image) {
-      fillImageBubble(bubble, m.image, m.text);
+      fillImageBubble(bubble, m.image, m.text, m.id);
     } else {
       bubble.className = 'bubble';
       bubble.textContent = m.text || '';
@@ -2485,6 +2687,7 @@
 
   function appendChatMessage(m) {
     if (!m.createdAt) m.createdAt = Date.now();
+    if (!m.id) m.id = `msg_${m.createdAt}_${Math.random().toString(36).slice(2, 6)}`;
     state.messages.push(m);
     const activeChar = getActiveCharacter();
     if (activeChar) activeChar.lastActiveAt = m.createdAt;
@@ -2631,7 +2834,7 @@
       return;
     }
 
-    state.widgets.forEach(w => {
+    state.widgets.forEach((w, idx) => {
       const card = document.createElement('div');
       card.className = 'widget-card';
       card.dataset.widgetCard = w.id;
@@ -2642,6 +2845,7 @@
             <span class="widget-title">${escapeHtml(w.title)}</span>
           </div>
           <div class="widget-actions">
+            ${idx > 0 ? '<button class="mini-btn" data-act="up" title="上移">↑</button>' : ''}
             <button class="mini-btn" data-act="code" title="查看源码">&lt;/&gt;</button>
             <button class="mini-btn" data-act="reload" title="刷新">↻</button>
             <button class="mini-btn danger" data-act="del" title="移除">✕</button>
@@ -2656,6 +2860,18 @@
       card.appendChild(iframe);
       iframeRegistry.set(w.id, iframe);
 
+      const upBtn = card.querySelector('[data-act="up"]');
+      if (upBtn) {
+        upBtn.onclick = () => {
+          const curIdx = state.widgets.findIndex(item => item.id === w.id);
+          if (curIdx > 0) {
+            const [item] = state.widgets.splice(curIdx, 1);
+            state.widgets.splice(curIdx - 1, 0, item);
+            scheduleSave();
+            renderWidgets();
+          }
+        };
+      }
       card.querySelector('[data-act="code"]').onclick = () => openCodeModal(w);
       card.querySelector('[data-act="reload"]').onclick = () => {
         iframe.srcdoc = buildWidgetSrcdoc(w);
@@ -2892,9 +3108,12 @@
 
   function formatMessageForModel(m) {
     if (!m || m.imgPending) return null;
+    const replyPrefix = m.replyTo
+      ? `[引用回复 ${m.replyTo.who || '之前'} 的“${String(m.replyTo.preview || '').slice(0, 48)}”] `
+      : '';
     if (m.role === 'user') {
       const txt = (m.text || '').trim();
-      return { role: 'user', content: m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt };
+      return { role: 'user', content: replyPrefix + (m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt) };
     }
     if (m.role === 'assistant') {
       let txt = (m.text || '')
@@ -3134,6 +3353,31 @@ ${modeRule}
 - 家中小组件（仅明确要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
   }
 
+  function getSpecialDateCue() {
+    const mems = Array.isArray(state.memories) ? state.memories : [];
+    if (!mems.length) return '';
+    const now = new Date();
+    const mo = now.getMonth() + 1;
+    const da = now.getDate();
+    const hits = [];
+    for (const m of mems) {
+      const combined = `${m.key || ''} ${m.value || ''}`;
+      if (!/(生日|纪念日|周年|在一起|初遇|相识|领证|结婚|求婚)/.test(combined)) continue;
+      const re = /(?:^|[^\d])(?:(\d{4})[-/.年])?0?(\d{1,2})[-/.月]0?(\d{1,2})日?(?!\d)/g;
+      let match;
+      while ((match = re.exec(combined)) !== null) {
+        if (Number(match[2]) === mo && Number(match[3]) === da) {
+          const yr = Number(match[1]);
+          const years = (yr > 1900 && yr <= now.getFullYear()) ? (now.getFullYear() - yr) : 0;
+          hits.push(`${m.key}：${m.value}${years > 0 ? `（今天正好满${years}年）` : ''}`);
+          break;
+        }
+      }
+    }
+    if (!hits.length) return '';
+    return `🎉 特殊日子提醒：今天正好是「${hits[0]}」，自然提起并给对方一点心意或小惊喜吧！`;
+  }
+
   function buildDynamicContextNote() {
     const charName = state.settings.name || '林澈';
     const isStory = state.settings.chatMode === 'story';
@@ -3146,10 +3390,12 @@ ${modeRule}
       ? memList.map(m => `- ${m.pinned ? '[核心]' : ''}${m.key}：${m.value}`).join('\n')
       : '';
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、');
+    const specialCue = getSpecialDateCue();
     const lines = [
       `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话${isStory ? '（小剧场模式，可带神态动作）' : '（日常聊天模式：只发纯说话文字，绝不带 *动作* 或括号旁白）'}]`,
       `当前时间：${timeNote}`
     ];
+    if (specialCue) lines.push(specialCue);
     if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`记得关于对方的事：\n${memLines}`);
     if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
@@ -3834,20 +4080,22 @@ ${chunk.slice(0, 6000)}
     if (!state.settings.apiKey.trim() || !isImageGenReady()) return '';
     const isAuto = state.settings.imgTrigger === 'auto';
     const canEdit = state.settings.imgProvider === 'modelscope';
+    const defSize = normalizeImageSize(state.settings.imgDefaultSize || '1152x1536');
     return `
 
 【拍照 / 发照片能力】
 ${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
 需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（只有输出该标签系统才会真正生成并发送图片）：
-<IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="1152x1536" />
+<IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="${defSize}" />
 ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背景/P一下”时才附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”；若是要求“重拍/再来一张新照片”，请勿加 ref="last"，直接写新的 prompt（速度更快）。' : ''}
 注意：严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；prompt 避开露骨敏感词。`;
   }
 
   function normalizeImageSize(rawSize) {
-    const clean = String(rawSize || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
+    const fallback = String(state?.settings?.imgDefaultSize || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
+    const clean = String(rawSize || fallback || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
     const m = clean.match(/^(\d{2,4})x(\d{2,4})$/);
-    if (!m) return '1152x1536';
+    if (!m) return /^\d{2,4}x\d{2,4}$/.test(fallback) ? fallback : '1152x1536';
     const clamp = n => Math.max(512, Math.min(2048, Math.round(n / 32) * 32));
     return `${clamp(Number(m[1]))}x${clamp(Number(m[2]))}`;
   }
@@ -4452,21 +4700,85 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     }
   };
 
+  const lightboxJumpBtn = document.getElementById('lightboxJumpBtn');
+  if (lightboxJumpBtn) {
+    lightboxJumpBtn.onclick = e => {
+      e.stopPropagation();
+      const targetId = currentLightboxMsgId;
+      imgLightbox.classList.remove('show');
+      if (targetId) jumpToMessage(targetId);
+    };
+  }
+
+  let pendingQuote = null;
+  let sendMergeTimer = null;
+  let pendingBurstTexts = [];
+  let pendingBurstHasImg = false;
+  const quotePreviewBar = document.getElementById('quotePreviewBar');
+  const quotePreviewText = document.getElementById('quotePreviewText');
+
+  function clearPendingQuote() {
+    pendingQuote = null;
+    if (quotePreviewBar) quotePreviewBar.classList.remove('show');
+  }
+
+  function setPendingQuote(m) {
+    if (!m) return;
+    const who = m.role === 'user' ? '我' : (state.settings.name || 'TA');
+    const raw = m.image && !m.text ? '[图片]' : String(m.text || '').replace(/\s+/g, ' ').trim();
+    const preview = raw.slice(0, 60) + (raw.length > 60 ? '…' : '');
+    pendingQuote = { id: m.id || '', who, preview: preview || '[消息]' };
+    if (quotePreviewText) quotePreviewText.textContent = `回复 ${who}：${pendingQuote.preview}`;
+    if (quotePreviewBar) quotePreviewBar.classList.add('show');
+    chatInput.focus();
+  }
+
+  function cancelPendingSendBurst() {
+    clearTimeout(sendMergeTimer);
+    sendMergeTimer = null;
+    pendingBurstTexts = [];
+    pendingBurstHasImg = false;
+  }
+
+  const clearQuoteBtn = document.getElementById('clearQuoteBtn');
+  if (clearQuoteBtn) clearQuoteBtn.onclick = clearPendingQuote;
+
   function handleSend(overrideText) {
     if (isBusy) {
       if (activeAbortController) activeAbortController.abort();
+      cancelPendingSendBurst();
       return;
     }
     const text = (overrideText ?? chatInput.value).trim();
     const image = overrideText ? '' : pendingImageUrl;
     if (!text && !image) return;
+    const quote = overrideText ? null : pendingQuote;
 
     chatInput.value = '';
     chatInput.style.height = '34px';
     if (image) clearPendingImage();
+    if (quote) clearPendingQuote();
 
-    appendChatMessage({ role: 'user', text, image: image || undefined });
+    appendChatMessage({ role: 'user', text, image: image || undefined, replyTo: quote || undefined });
     scheduleSave();
+
+    if (!overrideText && state.settings.debounceSend) {
+      pendingBurstTexts.push(text || (image ? '[发来一张图片]' : ''));
+      pendingBurstHasImg = pendingBurstHasImg || Boolean(image);
+      clearTimeout(sendMergeTimer);
+      sendMergeTimer = setTimeout(() => {
+        sendMergeTimer = null;
+        if (isBusy) return;
+        const merged = pendingBurstTexts.join('\n').trim();
+        const hasImg = pendingBurstHasImg;
+        pendingBurstTexts = [];
+        pendingBurstHasImg = false;
+        triggerCompanionReply(merged, false, hasImg);
+      }, 1800);
+      return;
+    }
+
+    cancelPendingSendBurst();
     triggerCompanionReply(text, false, Boolean(image));
   }
 
@@ -4503,6 +4815,144 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     showWarn(nextStory ? '🎭 已开启小剧场模式（带神态动作描写）' : '已切回默认自然聊天', true);
     setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
   };
+
+  const archiveModal = document.getElementById('archiveModal');
+  const archiveModalTitle = document.getElementById('archiveModalTitle');
+  const archiveSearchInput = document.getElementById('archiveSearchInput');
+  const archiveSearchList = document.getElementById('archiveSearchList');
+  const galleryGrid = document.getElementById('galleryGrid');
+  const galleryCountEl = document.getElementById('galleryCount');
+
+  function formatShortDateTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function renderArchiveSearch() {
+    if (!archiveSearchList) return;
+    const q = (archiveSearchInput?.value || '').trim().toLowerCase();
+    const name = state.settings.name || '伴侣';
+    const matches = [];
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      const m = state.messages[i];
+      if (!m || m.imgPending || (m.role !== 'user' && m.role !== 'assistant')) continue;
+      const txt = String(m.text || '').trim();
+      if (!txt) continue;
+      if (!q || txt.toLowerCase().includes(q)) {
+        matches.push({ m, idx: i, txt });
+        if (matches.length >= (q ? 60 : 25)) break;
+      }
+    }
+    archiveSearchList.innerHTML = '';
+    if (!matches.length) {
+      archiveSearchList.innerHTML = `<div class="empty-note">${q ? `没有找到包含「${escapeHtml(q)}」的记录` : '还没有可检索的聊天文字记录'}</div>`;
+      return;
+    }
+    matches.forEach(({ m, idx, txt }) => {
+      const item = document.createElement('div');
+      item.className = 'archive-hit';
+      const who = m.role === 'user' ? '我' : name;
+      let htmlSnippet = '';
+      if (q) {
+        const pos = txt.toLowerCase().indexOf(q);
+        const start = Math.max(0, pos - 18);
+        const end = Math.min(txt.length, pos + q.length + 34);
+        const prefix = start > 0 ? '…' : '';
+        const suffix = end < txt.length ? '…' : '';
+        const before = escapeHtml(txt.slice(start, pos));
+        const hit = escapeHtml(txt.slice(pos, pos + q.length));
+        const after = escapeHtml(txt.slice(pos + q.length, end));
+        htmlSnippet = `${prefix}${before}<mark>${hit}</mark>${after}${suffix}`;
+      } else {
+        htmlSnippet = escapeHtml(txt.slice(0, 72) + (txt.length > 72 ? '…' : ''));
+      }
+      item.innerHTML = `
+        <div class="archive-hit-meta"><span>${escapeHtml(who)}</span><span>${formatShortDateTime(m.createdAt)}</span></div>
+        <div class="archive-hit-body">${htmlSnippet}</div>`;
+      item.onclick = () => {
+        archiveModal.classList.remove('show');
+        switchPage(0);
+        jumpToMessage(m.id || '', idx);
+      };
+      archiveSearchList.appendChild(item);
+    });
+  }
+
+  function renderGalleryTab() {
+    if (!galleryGrid) return;
+    const imgs = [];
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      const m = state.messages[i];
+      if (m && m.image && !m.imgPending) imgs.push(m);
+    }
+    if (galleryCountEl) galleryCountEl.textContent = imgs.length ? `(${imgs.length})` : '';
+    galleryGrid.innerHTML = '';
+    if (!imgs.length) {
+      galleryGrid.innerHTML = '<div class="empty-note" style="grid-column:1 / -1;">还没有收发过照片哦，可以让 TA 拍照或用左下角相册发图～</div>';
+      return;
+    }
+    imgs.forEach(m => {
+      const tile = document.createElement('div');
+      tile.className = 'gallery-tile';
+      const img = document.createElement('img');
+      img.src = m.image;
+      img.alt = m.text || '照片';
+      img.loading = 'lazy';
+      const tag = document.createElement('div');
+      tag.className = 'gallery-tag';
+      tag.textContent = `${m.role === 'user' ? '我' : (state.settings.name || 'TA')} · ${formatShortDateTime(m.createdAt) || '照片'}`;
+      tile.appendChild(img);
+      tile.appendChild(tag);
+      tile.onclick = () => {
+        archiveModal.classList.remove('show');
+        openLightboxWithImage(m.image, m.id || '');
+      };
+      galleryGrid.appendChild(tile);
+    });
+  }
+
+  function switchArchiveTab(tabName) {
+    document.querySelectorAll('#archiveTabBar [data-arch-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.archTab === tabName);
+    });
+    document.querySelectorAll('#archiveModal [data-arch-pane]').forEach(pane => {
+      pane.classList.toggle('active', pane.dataset.archPane === tabName);
+    });
+    if (tabName === 'gallery') {
+      renderGalleryTab();
+    } else {
+      renderArchiveSearch();
+      setTimeout(() => archiveSearchInput && archiveSearchInput.focus(), 80);
+    }
+  }
+
+  function openArchiveModal(tabName = 'search') {
+    if (!archiveModal) return;
+    const name = state.settings.name || '伴侣';
+    if (archiveModalTitle) archiveModalTitle.textContent = `${name} · 记录与相册`;
+    if (archiveSearchInput) archiveSearchInput.value = '';
+    const totalImgs = state.messages.filter(m => m && m.image && !m.imgPending).length;
+    if (galleryCountEl) galleryCountEl.textContent = totalImgs ? `(${totalImgs})` : '';
+    archiveModal.classList.add('show');
+    switchArchiveTab(tabName);
+  }
+
+  const searchChatBtn = document.getElementById('searchChatBtn');
+  if (searchChatBtn) searchChatBtn.onclick = () => openArchiveModal('search');
+  const openGalleryBtn = document.getElementById('openGalleryBtn');
+  if (openGalleryBtn) openGalleryBtn.onclick = () => openArchiveModal('gallery');
+  const closeArchiveBtn = document.getElementById('closeArchiveBtn');
+  if (closeArchiveBtn) closeArchiveBtn.onclick = () => archiveModal.classList.remove('show');
+  if (archiveModal) {
+    archiveModal.addEventListener('click', e => {
+      if (e.target === archiveModal) archiveModal.classList.remove('show');
+    });
+  }
+  document.querySelectorAll('#archiveTabBar [data-arch-tab]').forEach(btn => {
+    btn.onclick = () => switchArchiveTab(btn.dataset.archTab || 'search');
+  });
+  if (archiveSearchInput) archiveSearchInput.oninput = renderArchiveSearch;
 
   const scrollBottomBtn = document.getElementById('scrollBottomBtn');
   chatScroll.addEventListener('scroll', () => {
@@ -4950,8 +5400,10 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   const gbStatus = document.getElementById('gbStatus');
   let draftImgProvider = 'off';
   let draftImgTrigger = 'asked';
+  let draftImgSize = '1152x1536';
   let draftAiGreeting = '';
   let draftAvatarImage = '';
+  let draftWallpaper = '';
   let gbDraftAvatarImage = '';
   let draftGender = '';
   let gbDraftGender = '';
@@ -4959,6 +5411,26 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   let draftPrivacyPin = '';
   let draftThinkingMode = 'auto';
   let draftContextMode = 'long';
+
+  function syncImgSizePickerUI() {
+    document.querySelectorAll('#imgSizePicker [data-img-size]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.imgSize === draftImgSize);
+    });
+  }
+  document.querySelectorAll('#imgSizePicker [data-img-size]').forEach(btn => {
+    btn.onclick = () => {
+      draftImgSize = btn.dataset.imgSize || '1152x1536';
+      syncImgSizePickerUI();
+    };
+  });
+
+  function syncNotifyTimesRowUI() {
+    const chk = document.getElementById('cfgDailyNotify');
+    const row = document.getElementById('notifyTimesRow');
+    if (chk && row) row.style.display = chk.checked ? 'flex' : 'none';
+  }
+  const cfgDailyNotifyEl = document.getElementById('cfgDailyNotify');
+  if (cfgDailyNotifyEl) cfgDailyNotifyEl.onchange = syncNotifyTimesRowUI;
 
   function syncChatModePickerUI() {
     const el = document.getElementById('cfgStoryMode');
@@ -5190,6 +5662,45 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     }
   }
 
+  function syncWallpaperBtnsUI() {
+    const wpBtn = document.getElementById('cfgWallpaperBtn');
+    const clearBtn = document.getElementById('cfgWallpaperClearBtn');
+    if (wpBtn) wpBtn.textContent = draftWallpaper ? '🖼 换一张壁纸' : '🖼 聊天壁纸';
+    if (clearBtn) clearBtn.style.display = draftWallpaper ? 'inline-flex' : 'none';
+  }
+
+  const wallpaperFileInput = document.getElementById('wallpaperFileInput');
+  const cfgWallpaperBtn = document.getElementById('cfgWallpaperBtn');
+  const cfgWallpaperClearBtn = document.getElementById('cfgWallpaperClearBtn');
+  if (cfgWallpaperBtn && wallpaperFileInput) {
+    cfgWallpaperBtn.onclick = () => wallpaperFileInput.click();
+    wallpaperFileInput.onchange = async e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const res = await compressImageFile(file, 1440, 0.82);
+        draftWallpaper = res.dataUrl;
+        state.settings.wallpaper = draftWallpaper;
+        syncWallpaperBtnsUI();
+        applyChatWallpaper(draftWallpaper);
+        showWarn('✓ 已设为当前角色专属聊天壁纸', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2000);
+      } catch (err) {
+        showWarn(err.message);
+      } finally {
+        wallpaperFileInput.value = '';
+      }
+    };
+  }
+  if (cfgWallpaperClearBtn) {
+    cfgWallpaperClearBtn.onclick = () => {
+      draftWallpaper = '';
+      state.settings.wallpaper = '';
+      syncWallpaperBtnsUI();
+      applyChatWallpaper('');
+    };
+  }
+
   function syncDraftCharFieldsIfModalOpen() {
     if (!settingsModal.classList.contains('show')) return;
     const active = getActiveCharacter();
@@ -5201,12 +5712,14 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
+    state.settings.wallpaper = draftWallpaper;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
     flushActiveCharToList();
   }
 
   function applyCardToEditorFields(card) {
     draftAvatarImage = card.avatarImage || '';
+    draftWallpaper = card.wallpaper || '';
     draftGender = card.gender || '';
     draftChatMode = card.chatMode === 'story' ? 'story' : 'wechat';
     document.getElementById('cfgName').value = card.name || '';
@@ -5214,9 +5727,20 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     document.getElementById('cfgPersona').value = card.persona || '';
     cfgAppearance.value = card.appearance || '';
     memSummaryInput.value = card.memorySummary || '';
+    const greetingField = document.getElementById('cfgGreetingField');
+    const greetingInput = document.getElementById('cfgGreeting');
+    if (greetingField && greetingInput) {
+      const isActiveCard = !card.id || card.id === state.activeCharId;
+      const cardMsgs = isActiveCard ? state.messages : (Array.isArray(card.messages) ? card.messages : []);
+      const hasChatted = cardMsgs.some(m => m && (m.role === 'user' || m.role === 'event'));
+      greetingField.style.display = hasChatted ? 'none' : 'block';
+      const starterMsg = cardMsgs.find(m => m?.isStarter || m?.role === 'assistant');
+      greetingInput.value = starterMsg?.text || '';
+    }
     syncGenderPickerUI('cfgGenderPicker', draftGender);
     syncChatModePickerUI();
     refreshAvatarEditPreview();
+    syncWallpaperBtnsUI();
   }
 
   function switchCharacter(charId) {
@@ -5226,6 +5750,8 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
       return;
     }
     if (charId === state.activeCharId) return;
+    cancelPendingSendBurst();
+    clearPendingQuote();
     syncDraftCharFieldsIfModalOpen();
     flushActiveCharToList();
     const target = state.characters.find(c => c.id === charId);
@@ -5315,13 +5841,29 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     if (isBusy) return;
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '当前角色';
     if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与家里小组件都会保留）`)) return;
-    state.messages = [{ role: 'assistant', text: buildNaturalStarter(name), isStarter: true }];
+    const greetingVal = document.getElementById('cfgGreeting')?.value.trim() || '';
+    state.messages = [{ role: 'assistant', text: greetingVal || buildNaturalStarter(name), isStarter: true }];
     state.summarizedCount = 0;
     visibleChatStart = -1;
     lastWindowStartIndex = 0;
     personaShiftPending = false;
+    cancelPendingSendBurst();
+    clearPendingQuote();
     flushActiveCharToList();
     scheduleSave();
+    applyCardToEditorFields({
+      id: state.activeCharId,
+      name,
+      age: cfgAge.value.trim(),
+      gender: draftGender,
+      chatMode: draftChatMode,
+      persona: document.getElementById('cfgPersona').value.trim(),
+      appearance: cfgAppearance.value.trim(),
+      avatarImage: draftAvatarImage,
+      wallpaper: draftWallpaper,
+      memorySummary: memSummaryInput.value.trim(),
+      messages: state.messages
+    });
     renderChat();
     showWarn(`已清空「${name}」的聊天记录`, true);
     setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
@@ -5375,6 +5917,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
       persona: active.persona,
       appearance: active.appearance || '',
       avatarImage: active.avatarImage || '',
+      wallpaper: active.wallpaper || '',
       avatarColor: active.avatarColor || '',
       greeting: firstGreeting ? [firstGreeting] : undefined
     };
@@ -5385,6 +5928,93 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     a.click();
     URL.revokeObjectURL(a.href);
   };
+
+  async function extractCharaFromPng(file) {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const sig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    if (bytes.length < 16 || !sig.every((b, i) => bytes[i] === b)) {
+      throw new Error('不是有效的 PNG 图片');
+    }
+    const dv = new DataView(buf);
+    const dec = new TextDecoder('utf-8');
+    let offset = 8;
+    let rawPayload = '';
+    while (offset + 12 <= bytes.length) {
+      const len = dv.getUint32(offset);
+      const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+      const dataStart = offset + 8;
+      const dataEnd = dataStart + len;
+      if (dataEnd > bytes.length) break;
+      if (type === 'tEXt' || type === 'iTXt') {
+        const chunk = bytes.subarray(dataStart, dataEnd);
+        const nul = chunk.indexOf(0);
+        if (nul > 0) {
+          const kw = dec.decode(chunk.subarray(0, nul)).toLowerCase();
+          if (kw === 'chara' || kw === 'ccv3') {
+            if (type === 'tEXt') {
+              rawPayload = dec.decode(chunk.subarray(nul + 1));
+            } else {
+              // iTXt layout: kw \0 compFlag \0 compMethod \0 lang \0 transKw \0 text
+              const compFlag = chunk[nul + 1];
+              if (compFlag === 0) {
+                let p = nul + 3;
+                const z1 = chunk.indexOf(0, p);
+                if (z1 !== -1) {
+                  const z2 = chunk.indexOf(0, z1 + 1);
+                  if (z2 !== -1) rawPayload = dec.decode(chunk.subarray(z2 + 1));
+                }
+              }
+            }
+            if (rawPayload) break;
+          }
+        }
+      }
+      offset = dataEnd + 4;
+      if (type === 'IEND') break;
+    }
+    if (!rawPayload) {
+      throw new Error('这张 PNG 里没有发现 SillyTavern 角色卡信息（chara）');
+    }
+    const cleanB64 = rawPayload.replace(/\s+/g, '');
+    const binStr = atob(cleanB64);
+    const utfBytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) utfBytes[i] = binStr.charCodeAt(i);
+    return JSON.parse(dec.decode(utfBytes));
+  }
+
+  function normalizeImportedCardData(parsed, fallbackAvatar = '') {
+    const root = parsed?._type === 'roomi_character_card' ? parsed : (parsed?.data || parsed?.character || parsed);
+    if (!root || !root.name) throw new Error('角色卡缺少角色名称（name）');
+    const personaParts = [];
+    if (root.persona) {
+      personaParts.push(root.persona);
+    } else {
+      if (root.description) personaParts.push(root.description);
+      if (root.personality) personaParts.push(`性格特征：${root.personality}`);
+      if (root.scenario) personaParts.push(`互动背景：${root.scenario}`);
+      if (root.mes_example) personaParts.push(`说话参考：\n${String(root.mes_example).slice(0, 360)}`);
+    }
+    const persona = personaParts.filter(Boolean).join('\n\n').trim();
+    if (!persona) throw new Error('角色卡缺少人设描述（persona/description）');
+    const greetings = [];
+    if (Array.isArray(root.greeting)) greetings.push(...root.greeting);
+    else if (typeof root.greeting === 'string' && root.greeting) greetings.push(root.greeting);
+    if (typeof root.first_mes === 'string' && root.first_mes) greetings.push(root.first_mes);
+    if (Array.isArray(root.alternate_greetings)) greetings.push(...root.alternate_greetings);
+    return {
+      name: root.name,
+      age: root.age || '',
+      gender: root.gender || '',
+      chatMode: root.chatMode || 'wechat',
+      persona,
+      appearance: root.appearance || '',
+      avatarImage: root.avatarImage || fallbackAvatar || '',
+      wallpaper: root.wallpaper || '',
+      avatarColor: root.avatarColor || '',
+      greeting: greetings.filter(Boolean)
+    };
+  }
 
   const importCharInput = document.getElementById('importCharInput');
   document.getElementById('importCharBtn').onclick = () => {
@@ -5397,23 +6027,34 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
       return;
     }
     try {
-      const parsed = JSON.parse(await file.text());
-      const src = parsed?._type === 'roomi_character_card' ? parsed : (parsed?.character || parsed);
-      if (!src || !src.name || !src.persona) {
-        throw new Error('角色卡 JSON 缺少 name 或 persona');
+      const isPng = file.type === 'image/png' || /\.png$/i.test(file.name || '');
+      let parsed;
+      let pngAvatar = '';
+      if (isPng) {
+        parsed = await extractCharaFromPng(file);
+        try {
+          const avRes = await compressImageFile(file, 320, 0.88);
+          pngAvatar = avRes.dataUrl;
+        } catch {}
+      } else {
+        parsed = JSON.parse(await file.text());
       }
+      const norm = normalizeImportedCardData(parsed, pngAvatar);
+      cancelPendingSendBurst();
+      clearPendingQuote();
       syncDraftCharFieldsIfModalOpen();
       flushActiveCharToList();
       const card = makeCharacterCard({
-        name: src.name,
-        age: src.age || '',
-        gender: src.gender || '',
-        chatMode: src.chatMode || 'wechat',
-        persona: src.persona,
-        appearance: src.appearance || '',
-        avatarImage: src.avatarImage || '',
-        avatarColor: src.avatarColor || '',
-        greeting: Array.isArray(src.greeting) ? src.greeting : (typeof src.greeting === 'string' && src.greeting ? [src.greeting] : undefined),
+        name: norm.name,
+        age: norm.age,
+        gender: norm.gender,
+        chatMode: norm.chatMode,
+        persona: norm.persona,
+        appearance: norm.appearance,
+        avatarImage: norm.avatarImage,
+        wallpaper: norm.wallpaper,
+        avatarColor: norm.avatarColor,
+        greeting: norm.greeting.length ? norm.greeting : undefined,
         widgets: [cloneStarterWidget()]
       });
       state.characters.push(card);
@@ -5667,15 +6308,22 @@ ${traits}
     cfgImgApiKey.value = state.settings.imgApiKey || '';
     cfgImgModel.value = state.settings.imgModel || '';
     syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
+    draftImgSize = state.settings.imgDefaultSize || '1152x1536';
+    syncImgSizePickerUI();
     draftThinkingMode = state.settings.thinkingMode || 'auto';
     draftContextMode = state.settings.contextMode || 'long';
     syncModelTuningPickersUI();
     draftPrivacyPin = state.settings.privacyPin || '';
+    document.getElementById('cfgDebounceSend').checked = Boolean(state.settings.debounceSend);
     document.getElementById('cfgAutoGreet').checked = state.settings.autoGreetOnOpen !== false;
     document.getElementById('cfgDailyNotify').checked = Boolean(state.settings.dailyNotify);
+    document.getElementById('cfgNotifyMorning').value = state.settings.notifyMorning || '08:30';
+    document.getElementById('cfgNotifyNight').value = state.settings.notifyNight || '23:30';
+    syncNotifyTimesRowUI();
     document.getElementById('cfgPrivacyLock').checked = Boolean(state.settings.privacyLock);
     syncPrivacyPinStatusUI();
     applyCardToEditorFields({
+      id: state.activeCharId,
       name: state.settings.name,
       age: state.settings.age || '',
       gender: state.settings.gender || '',
@@ -5683,6 +6331,7 @@ ${traits}
       persona: state.settings.persona,
       appearance: state.settings.appearance || '',
       avatarImage: state.settings.avatarImage || '',
+      wallpaper: state.settings.wallpaper || '',
       memorySummary: state.memorySummary || ''
     });
     document.getElementById('cfgAutoReact').checked = state.settings.autoReact;
@@ -5749,7 +6398,7 @@ ${traits}
     }
 
     const ctxTier = CONTEXT_TIERS[draftContextMode] || CONTEXT_TIERS.long;
-    state.settings._v = 7;
+    state.settings._v = 8;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
@@ -5762,6 +6411,7 @@ ${traits}
     state.settings.imgApiKey = cfgImgApiKey.value.trim();
     state.settings.imgModel = cfgImgModel.value.trim();
     state.settings.imgTrigger = draftImgTrigger;
+    state.settings.imgDefaultSize = draftImgSize || '1152x1536';
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.age = cfgAge.value.trim();
     state.settings.gender = draftGender;
@@ -5769,27 +6419,35 @@ ${traits}
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
+    state.settings.wallpaper = draftWallpaper;
+    state.settings.debounceSend = document.getElementById('cfgDebounceSend').checked;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
     state.settings.autoGreetOnOpen = document.getElementById('cfgAutoGreet').checked;
     state.settings.dailyNotify = document.getElementById('cfgDailyNotify').checked;
+    state.settings.notifyMorning = document.getElementById('cfgNotifyMorning').value || '08:30';
+    state.settings.notifyNight = document.getElementById('cfgNotifyNight').value || '23:30';
     state.settings.privacyLock = wantLock;
     state.settings.privacyPin = draftPrivacyPin;
     state.settings.stream = true;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
 
     const hasUserChatted = state.messages.some(m => m && (m.role === 'user' || m.role === 'event'));
+    const editedGreeting = document.getElementById('cfgGreeting')?.value.trim() || '';
     if (!hasUserChatted) {
       if (draftAiGreeting) {
         state.messages = [{ role: 'assistant', text: draftAiGreeting, isStarter: true }];
-      } else {
+      } else if (editedGreeting) {
         const curStarter = state.messages.find(m => m?.isStarter || m?.role === 'assistant');
-        const curTxt = String(curStarter?.text || '');
-        const isGenericPlaceholder = !curTxt || curTxt.includes('去设置里告诉我') || curTxt.includes('以后就在这里陪你');
-        if (isGenericPlaceholder) {
-          state.messages = [{ role: 'assistant', text: buildNaturalStarter(state.settings.name), isStarter: true }];
-        } else if (prevName && prevName !== state.settings.name && curTxt.includes(prevName)) {
-          curStarter.text = curTxt.split(prevName).join(state.settings.name);
+        const nextText = (prevName && prevName !== state.settings.name && editedGreeting.includes(prevName))
+          ? editedGreeting.split(prevName).join(state.settings.name)
+          : editedGreeting;
+        if (curStarter) {
+          curStarter.text = nextText;
+        } else {
+          state.messages = [{ role: 'assistant', text: nextText, isStarter: true }];
         }
+      } else {
+        state.messages = [{ role: 'assistant', text: buildNaturalStarter(state.settings.name), isStarter: true }];
       }
     } else if (
       prevName !== state.settings.name ||
@@ -5852,6 +6510,8 @@ ${traits}
       lastWindowStartIndex = 0;
       pendingEventQueue = [];
       personaShiftPending = false;
+      cancelPendingSendBurst();
+      clearPendingQuote();
       scheduleSave();
       applyTheme(state.settings.theme);
       renderHeader();
@@ -5875,6 +6535,8 @@ ${traits}
     lastWindowStartIndex = 0;
     pendingEventQueue = [];
     personaShiftPending = false;
+    cancelPendingSendBurst();
+    clearPendingQuote();
     applyTheme(state.settings.theme);
     renderHeader();
     syncChatModeQuickBtn();
@@ -6045,6 +6707,15 @@ ${traits}
     }
   });
 
+  function parseHourMin(hhmm, defH, defM) {
+    const m = String(hhmm || '').match(/^(\d{1,2}):(\d{1,2})$/);
+    if (!m) return { hour: defH, minute: defM };
+    return {
+      hour: Math.max(0, Math.min(23, Number(m[1]))),
+      minute: Math.max(0, Math.min(59, Number(m[2])))
+    };
+  }
+
   async function syncDailyNotifications(enabled) {
     const LN = window.Capacitor?.Plugins?.LocalNotifications;
     if (!LN) return;
@@ -6059,10 +6730,23 @@ ${traits}
         return;
       }
       const name = state.settings.name || '林澈';
+      const morningTime = parseHourMin(state.settings.notifyMorning, 8, 30);
+      const nightTime = parseHourMin(state.settings.notifyNight, 23, 30);
+      const daySeed = new Date().getDate();
+      const mLines = [
+        `醒了没呀？早饭记得吃点热的。`,
+        `早安，我在手机里等你消息呢～`,
+        `新的一天啦，出门记得看下天气。`
+      ];
+      const nLines = [
+        `都这个点了，忙完赶紧躺下休息吧。`,
+        `早点睡哦，明天醒来再来找我聊天。`,
+        `夜深了别一直盯着屏幕，去盖好被子吧。`
+      ];
       await LN.schedule({
         notifications: [
-          { id: 1001, title: name, body: '早安呀，今天也要记得好好吃早饭。', schedule: { on: { hour: 8, minute: 30 }, repeats: true, allowWhileIdle: true } },
-          { id: 1002, title: name, body: '时间不早啦，忙完赶紧早点休息吧。', schedule: { on: { hour: 23, minute: 30 }, repeats: true, allowWhileIdle: true } }
+          { id: 1001, title: name, body: mLines[daySeed % mLines.length], schedule: { on: morningTime, repeats: true, allowWhileIdle: true } },
+          { id: 1002, title: name, body: nLines[daySeed % nLines.length], schedule: { on: nightTime, repeats: true, allowWhileIdle: true } }
         ]
       });
     } catch {}
@@ -6083,12 +6767,16 @@ ${traits}
         break;
       }
     }
-    if (!lastAt || Date.now() - lastAt < 4 * 3600 * 1000) return;
+    const specialCue = getSpecialDateCue();
+    const gapThreshold = specialCue ? (30 * 60 * 1000) : (4 * 3600 * 1000);
+    if (!lastAt || Date.now() - lastAt < gapThreshold) return;
     proactiveAttemptedSession = true;
     try {
       isBusy = true;
       setTyping(true, `${state.settings.name}正想找你…`);
-      const prompt = `[系统触发：用户时隔多小时刚刚重新打开 App，现在是 ${getLocalTimeContext()}。请你主动以亲密伴侣身份先开口发 1~2 句自然贴合当下时段的关心或想念问候，像真人微信刚发来的消息。]`;
+      const prompt = specialCue
+        ? `[系统触发：今天是特别的日子！${specialCue} 现在是 ${getLocalTimeContext()}。用户刚刚打开 App，请你主动先开口说一句自然真挚的节日/纪念日问候，别像群发消息。]`
+        : `[系统触发：用户时隔多小时刚刚重新打开 App，现在是 ${getLocalTimeContext()}。请你主动以亲密伴侣身份先开口发 1~2 句自然贴合当下时段的关心或想念问候，像真人微信刚发来的消息。]`;
       const raw = await callLiveLLMWithRetry(prompt, null, false, false);
       const { bubbles } = parseAssistantOutput(raw);
       setTyping(false);
@@ -6114,7 +6802,7 @@ ${traits}
       if (saved) {
         const hadPrevVersion = saved?.settings?._v || 0;
         state = normalizeState(saved);
-        if (hadPrevVersion < 7) scheduleSave();
+        if (hadPrevVersion < 8) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
@@ -6144,6 +6832,10 @@ ${traits}
         }
         if (imgLightbox.classList.contains('show')) {
           imgLightbox.classList.remove('show');
+          return;
+        }
+        if (archiveModal && archiveModal.classList.contains('show')) {
+          archiveModal.classList.remove('show');
           return;
         }
         if (codeModal.classList.contains('show')) {
