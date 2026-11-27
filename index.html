@@ -142,12 +142,35 @@
   .icon-btn:hover { background: var(--surface-muted); color: var(--text); }
   .icon-btn:active { transform: scale(0.94); }
 
-  /* Minimal Segmented Pill Switcher */
+  /* Minimal Segmented Pill Switcher + Standalone Story Pill */
+  .header-nav-row { display: flex; align-items: center; gap: 8px; }
   .tabs {
-    position: relative;
+    position: relative; flex: 1; min-width: 0;
     display: grid; grid-template-columns: 1fr 1fr;
     background: var(--surface-muted);
     padding: 3px; border-radius: 11px;
+  }
+  .story-toggle-pill {
+    flex-shrink: 0; height: 34px; padding: 0 11px; border-radius: 11px;
+    border: 1px solid var(--border); background: var(--surface-muted);
+    color: var(--text-muted); font-size: 12px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    transition: all 0.16s; font-family: inherit; white-space: nowrap;
+  }
+  .story-toggle-pill.active {
+    background: var(--blue-soft); color: var(--blue);
+    border-color: var(--blue-border); font-weight: 600;
+  }
+  .scroll-bottom-btn {
+    position: absolute; right: 14px; bottom: 114px; z-index: 32;
+    border: 1px solid var(--border-strong); background: var(--surface);
+    color: var(--text-2); font-size: 11.5px; font-weight: 600;
+    padding: 6px 11px; border-radius: 999px; box-shadow: var(--shadow-sm);
+    cursor: pointer; opacity: 0; visibility: hidden; pointer-events: none;
+    transform: translateY(8px); transition: all 0.18s; font-family: inherit;
+  }
+  .scroll-bottom-btn.show {
+    opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0);
   }
   .tab-indicator {
     position: absolute; top: 3px; left: 3px;
@@ -987,16 +1010,19 @@
       </div>
     </div>
 
-    <div class="tabs" id="tabBar" data-active="0">
-      <div class="tab-indicator"></div>
-      <button class="tab-btn active" data-tab="0">
-        <span>对话</span>
-      </button>
-      <button class="tab-btn" data-tab="1">
-        <span>小窝看板</span>
-        <span class="tab-count" id="widgetCount">1</span>
-        <span class="unread-dot" id="boardDot"></span>
-      </button>
+    <div class="header-nav-row">
+      <div class="tabs" id="tabBar" data-active="0">
+        <div class="tab-indicator"></div>
+        <button class="tab-btn active" data-tab="0">
+          <span>对话</span>
+        </button>
+        <button class="tab-btn" data-tab="1">
+          <span id="boardTabLabel">林澈的家</span>
+          <span class="tab-count" id="widgetCount">1</span>
+          <span class="unread-dot" id="boardDot"></span>
+        </button>
+      </div>
+      <button type="button" class="story-toggle-pill" id="storyToggleBtn" title="开启小剧场模式（带神态动作描写）">🎭 小剧场</button>
     </div>
   </header>
 
@@ -1031,8 +1057,8 @@
           </div>
         </div>
         <div class="chat-scroll" id="chatScroll"></div>
+        <button type="button" class="scroll-bottom-btn" id="scrollBottomBtn">↓ 回到底部</button>
         <div class="quick-bar" id="quickBar">
-          <button type="button" class="chip chat-mode-chip" id="chatModeQuickBtn" title="点击切换聊天风格">💬 微信短聊</button>
           <button class="chip" data-prompt="帮我做一个早睡监督打卡卡，我每次打卡你要夸我">🌙 早睡打卡卡</button>
           <button class="chip" data-prompt="今晚不知道吃什么，给我现做一个美食决定转盘">🍜 吃什么转盘</button>
           <button class="chip" data-prompt="帮我做一个我们一起去旅行的倒计时组件">⏳ 旅行倒计时</button>
@@ -1069,8 +1095,8 @@
         <div class="board-scroll" id="boardScroll">
           <div class="board-hero">
             <div>
-              <div class="board-hero-title">我们的小窝看板</div>
-              <div class="board-hero-sub">聊天里现做的小工具都会长在这里，点击就能直接互动</div>
+              <div class="board-hero-title" id="boardHeroTitle">林澈的家</div>
+              <div class="board-hero-sub">聊天里现做的小工具都会摆在家里，点击就能直接互动</div>
             </div>
             <button class="new-widget-btn" id="askNewWidgetBtn">+ 现做一个</button>
           </div>
@@ -1140,18 +1166,16 @@
             <label>身材与外貌描述（可选，生图出镜时保持一致）</label>
             <input id="cfgAppearance" type="text" placeholder="例：22岁，168cm，黑发微卷，日常温柔休闲穿搭" />
           </div>
-          <div class="field" style="margin-bottom:8px;">
-            <label>对话模式</label>
-            <div class="presets" id="cfgChatModePicker" style="margin-bottom:0;">
-              <button type="button" class="preset-btn active" data-chat-mode="wechat">💬 微信短聊（日常自然）</button>
-              <button type="button" class="preset-btn" data-chat-mode="story">🎬 沉浸小剧场（含神态动作）</button>
-            </div>
+          <div class="toggle-row" style="margin-bottom:8px;">
+            <span>🎭 小剧场模式（开启后带神态与动作描写）</span>
+            <input id="cfgStoryMode" type="checkbox" style="width:18px;height:18px;accent-color:var(--blue);" />
           </div>
           <div class="toggle-row" style="margin-bottom:4px;">
             <span>点击小组件时，让 TA 实时回应</span>
             <input id="cfgAutoReact" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--blue);" />
           </div>
           <div class="char-footer-ops">
+            <button type="button" class="text-link-btn" id="exportChatTxtBtn">导出聊天</button>
             <button type="button" class="text-link-btn" id="exportCharBtn">导出此卡</button>
             <button type="button" class="text-link-btn" id="clearCurrentChatBtn">清空聊天</button>
             <button type="button" class="text-link-btn danger" id="deleteCharBtn" style="display:none;">删除角色</button>
@@ -2142,6 +2166,12 @@
     companionNameDisplay.textContent = name;
     applyAvatarToEl(avatarText, name, state.settings.avatarImage || activeChar?.avatarImage, activeChar?.avatarColor);
     chatInput.placeholder = `给${name}发消息…`;
+    const bTabEl = document.getElementById('boardTabLabel');
+    const bHeroEl = document.getElementById('boardHeroTitle');
+    if (bTabEl) bTabEl.textContent = `${name}的家`;
+    if (bHeroEl) bHeroEl.textContent = `${name}的家`;
+    const sBtn = document.getElementById('storyToggleBtn');
+    if (sBtn) sBtn.classList.toggle('active', state.settings.chatMode === 'story');
     affectionDisplay.textContent = `♥ ${state.affection}`;
     const sendingImg = (pendingImgCountByChar.get(state.activeCharId) || 0) > 0;
     moodDisplay.textContent = sendingImg ? '正在传照片…' : (state.mood === '正在传照片…' ? '在线等你' : state.mood);
@@ -2372,7 +2402,8 @@
     if (m.role === 'spawn') {
       const row = document.createElement('div');
       row.className = 'msg-row ai';
-      const tagLabel = m.updated ? '✨ 小窝看板已更新' : '✨ 小窝看板已上新';
+      const homeLabel = `${state.settings.name || '伴侣'}的家`;
+      const tagLabel = m.updated ? `✨ ${homeLabel}已更新` : `✨ ${homeLabel}已上新`;
       row.innerHTML = `
         <div class="spawn-card" data-jump="${escapeHtml(m.widgetId)}">
           <div class="spawn-meta">
@@ -2580,11 +2611,12 @@
     widgetCount.textContent = String(state.widgets.length);
 
     if (!state.widgets.length) {
+      const homeName = `${state.settings.name || '伴侣'}的家`;
       widgetList.innerHTML = `
         <div class="empty-board">
-          <div style="font-size:26px;margin-bottom:8px;">🧩</div>
-          <div style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:4px;">看板还是空的</div>
-          <div style="font-size:12px;">回左侧聊天框说一句「帮我做个早睡打卡卡」试试</div>
+          <div style="font-size:26px;margin-bottom:8px;">🏠</div>
+          <div style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:4px;">${escapeHtml(homeName)}里还是空的</div>
+          <div style="font-size:12px;">点上方快捷模板一键布置，或去聊天里说一句「帮我做个早睡打卡卡」</div>
         </div>`;
       return;
     }
@@ -2742,7 +2774,7 @@
   }
 
   function parseAssistantOutput(rawText) {
-    let cleanText = String(rawText || '');
+    let cleanText = String(rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
     const newWidgets = [];
     const newImages = [];
     let hasUnclosedWidget = false;
@@ -2870,7 +2902,7 @@
       if (String(m.text || '').includes('已停止本次生成')) return null;
       return { role: 'user', content: `（对方在桌面小组件点了互动：${m.text}）` };
     }
-    if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
+    if (m.role === 'spawn') return { role: 'assistant', content: `[已在「${state.settings.name || '伴侣'}的家」挂载小组件：${m.title}]` };
     return null;
   }
 
@@ -3068,8 +3100,8 @@
       : '';
 
     const modeRule = isStory
-      ? '1. 当前为「沉浸小剧场」模式：请完全入戏扮演用户的私密恋人，允许结合极简 *神态动作* 与氛围细节推进互动，保持情感张力；禁止说教与 1.2.3. 列表腔。\n2. 节奏自然连贯，需要停顿换气时可用 ||| 拆成 2 条气泡。'
-      : '1. 当前为「微信短聊」模式：你是用户专属的私密恋人，像真人微信深夜私聊一样直白接话、完全贴合人设语气；禁止说教、1.2.3. 列表和括号心理描写。\n2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。\n3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。';
+      ? '1. 已开启「小剧场」模式：请完全入戏扮演用户的私密恋人，允许结合 *神态、动作、眼神与氛围* 描写推进剧情和互动，保持情感张力；禁止说教与 1.2.3. 列表腔。\n2. 节奏自然连贯，需要停顿换气时可用 ||| 拆成 2 条气泡。'
+      : '1. 正常自然地和用户聊天：完全贴合上方人设的语气与脾气，像真人发消息一样直白偏心、亲昵接话；禁止说教、1.2.3. 列表和括号/星号长描写。\n2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。\n3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。';
 
     return `【私密伴侣核心档案（静态锚点，绝不反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
@@ -3082,11 +3114,12 @@ ${modeRule}
 【后台暗标（用户看不到，别说破）】
 - 心情好感：可附句末 <AFFECTION delta="+1" mood="二到四字心情" />
 - 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
-- 小窝组件（仅明确要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
+- 家中小组件（仅明确要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
   }
 
   function buildDynamicContextNote() {
     const charName = state.settings.name || '林澈';
+    const isStory = state.settings.chatMode === 'story';
     const gapHint = getTimeGapContext();
     const timeNote = gapHint
       ? `${getLocalTimeContext()}（${gapHint}，自然感知即可）`
@@ -3097,14 +3130,14 @@ ${modeRule}
       : '';
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、');
     const lines = [
-      `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话]`,
+      `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话${isStory ? '（当前处于小剧场模式）' : ''}]`,
       `当前时间：${timeNote}`
     ];
-    if (widgetSummary) lines.push(`已有小窝组件：${widgetSummary}`);
+    if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`记得关于对方的事：\n${memLines}`);
     if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
     if (personaShiftPending) {
-      lines.push('即时提醒：用户刚更新了你的名字/人设或对话模式，请从本条起立刻严格按上方最新设定回复，忽略旧语气。');
+      lines.push('即时提醒：用户刚更新了你的名字/人设或小剧场开关，请从本条起立刻严格按最新设定回复，忽略旧语气。');
     }
     return lines.join('\n');
   }
@@ -3426,7 +3459,7 @@ ${chunk.slice(0, 6000)}
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const raw = json.choices?.[0]?.message?.content || '';
+      const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('摘要格式解析失败');
       const parsed = JSON.parse(jsonMatch[0]);
@@ -4102,7 +4135,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       return streamPreviewRow;
     };
 
-    const wantsWidgetHint = !isEvent && /(组件|小窝|看板|工具|转盘|打卡|倒计时|罐子|做个)/i.test(userText || '');
+    const wantsWidgetHint = !isEvent && /(组件|家里|小窝|工具|转盘|打卡|倒计时|罐子|做个)/i.test(userText || '');
     const slowHintTimer = setTimeout(() => {
       if (!isBusy) return;
       if (wantsWidgetHint) {
@@ -4123,6 +4156,8 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
           const widgetPos = partial.search(/<widget/i);
           let visible = widgetPos >= 0 ? partial.slice(0, widgetPos) : partial;
           visible = visible
+            .replace(/<think>[\s\S]*?<\/think>/gi, '')
+            .replace(/<think[\s\S]*$/i, '')
             .replace(/<affection[\s\S]*$/i, '')
             .replace(/<memory[\s\S]*$/i, '')
             .replace(/<image[\s\S]*$/i, '')
@@ -4184,7 +4219,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
 
       const finalBubbles = bubbles.length
         ? bubbles
-        : (mountedWidgets.length ? ['好啦，已经帮你放到右边看板里咯～'] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
+        : (mountedWidgets.length ? [`好啦，已经帮你摆在「${state.settings.name || '我'}的家」里咯～`] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
 
       for (let i = 0; i < finalBubbles.length; i++) {
         if (i > 0) {
@@ -4428,25 +4463,35 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     chatInput.style.height = Math.max(34, Math.min(chatInput.scrollHeight, 112)) + 'px';
   });
 
-  const chatModeQuickBtn = document.getElementById('chatModeQuickBtn');
+  const storyToggleBtn = document.getElementById('storyToggleBtn');
   function syncChatModeQuickBtn() {
-    if (!chatModeQuickBtn) return;
-    const isStory = state.settings.chatMode === 'story';
-    chatModeQuickBtn.textContent = isStory ? '🎬 小剧场' : '💬 微信短聊';
+    if (storyToggleBtn) {
+      storyToggleBtn.classList.toggle('active', state.settings.chatMode === 'story');
+    }
   }
 
-  chatModeQuickBtn.onclick = e => {
+  storyToggleBtn.onclick = e => {
     e.stopPropagation();
     if (isBusy) return;
-    state.settings.chatMode = state.settings.chatMode === 'story' ? 'wechat' : 'story';
+    const nextStory = state.settings.chatMode !== 'story';
+    state.settings.chatMode = nextStory ? 'story' : 'wechat';
     draftChatMode = state.settings.chatMode;
     personaShiftPending = true;
     flushActiveCharToList();
     scheduleSave();
     syncChatModeQuickBtn();
     syncChatModePickerUI();
-    showWarn(`已切换为「${state.settings.chatMode === 'story' ? '沉浸小剧场' : '微信短聊'}」模式`, true);
+    showWarn(nextStory ? '🎭 已开启小剧场模式（带神态动作描写）' : '已切回默认自然聊天', true);
     setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
+  };
+
+  const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+  chatScroll.addEventListener('scroll', () => {
+    const dist = chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight;
+    scrollBottomBtn.classList.toggle('show', dist > 240);
+  }, { passive: true });
+  scrollBottomBtn.onclick = () => {
+    chatScroll.scrollTo({ top: chatScroll.scrollHeight, behavior: 'smooth' });
   };
 
   document.getElementById('quickBar').addEventListener('click', e => {
@@ -4502,7 +4547,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     if (!tpl) return;
     const existing = state.widgets.find(w => w.title === tpl.title);
     if (existing) {
-      showWarn(`看板里已经有「${tpl.title}」啦`, true);
+      showWarn(`${state.settings.name || '家里'}已经有「${tpl.title}」啦`, true);
       setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
       return;
     }
@@ -4897,16 +4942,15 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   let draftContextMode = 'long';
 
   function syncChatModePickerUI() {
-    document.querySelectorAll('#cfgChatModePicker [data-chat-mode]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.chatMode === draftChatMode);
-    });
+    const el = document.getElementById('cfgStoryMode');
+    if (el) el.checked = draftChatMode === 'story';
   }
-  document.querySelectorAll('#cfgChatModePicker [data-chat-mode]').forEach(btn => {
-    btn.onclick = () => {
-      draftChatMode = btn.dataset.chatMode === 'story' ? 'story' : 'wechat';
-      syncChatModePickerUI();
+  const cfgStoryModeEl = document.getElementById('cfgStoryMode');
+  if (cfgStoryModeEl) {
+    cfgStoryModeEl.onchange = () => {
+      draftChatMode = cfgStoryModeEl.checked ? 'story' : 'wechat';
     };
-  });
+  }
 
   function syncPrivacyPinStatusUI() {
     const el = document.getElementById('privacyPinStatus');
@@ -5251,7 +5295,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   document.getElementById('clearCurrentChatBtn').onclick = () => {
     if (isBusy) return;
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '当前角色';
-    if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与小窝组件都会保留）`)) return;
+    if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与家里小组件都会保留）`)) return;
     state.messages = [{ role: 'assistant', text: `好呀，我们重新开始聊吧～`, isStarter: true }];
     state.summarizedCount = 0;
     visibleChatStart = -1;
@@ -5262,6 +5306,38 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     renderChat();
     showWarn(`已清空「${name}」的聊天记录`, true);
     setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
+  };
+
+  document.getElementById('exportChatTxtBtn').onclick = async () => {
+    syncDraftCharFieldsIfModalOpen();
+    flushActiveCharToList();
+    const active = getActiveCharacter();
+    if (!active) return;
+    const lines = active.messages
+      .filter(m => m && !m.imgPending && (m.role === 'user' || m.role === 'assistant'))
+      .map(m => {
+        const who = m.role === 'user' ? '我' : (active.name || '伴侣');
+        const ts = m.createdAt ? new Date(m.createdAt).toLocaleString('zh-CN', { hour12: false }) : '';
+        const body = m.image ? `[图片] ${m.text || ''}`.trim() : (m.text || '');
+        return `[${ts}] ${who}：${body}`;
+      });
+    const txt = `Roomi 聊天记录 · ${active.name || '伴侣'}\n导出时间：${new Date().toLocaleString('zh-CN', { hour12: false })}\n====================================\n\n` + lines.join('\n\n');
+    const fileName = `roomi-chat-${active.name || 'chat'}-${todayKey()}.txt`;
+    const fs = window.Capacitor?.Plugins?.Filesystem;
+    if (fs?.writeFile) {
+      try {
+        await fs.writeFile({ path: `Roomi/${fileName}`, data: txt, directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+        showWarn(`✓ 已导出到文档 Roomi/${fileName}`, true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2600);
+        return;
+      } catch {}
+    }
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   document.getElementById('exportCharBtn').onclick = () => {
@@ -5401,7 +5477,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const raw = json.choices?.[0]?.message?.content || '';
+      const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
       const m = raw.match(/\{[\s\S]*\}/);
       if (m) {
         const parsed = JSON.parse(m[0]);
@@ -5482,7 +5558,7 @@ ${traits}
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        const raw = json.choices?.[0]?.message?.content || '';
+        const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
         const m = raw.match(/\{[\s\S]*\}/);
         if (m) {
           const parsed = JSON.parse(m[0]);
