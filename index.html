@@ -1710,6 +1710,16 @@
     return JSON.parse(JSON.stringify(STARTER_WIDGET));
   }
 
+  function buildNaturalStarter(name = '') {
+    const h = new Date().getHours();
+    const pool = (h >= 23 || h < 5)
+      ? ['这么晚还没睡？刚好我也没歇着，过来聊两句。', '夜深了怎么还不休息，是不是在想事情？']
+      : (h < 10
+          ? ['早呀，刚醒没多久，今天要出门吗？', '起来了吗？今天过得顺不顺利跟我说说。']
+          : ['终于找过来啦，刚还想着你呢。', '忙完这一阵了吗？坐这儿陪我聊会儿。', '在干嘛呀，今天心情怎么样？']);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   function makeCharacterCard(opts = {}) {
     const id = opts.id || ('char_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
     const name = String(opts.name || '林澈').trim() || '林澈';
@@ -1717,7 +1727,7 @@
       ? opts.messages.filter(m => m && !m.imgPending)
       : (Array.isArray(opts.greeting)
           ? opts.greeting.map(t => ({ role: 'assistant', text: t, isStarter: true }))
-          : [{ role: 'assistant', text: `你好呀，我是${name}，以后就在这里陪你了。`, isStarter: true }]);
+          : [{ role: 'assistant', text: buildNaturalStarter(name), isStarter: true }]);
     return {
       id,
       name,
@@ -2887,10 +2897,17 @@
       return { role: 'user', content: m.image ? (txt ? `[图片] ${txt}` : '[用户发送了一张图片]') : txt };
     }
     if (m.role === 'assistant') {
-      const txt = (m.text || '')
+      let txt = (m.text || '')
         .replace(/\[已发送一张(?:照片|图片)(?:\/图片)?\]/g, '')
         .replace(/\[曾发过一张照片[：:][\s\S]*?\]/g, '')
         .trim();
+      if (state.settings.chatMode !== 'story' && txt) {
+        txt = txt
+          .replace(/\*[^*\n]{1,100}\*/g, '')
+          .replace(/[ \t]{2,}/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
       if (m.image) {
         const safePrompt = String(m.imgPrompt || '刚才发给用户的照片').replace(/"/g, "'");
         const imgTag = `<IMAGE prompt="${safePrompt}" />`;
@@ -3101,7 +3118,7 @@
 
     const modeRule = isStory
       ? '1. 已开启「小剧场」模式：请完全入戏扮演用户的私密恋人，允许结合 *神态、动作、眼神与氛围* 描写推进剧情和互动，保持情感张力；禁止说教与 1.2.3. 列表腔。\n2. 节奏自然连贯，需要停顿换气时可用 ||| 拆成 2 条气泡。'
-      : '1. 正常自然地和用户聊天：完全贴合上方人设的语气与脾气，像真人发消息一样直白偏心、亲昵接话；禁止说教、1.2.3. 列表和括号/星号长描写。\n2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。\n3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。';
+      : '1. 正常自然地和用户聊天（非小剧场）：只输出纯粹口语说话文字！严禁写任何 *动作描写*、（动作旁白）、神态描写、心理活动或 1.2.3. 列表，完全贴合上方人设直白亲昵接话。\n2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。\n3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。';
 
     return `【私密伴侣核心档案（静态锚点，绝不反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
@@ -3130,14 +3147,16 @@ ${modeRule}
       : '';
     const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、');
     const lines = [
-      `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话${isStory ? '（当前处于小剧场模式）' : ''}]`,
+      `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话${isStory ? '（小剧场模式，可带神态动作）' : '（日常聊天模式：只发纯说话文字，绝不带 *动作* 或括号旁白）'}]`,
       `当前时间：${timeNote}`
     ];
     if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`记得关于对方的事：\n${memLines}`);
     if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
     if (personaShiftPending) {
-      lines.push('即时提醒：用户刚更新了你的名字/人设或小剧场开关，请从本条起立刻严格按最新设定回复，忽略旧语气。');
+      lines.push(isStory
+        ? '即时提醒：用户刚更新了设定或开启了小剧场，请从本条起立刻按最新设定回复。'
+        : '即时提醒：小剧场已关闭或设定刚更新，从本条起严禁再写任何 *动作描写* / 括号神态，只用纯口语直接回复！');
     }
     return lines.join('\n');
   }
@@ -5296,7 +5315,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     if (isBusy) return;
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '当前角色';
     if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与家里小组件都会保留）`)) return;
-    state.messages = [{ role: 'assistant', text: `好呀，我们重新开始聊吧～`, isStarter: true }];
+    state.messages = [{ role: 'assistant', text: buildNaturalStarter(name), isStarter: true }];
     state.summarizedCount = 0;
     visibleChatStart = -1;
     lastWindowStartIndex = 0;
@@ -5525,7 +5544,7 @@ ${traits || '温柔体贴、有轻微反差萌的伴侣'}
     let genAge = customAge || '22';
     let genPersona = `你是用户的${relation}「${genName}」${customGender ? '（' + customGender + '）' : ''}${genAge ? '，' + genAge + '岁' : ''}，性格${personality || '温柔体贴又带点黏人撒娇'}。平时有着${habits || '深夜喜欢黏着你聊天的'}习惯。只对用户一个人偏心软萌、绝不端着或说教，说话自然像两个人的亲密微信私聊。`;
     let genAppearance = appearance;
-    let genGreeting = `我刚过来找你了，今天在忙什么呀？`;
+    let genGreeting = buildNaturalStarter(genName);
 
     if (key && base && model) {
       gbGenerateBtn.disabled = true;
@@ -5760,9 +5779,17 @@ ${traits}
 
     const hasUserChatted = state.messages.some(m => m && (m.role === 'user' || m.role === 'event'));
     if (!hasUserChatted) {
-      const freshGreeting = draftAiGreeting || `嗨，我是${state.settings.name}～以后就在这里陪你聊了。`;
-      if (draftAiGreeting || state.messages.some(m => m?.isStarter || String(m?.text || '').includes('去设置里告诉我'))) {
-        state.messages = [{ role: 'assistant', text: freshGreeting, isStarter: true }];
+      if (draftAiGreeting) {
+        state.messages = [{ role: 'assistant', text: draftAiGreeting, isStarter: true }];
+      } else {
+        const curStarter = state.messages.find(m => m?.isStarter || m?.role === 'assistant');
+        const curTxt = String(curStarter?.text || '');
+        const isGenericPlaceholder = !curTxt || curTxt.includes('去设置里告诉我') || curTxt.includes('以后就在这里陪你');
+        if (isGenericPlaceholder) {
+          state.messages = [{ role: 'assistant', text: buildNaturalStarter(state.settings.name), isStarter: true }];
+        } else if (prevName && prevName !== state.settings.name && curTxt.includes(prevName)) {
+          curStarter.text = curTxt.split(prevName).join(state.settings.name);
+        }
       }
     } else if (
       prevName !== state.settings.name ||
