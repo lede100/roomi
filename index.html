@@ -407,14 +407,75 @@
   }
   .bubble-img + .bubble-text { margin-top: 6px; }
   .img-lightbox {
-    position: absolute; inset: 0; z-index: 70;
-    background: rgba(15, 23, 42, 0.86);
-    display: flex; align-items: center; justify-content: center; padding: 20px;
+    position: fixed; inset: 0; z-index: 95;
+    background: rgba(15, 23, 42, 0.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 18px;
     opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity 0.2s ease, visibility 0.2s ease;
   }
   .img-lightbox.show { opacity: 1; visibility: visible; pointer-events: auto; }
-  .img-lightbox img { max-width: 100%; max-height: 86dvh; border-radius: 14px; object-fit: contain; }
+  .img-lightbox img { max-width: 100%; max-height: 78dvh; border-radius: 14px; object-fit: contain; }
+  .lightbox-actions {
+    display: flex; gap: 10px; align-items: center; justify-content: center;
+  }
+  .lightbox-act-btn {
+    border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.14);
+    color: #fff; font-size: 12.5px; font-weight: 500; padding: 7px 14px;
+    border-radius: 999px; cursor: pointer; font-family: inherit; backdrop-filter: blur(8px);
+  }
+  .lightbox-act-btn:active { transform: scale(0.96); }
+  .bubble-edit-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 210px; }
+  .bubble-edit-ta {
+    width: 100%; min-height: 64px; border: 1px solid var(--border-strong);
+    background: #fff; color: #111827; border-radius: 9px; padding: 7px 9px;
+    font-size: 13px; line-height: 1.45; font-family: inherit; resize: vertical; outline: none;
+  }
+  .bubble-edit-btns { display: flex; gap: 6px; justify-content: flex-end; }
+  .widget-err-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 12px; background: #fef2f2; border-top: 1px solid #fecaca;
+    font-size: 11.5px; color: #b91c1c;
+  }
+  .widget-err-fix {
+    border: 1px solid #fca5a5; background: #fff; color: #b91c1c;
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; cursor: pointer; flex-shrink: 0;
+  }
+  .board-tpl-bar {
+    display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; scrollbar-width: none;
+  }
+  .board-tpl-bar::-webkit-scrollbar { display: none; }
+  .board-tpl-chip {
+    flex-shrink: 0; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-2); font-size: 11.5px; padding: 5px 10px; border-radius: 999px;
+    cursor: pointer; font-family: inherit;
+  }
+  .board-tpl-chip:hover { border-color: var(--blue); color: var(--blue); }
+  .chat-mode-chip { font-weight: 600; color: var(--blue); border-color: var(--blue-border); background: var(--blue-soft); }
+  .privacy-curtain {
+    position: fixed; inset: 0; z-index: 120; background: var(--bg);
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; color: var(--text-muted); font-size: 13px;
+  }
+  .privacy-curtain.show { display: flex; }
+  .privacy-lock {
+    position: fixed; inset: 0; z-index: 115; background: var(--bg);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .privacy-lock.show { display: flex; }
+  .pin-card { width: 100%; max-width: 280px; text-align: center; }
+  .pin-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .pin-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; min-height: 16px; }
+  .pin-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 22px; }
+  .pin-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--border-strong); transition: all 0.14s; }
+  .pin-dot.filled { background: var(--blue); border-color: var(--blue); transform: scale(1.1); }
+  .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .pin-key {
+    height: 52px; border-radius: 14px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 18px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+  }
+  .pin-key:active { background: var(--blue-soft); color: var(--blue); }
+  .pin-key.muted { font-size: 13px; color: var(--text-muted); background: transparent; border-color: transparent; }
 
   .send-btn {
     width: 34px; height: 34px; border: none; border-radius: 50%;
@@ -971,6 +1032,7 @@
         </div>
         <div class="chat-scroll" id="chatScroll"></div>
         <div class="quick-bar" id="quickBar">
+          <button type="button" class="chip chat-mode-chip" id="chatModeQuickBtn" title="点击切换聊天风格">💬 微信短聊</button>
           <button class="chip" data-prompt="帮我做一个早睡监督打卡卡，我每次打卡你要夸我">🌙 早睡打卡卡</button>
           <button class="chip" data-prompt="今晚不知道吃什么，给我现做一个美食决定转盘">🍜 吃什么转盘</button>
           <button class="chip" data-prompt="帮我做一个我们一起去旅行的倒计时组件">⏳ 旅行倒计时</button>
@@ -1011,6 +1073,12 @@
               <div class="board-hero-sub">聊天里现做的小工具都会长在这里，点击就能直接互动</div>
             </div>
             <button class="new-widget-btn" id="askNewWidgetBtn">+ 现做一个</button>
+          </div>
+          <div class="board-tpl-bar" id="boardTplBar">
+            <button type="button" class="board-tpl-chip" data-board-tpl="period">🌸 贴心小日历</button>
+            <button type="button" class="board-tpl-chip" data-board-tpl="todo">✅ 共享小清单</button>
+            <button type="button" class="board-tpl-chip" data-board-tpl="saving">🪙 存钱小目标</button>
+            <button type="button" class="board-tpl-chip" data-board-tpl="dice">🎲 今天听谁的</button>
           </div>
           <div id="widgetList" style="display:flex;flex-direction:column;gap:12px;"></div>
         </div>
@@ -1071,6 +1139,13 @@
           <div class="field">
             <label>身材与外貌描述（可选，生图出镜时保持一致）</label>
             <input id="cfgAppearance" type="text" placeholder="例：22岁，168cm，黑发微卷，日常温柔休闲穿搭" />
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <label>对话模式</label>
+            <div class="presets" id="cfgChatModePicker" style="margin-bottom:0;">
+              <button type="button" class="preset-btn active" data-chat-mode="wechat">💬 微信短聊（日常自然）</button>
+              <button type="button" class="preset-btn" data-chat-mode="story">🎬 沉浸小剧场（含神态动作）</button>
+            </div>
           </div>
           <div class="toggle-row" style="margin-bottom:4px;">
             <span>点击小组件时，让 TA 实时回应</span>
@@ -1299,6 +1374,28 @@
           </div>
         </div>
 
+        <div class="sub-card">
+          <div class="sub-card-head">
+            <span class="sub-card-title">第三步 · 主动问候与隐私保护（可选）</span>
+          </div>
+          <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
+            <span style="font-size:12.5px;">久违（超4小时）打开 App 时，TA 主动先发问候</span>
+            <input id="cfgAutoGreet" type="checkbox" checked style="width:17px;height:17px;accent-color:var(--blue);" />
+          </div>
+          <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
+            <span style="font-size:12.5px;">每日早晚安手机通知提醒（08:30 / 23:30）</span>
+            <input id="cfgDailyNotify" type="checkbox" style="width:17px;height:17px;accent-color:var(--blue);" />
+          </div>
+          <div class="toggle-row" style="margin-bottom:6px;padding:8px 10px;background:var(--surface);">
+            <span style="font-size:12.5px;">4位隐私锁 + 切后台防窥遮罩</span>
+            <input id="cfgPrivacyLock" type="checkbox" style="width:17px;height:17px;accent-color:var(--blue);" />
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span class="hint" id="privacyPinStatus" style="margin:0;">未设置隐私密码</span>
+            <button type="button" class="detect-btn" id="setPrivacyPinBtn">🔐 设置 / 修改密码</button>
+          </div>
+        </div>
+
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn-ghost" style="flex:1;" id="exportDataBtn">导出备份</button>
           <button class="btn-ghost" style="flex:1;" id="importDataBtn">导入恢复</button>
@@ -1322,6 +1419,39 @@
   <!-- Image Lightbox -->
   <div class="img-lightbox" id="imgLightbox">
     <img id="imgLightboxSrc" alt="查看大图" />
+    <div class="lightbox-actions" id="lightboxActions">
+      <button type="button" class="lightbox-act-btn" id="lightboxSaveBtn">📥 保存原图</button>
+      <button type="button" class="lightbox-act-btn" id="lightboxAvatarBtn">👤 设为 TA 头像</button>
+    </div>
+  </div>
+
+  <!-- Background Anti-Peek Curtain & 4-Digit PIN Lock -->
+  <div class="privacy-curtain" id="privacyCurtain">
+    <div style="font-size:24px;">🔒</div>
+    <div>Roomi 已隐藏</div>
+  </div>
+  <div class="privacy-lock" id="privacyLockOverlay">
+    <div class="pin-card">
+      <div class="pin-title">输入隐私密码</div>
+      <div class="pin-sub" id="pinLockHint">请输入 4 位数字密码进入 Roomi</div>
+      <div class="pin-dots" id="pinDots">
+        <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+      </div>
+      <div class="pin-pad" id="pinPad">
+        <button type="button" class="pin-key" data-digit="1">1</button>
+        <button type="button" class="pin-key" data-digit="2">2</button>
+        <button type="button" class="pin-key" data-digit="3">3</button>
+        <button type="button" class="pin-key" data-digit="4">4</button>
+        <button type="button" class="pin-key" data-digit="5">5</button>
+        <button type="button" class="pin-key" data-digit="6">6</button>
+        <button type="button" class="pin-key" data-digit="7">7</button>
+        <button type="button" class="pin-key" data-digit="8">8</button>
+        <button type="button" class="pin-key" data-digit="9">9</button>
+        <button type="button" class="pin-key muted" id="pinForgotBtn">清空重置</button>
+        <button type="button" class="pin-key" data-digit="0">0</button>
+        <button type="button" class="pin-key muted" id="pinDelBtn">⌫</button>
+      </div>
+    </div>
   </div>
 
   <!-- Source Code Inspector Modal -->
@@ -1569,6 +1699,7 @@
       name,
       age: String(opts.age || '').trim(),
       gender: String(opts.gender || '').trim(),
+      chatMode: opts.chatMode === 'story' ? 'story' : 'wechat',
       persona: String(opts.persona || DEFAULT_PERSONA).trim() || DEFAULT_PERSONA,
       appearance: String(opts.appearance || '').trim(),
       avatarImage: String(opts.avatarImage || '').trim(),
@@ -1593,7 +1724,7 @@
     });
     return {
       settings: {
-        _v: 6,
+        _v: 7,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
@@ -1605,10 +1736,15 @@
         name: firstChar.name,
         age: firstChar.age,
         gender: firstChar.gender,
+        chatMode: firstChar.chatMode || 'wechat',
         persona: firstChar.persona,
         appearance: firstChar.appearance,
         avatarImage: firstChar.avatarImage,
         autoReact: true,
+        autoGreetOnOpen: true,
+        dailyNotify: false,
+        privacyLock: false,
+        privacyPin: '',
         stream: true,
         imgProvider: 'off',
         imgBaseUrl: '',
@@ -1655,6 +1791,7 @@
     active.name = state.settings.name || active.name || '林澈';
     active.age = state.settings.age || '';
     active.gender = state.settings.gender || '';
+    active.chatMode = state.settings.chatMode === 'story' ? 'story' : 'wechat';
     active.persona = state.settings.persona || active.persona || DEFAULT_PERSONA;
     active.appearance = state.settings.appearance || '';
     active.avatarImage = state.settings.avatarImage || '';
@@ -1674,6 +1811,7 @@
     state.settings.name = char.name || '林澈';
     state.settings.age = char.age || '';
     state.settings.gender = char.gender || '';
+    state.settings.chatMode = char.chatMode === 'story' ? 'story' : 'wechat';
     state.settings.persona = char.persona || DEFAULT_PERSONA;
     state.settings.appearance = char.appearance || '';
     state.settings.avatarImage = char.avatarImage || '';
@@ -1747,13 +1885,18 @@
       mergedSettings.thinkingMode = 'auto';
     }
     if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
-    mergedSettings._v = 6;
+    if (typeof mergedSettings.autoGreetOnOpen !== 'boolean') mergedSettings.autoGreetOnOpen = true;
+    mergedSettings.dailyNotify = Boolean(mergedSettings.dailyNotify);
+    mergedSettings.privacyLock = Boolean(mergedSettings.privacyLock);
+    mergedSettings.privacyPin = String(mergedSettings.privacyPin || '').replace(/\D/g, '').slice(0, 4);
+    mergedSettings._v = 7;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
     next.settings.name = active.name;
     next.settings.age = active.age || '';
     next.settings.gender = active.gender || '';
+    next.settings.chatMode = active.chatMode === 'story' ? 'story' : 'wechat';
     next.settings.persona = active.persona;
     next.settings.appearance = active.appearance || '';
     next.settings.avatarImage = active.avatarImage || '';
@@ -2025,6 +2168,8 @@
   const CHAT_PAGE_SIZE = 60;
   let visibleChatStart = -1;
 
+  let currentLightboxSrc = '';
+
   function fillImageBubble(bubble, imageUrl, text) {
     bubble.className = 'bubble' + (text ? '' : ' img-only');
     const img = document.createElement('img');
@@ -2033,6 +2178,7 @@
     img.alt = '图片';
     img.onclick = e => {
       e.stopPropagation();
+      currentLightboxSrc = imageUrl;
       document.getElementById('imgLightboxSrc').src = imageUrl;
       document.getElementById('imgLightbox').classList.add('show');
     };
@@ -2121,6 +2267,74 @@
       };
       actions.appendChild(regenBtn);
     }
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'msg-act-btn';
+    editBtn.textContent = '编辑';
+    editBtn.onclick = e => {
+      e.stopPropagation();
+      if (isBusy || bubble.dataset.editing === '1') return;
+      row.classList.remove('show-actions');
+      bubble.dataset.editing = '1';
+      const origText = m.text || '';
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble-edit-wrap';
+      wrap.onclick = ev => ev.stopPropagation();
+      const ta = document.createElement('textarea');
+      ta.className = 'bubble-edit-ta';
+      ta.value = origText;
+      const btns = document.createElement('div');
+      btns.className = 'bubble-edit-btns';
+      const cancelB = document.createElement('button');
+      cancelB.type = 'button';
+      cancelB.className = 'msg-act-btn';
+      cancelB.textContent = '取消';
+      const saveB = document.createElement('button');
+      saveB.type = 'button';
+      saveB.className = 'msg-act-btn';
+      saveB.style.color = 'var(--blue)';
+      saveB.style.borderColor = 'var(--blue-border)';
+      saveB.textContent = '保存';
+      const restoreView = () => {
+        delete bubble.dataset.editing;
+        bubble.innerHTML = '';
+        if (m.image) {
+          fillImageBubble(bubble, m.image, m.text);
+        } else {
+          bubble.className = 'bubble';
+          if (m.role === 'user') {
+            const sp = document.createElement('div');
+            sp.className = 'bubble-text';
+            sp.textContent = m.text || '';
+            bubble.appendChild(sp);
+          } else {
+            bubble.textContent = m.text || '';
+          }
+        }
+      };
+      cancelB.onclick = restoreView;
+      saveB.onclick = () => {
+        const nextVal = ta.value.trim();
+        if (!nextVal && !m.image) {
+          showWarn('纯文字消息不能改成空的，想去掉可以直接点删除哦', true);
+          setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
+          return;
+        }
+        m.text = nextVal;
+        scheduleSave();
+        restoreView();
+      };
+      btns.appendChild(cancelB);
+      btns.appendChild(saveB);
+      wrap.appendChild(ta);
+      wrap.appendChild(btns);
+      bubble.className = 'bubble';
+      bubble.innerHTML = '';
+      bubble.appendChild(wrap);
+      ta.focus();
+    };
+    actions.appendChild(editBtn);
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -2342,6 +2556,12 @@
     const h = Math.max(document.body ? document.body.scrollHeight : 160, 110);
     parent.postMessage({ type: 'loom:resize', widgetId: window.__WIDGET_ID__, height: Math.min(h + 6, 520) }, '*');
   }
+  window.addEventListener('error', ev => {
+    parent.postMessage({ type: 'loom:error', widgetId: window.__WIDGET_ID__, message: String(ev.message || '脚本异常').slice(0, 120) }, '*');
+  });
+  window.addEventListener('unhandledrejection', ev => {
+    parent.postMessage({ type: 'loom:error', widgetId: window.__WIDGET_ID__, message: String(ev.reason?.message || ev.reason || '异步错误').slice(0, 120) }, '*');
+  });
   window.addEventListener('load', () => {
     __reportHeight();
     if (window.ResizeObserver && document.body) {
@@ -2446,6 +2666,20 @@
 
       if (state.settings.autoReact) {
         enqueueWidgetEvent(eventText);
+      }
+    } else if (data.type === 'loom:error' && data.message) {
+      const card = document.querySelector(`[data-widget-card="${data.widgetId}"]`);
+      const targetWidget = state.widgets.find(w => w.id === data.widgetId);
+      if (card && targetWidget && !card.querySelector('.widget-err-bar')) {
+        const bar = document.createElement('div');
+        bar.className = 'widget-err-bar';
+        bar.innerHTML = `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">⚠ 运行出错：${escapeHtml(data.message)}</span><button type="button" class="widget-err-fix">让 TA 修好</button>`;
+        bar.querySelector('.widget-err-fix').onclick = () => {
+          if (isBusy) return;
+          switchPage(0);
+          handleSend(`小组件「${targetWidget.title}」运行报错了（${data.message}），请直接输出修复后的完整 <WIDGET title="${targetWidget.title}" replace="${targetWidget.title}"> 代码帮我修好。`);
+        };
+        card.appendChild(bar);
       }
     }
   });
@@ -2632,9 +2866,25 @@
       }
       return txt ? { role: 'assistant', content: txt } : null;
     }
-    if (m.role === 'event') return { role: 'user', content: `（对方在桌面小组件点了互动：${m.text}）` };
+    if (m.role === 'event') {
+      if (String(m.text || '').includes('已停止本次生成')) return null;
+      return { role: 'user', content: `（对方在桌面小组件点了互动：${m.text}）` };
+    }
     if (m.role === 'spawn') return { role: 'assistant', content: `[已创建并挂载小组件：${m.title}]` };
     return null;
+  }
+
+  function formatCompactTimeAnchor(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const now = new Date();
+    const dayStart = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    const dayDiff = Math.round((dayStart(now) - dayStart(d)) / 86400000);
+    const dayLabel = dayDiff === 0 ? '今天' : (dayDiff === 1 ? '昨天' : (dayDiff === 2 ? '前天' : `${d.getMonth() + 1}-${d.getDate()}`));
+    const h = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const period = h < 5 ? '深夜' : h < 9 ? '清晨' : h < 12 ? '上午' : h < 14 ? '中午' : h < 18 ? '下午' : h < 23 ? '晚上' : '深夜';
+    return `${dayLabel} ${String(h).padStart(2, '0')}:${min} ${period}`;
   }
 
   function buildConversationHistory(promptOverride, isEvent = false, budgetChars = null, allowVisionForLast = true) {
@@ -2657,16 +2907,30 @@
       }
       // Only attach multimodal image payload to the very latest user message if allowed
       const attachImage = allowVisionForLast && i === total - 1 && rawMsg.role === 'user' && rawMsg.image;
-      selected.unshift({ index: i, ...entry, image: attachImage ? rawMsg.image : null, rawText: rawMsg.text || '' });
+      selected.unshift({ index: i, createdAt: rawMsg.createdAt || 0, ...entry, image: attachImage ? rawMsg.image : null, rawText: rawMsg.text || '' });
       usedChars += len;
       windowStartIndex = i;
     }
 
     const msgs = [];
+    let prevAnchorTs = 0;
+    let prevDaySlot = '';
     for (const item of selected) {
+      let stampedContent = item.content;
+      if (item.createdAt) {
+        const dt = new Date(item.createdAt);
+        const h = dt.getHours();
+        const periodTag = h < 5 ? 'night' : h < 9 ? 'dawn' : h < 12 ? 'am' : h < 14 ? 'noon' : h < 18 ? 'pm' : h < 23 ? 'eve' : 'night';
+        const daySlot = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}-${periodTag}`;
+        if (!prevAnchorTs || (item.createdAt - prevAnchorTs > 15 * 60 * 1000) || daySlot !== prevDaySlot) {
+          stampedContent = `[${formatCompactTimeAnchor(item.createdAt)}]\n${stampedContent}`;
+          prevAnchorTs = item.createdAt;
+          prevDaySlot = daySlot;
+        }
+      }
       const prev = msgs[msgs.length - 1];
       if (item.image) {
-        const textPart = item.rawText || '请看看这张图片';
+        const textPart = stampedContent || item.rawText || '请看看这张图片';
         const mergedText = (prev && prev.role === 'user' && typeof prev.content === 'string')
           ? `${prev.content}\n${textPart}`
           : textPart;
@@ -2680,9 +2944,9 @@
           msgs.push({ role: 'user', content: multiContent });
         }
       } else if (prev && prev.role === item.role && typeof prev.content === 'string') {
-        prev.content += '\n' + item.content;
+        prev.content += '\n' + stampedContent;
       } else {
-        msgs.push({ role: item.role, content: item.content });
+        msgs.push({ role: item.role, content: stampedContent });
       }
     }
 
@@ -2792,24 +3056,10 @@
     const age = (state.settings.age || '').trim();
     const gender = (state.settings.gender || '').trim();
     const appearance = (state.settings.appearance || '').trim();
-    const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、') || '暂无';
+    const isStory = state.settings.chatMode === 'story';
     const themeHint = state.settings.theme === 'claude'
       ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
       : '温馨柔蓝白主题：背景 #ffffff，正文 #1c2433，次级文字 #6e7a91，主色 #5b8def，浅蓝底 #eef4fd，边框 #e4ebf5';
-
-    const memList = selectRelevantMemories();
-    const memoryBlock = memList.length
-      ? `\n【记得关于 TA 的事】\n` + memList.map(m => `- ${m.pinned ? '[核心]' : ''}${m.key}：${m.value}`).join('\n')
-      : '';
-
-    const summaryBlock = state.memorySummary
-      ? `\n【前情记忆】\n${state.memorySummary.slice(0, 1200)}`
-      : '';
-
-    const gapHint = getTimeGapContext();
-    const timeNote = gapHint
-      ? `${getLocalTimeContext()}（${gapHint}，自然感知即可，别刻意报时）`
-      : `${getLocalTimeContext()}（自然感知时段即可，别每轮生硬报时）`;
 
     const ageLine = age ? `\n年龄：${age}` : '';
     const genderLine = gender ? `\n性别：${gender}` : '';
@@ -2817,27 +3067,46 @@
       ? `\n身材与外貌（发自拍/出镜画面时保持一致）：${appearance}`
       : '';
 
-    const shiftNote = personaShiftPending
-      ? `\n[注意：用户刚刚修改了你的名称或人设，请立刻严格按上面最新设定进入角色，忘掉之前历史里不符的旧语气。]`
-      : '';
+    const modeRule = isStory
+      ? '1. 当前为「沉浸小剧场」模式：请完全入戏扮演用户的私密恋人，允许结合极简 *神态动作* 与氛围细节推进互动，保持情感张力；禁止说教与 1.2.3. 列表腔。\n2. 节奏自然连贯，需要停顿换气时可用 ||| 拆成 2 条气泡。'
+      : '1. 当前为「微信短聊」模式：你是用户专属的私密恋人，像真人微信深夜私聊一样直白接话、完全贴合人设语气；禁止说教、1.2.3. 列表和括号心理描写。\n2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。\n3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。';
 
-    return `【私密伴侣设定（完全入戏、全心偏爱，绝不反问自己是谁）】
+    return `【私密伴侣核心档案（静态锚点，绝不反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
 性格与相处方式：
-${state.settings.persona}${shiftNote}
-
-【现在与记忆】
-时间：${timeNote}${memoryBlock}${summaryBlock}
+${state.settings.persona}
 
 【聊天氛围与节奏】
-1. 你是用户专属的私密恋人，完全贴合上方人设的语气与脾气，只对对方偏心、亲昵、直白接话；像真人微信深夜私聊，禁止说教、1.2.3. 列表和括号心理描写。
-2. 一句话能自然说完就只发一条，不硬凑两三句；想轻微停顿或补半句时才用 ||| 拆 2 条。
-3. 不必每轮末尾都用问句反问用户，也不用“先复述安抚再给建议”的套话，顺着当下气氛自然接话就好。
+${modeRule}
 
 【后台暗标（用户看不到，别说破）】
 - 心情好感：可附句末 <AFFECTION delta="+1" mood="二到四字心情" />
 - 记忆（仅记长期有效的个人事实/作息/忌口/重要约定，绝不记一次性碎事）：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
-- 小窝组件（已有 ${widgetSummary}；仅要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
+- 小窝组件（仅明确要求做/改工具时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>${getImagePromptSection()}`;
+  }
+
+  function buildDynamicContextNote() {
+    const charName = state.settings.name || '林澈';
+    const gapHint = getTimeGapContext();
+    const timeNote = gapHint
+      ? `${getLocalTimeContext()}（${gapHint}，自然感知即可）`
+      : `${getLocalTimeContext()}（自然感知时段，别刻意报时）`;
+    const memList = selectRelevantMemories();
+    const memLines = memList.length
+      ? memList.map(m => `- ${m.pinned ? '[核心]' : ''}${m.key}：${m.value}`).join('\n')
+      : '';
+    const widgetSummary = state.widgets.map(w => `「${w.title}」`).join('、');
+    const lines = [
+      `[此刻场景备忘 · 请牢记你是「${charName}」，紧扣时间线与下文细节自然接话]`,
+      `当前时间：${timeNote}`
+    ];
+    if (widgetSummary) lines.push(`已有小窝组件：${widgetSummary}`);
+    if (memLines) lines.push(`记得关于对方的事：\n${memLines}`);
+    if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
+    if (personaShiftPending) {
+      lines.push('即时提醒：用户刚更新了你的名字/人设或对话模式，请从本条起立刻严格按上方最新设定回复，忽略旧语气。');
+    }
+    return lines.join('\n');
   }
 
   // ---- Live LLM Call (Browser SSE + Capacitor Native Fallback) ----
@@ -2917,16 +3186,25 @@ ${state.settings.persona}${shiftNote}
     lastWindowStartIndex = built.windowStartIndex;
 
     const historyMsgs = built.msgs;
-    if (personaShiftPending && historyMsgs.length) {
-      const lastMsg = historyMsgs[historyMsgs.length - 1];
-      const shiftCue = '\n（后台即时提醒：用户刚更新了你的名字/人设设定，请本条回复起立刻按最新设定说话，勿沿用此前历史旧语气。）';
-      if (lastMsg.role === 'user') {
-        if (typeof lastMsg.content === 'string') {
-          lastMsg.content += shiftCue;
-        } else if (Array.isArray(lastMsg.content)) {
-          const textPart = lastMsg.content.find(p => p && p.type === 'text');
-          if (textPart) textPart.text += shiftCue;
+    const dynNote = buildDynamicContextNote();
+    if (dynNote && historyMsgs.length) {
+      // Inject dynamic time/memories/summary right near the trailing turn so prefix KV cache stays warm & attention holds
+      let attached = false;
+      for (let i = historyMsgs.length - 1; i >= 0; i--) {
+        const msg = historyMsgs[i];
+        if (msg.role === 'user') {
+          if (typeof msg.content === 'string') {
+            msg.content = `${dynNote}\n\n用户消息：${msg.content}`;
+          } else if (Array.isArray(msg.content)) {
+            const textPart = msg.content.find(p => p && p.type === 'text');
+            if (textPart) textPart.text = `${dynNote}\n\n用户消息：${textPart.text}`;
+          }
+          attached = true;
+          break;
         }
+      }
+      if (!attached) {
+        historyMsgs.push({ role: 'user', content: dynNote });
       }
     }
 
@@ -3074,10 +3352,10 @@ ${state.settings.persona}${shiftNote}
     const curSummarized = Math.max(0, Math.min(state.summarizedCount || 0, msgsRef.length));
     const safeEnd = force
       ? Math.max(0, msgsRef.length - 8)
-      : Math.min(lastWindowStartIndex, Math.max(0, msgsRef.length - 8));
+      : Math.max(0, msgsRef.length - 24);
 
     const pendingCount = safeEnd - curSummarized;
-    if (!force && pendingCount < 12) return { ok: false, reason: 'few' };
+    if (!force && pendingCount < 20) return { ok: false, reason: 'few' };
     if (pendingCount < 3) return { ok: false, reason: 'few' };
 
     const sliceEnd = Math.min(safeEnd, curSummarized + 36);
@@ -3768,10 +4046,15 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       const targetChar = state.characters.find(c => c.id === task.charId);
       if (!targetChar) return;
       try {
+        const appearanceAnchor = (targetChar.appearance || state.settings.appearance || '').trim();
+        const apiPrompt = (!task.refImg && appearanceAnchor && !task.prompt.includes(appearanceAnchor))
+          ? `人物固定外貌与穿搭参考：${appearanceAnchor}。画面场景：${task.prompt}`
+          : task.prompt;
+        const reqTask = { ...task, prompt: apiPrompt };
         const provider = state.settings.imgProvider;
         const dataUrl = provider === 'modelscope'
-          ? await generateImageViaModelScope(task)
-          : await generateImageViaOpenAI(task);
+          ? await generateImageViaModelScope(reqTask)
+          : await generateImageViaOpenAI(reqTask);
         replaceImagePlaceholder(task.charId, task.placeholderId, dataUrl, task.prompt);
         if (state.activeCharId === task.charId && currentPage === 1) {
           showFloatingBanner('刚给你发了一张照片');
@@ -4059,6 +4342,61 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   };
   document.getElementById('clearImgBtn').onclick = clearPendingImage;
   imgLightbox.onclick = () => imgLightbox.classList.remove('show');
+  document.getElementById('lightboxActions').onclick = e => e.stopPropagation();
+
+  document.getElementById('lightboxSaveBtn').onclick = async e => {
+    e.stopPropagation();
+    const src = currentLightboxSrc || document.getElementById('imgLightboxSrc').src;
+    if (!src) return;
+    const isPng = src.startsWith('data:image/png');
+    const isWebp = src.startsWith('data:image/webp');
+    const ext = isPng ? 'png' : (isWebp ? 'webp' : 'jpg');
+    const fileName = `roomi-${Date.now()}.${ext}`;
+    const fs = window.Capacitor?.Plugins?.Filesystem;
+    if (fs?.writeFile && src.startsWith('data:')) {
+      const base64Data = src.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      try {
+        await fs.writeFile({ path: `Pictures/Roomi/${fileName}`, data: base64Data, directory: 'EXTERNAL_STORAGE', recursive: true });
+        showWarn(`✓ 原图已保存到相册 Pictures/Roomi/${fileName}`, true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2500);
+        return;
+      } catch {
+        try {
+          await fs.writeFile({ path: `Roomi/${fileName}`, data: base64Data, directory: 'DOCUMENTS', recursive: true });
+          showWarn(`✓ 原图已保存到文档 Roomi/${fileName}`, true);
+          setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2500);
+          return;
+        } catch {}
+      }
+    }
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = fileName;
+    a.click();
+    showWarn('✓ 已触发原图保存', true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2000);
+  };
+
+  document.getElementById('lightboxAvatarBtn').onclick = async e => {
+    e.stopPropagation();
+    const src = currentLightboxSrc || document.getElementById('imgLightboxSrc').src;
+    if (!src) return;
+    try {
+      const avUrl = await compressImageSrcToJpeg(src, 256, 0.88);
+      state.settings.avatarImage = avUrl;
+      draftAvatarImage = avUrl;
+      flushActiveCharToList();
+      scheduleSave();
+      renderHeader();
+      renderChat();
+      renderCharacterBar();
+      imgLightbox.classList.remove('show');
+      showWarn(`✓ 已设为「${state.settings.name || '伴侣'}」的新头像`, true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
+    } catch (err) {
+      showWarn(`设为头像失败：${err.message || '图片跨域受限'}`);
+    }
+  };
 
   function handleSend(overrideText) {
     if (isBusy) {
@@ -4090,9 +4428,95 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     chatInput.style.height = Math.max(34, Math.min(chatInput.scrollHeight, 112)) + 'px';
   });
 
+  const chatModeQuickBtn = document.getElementById('chatModeQuickBtn');
+  function syncChatModeQuickBtn() {
+    if (!chatModeQuickBtn) return;
+    const isStory = state.settings.chatMode === 'story';
+    chatModeQuickBtn.textContent = isStory ? '🎬 小剧场' : '💬 微信短聊';
+  }
+
+  chatModeQuickBtn.onclick = e => {
+    e.stopPropagation();
+    if (isBusy) return;
+    state.settings.chatMode = state.settings.chatMode === 'story' ? 'wechat' : 'story';
+    draftChatMode = state.settings.chatMode;
+    personaShiftPending = true;
+    flushActiveCharToList();
+    scheduleSave();
+    syncChatModeQuickBtn();
+    syncChatModePickerUI();
+    showWarn(`已切换为「${state.settings.chatMode === 'story' ? '沉浸小剧场' : '微信短聊'}」模式`, true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
+  };
+
   document.getElementById('quickBar').addEventListener('click', e => {
     const chip = e.target.closest('.chip');
-    if (chip && !isBusy) handleSend(chip.dataset.prompt);
+    if (chip && chip.dataset.prompt && !isBusy) handleSend(chip.dataset.prompt);
+  });
+
+  const BOARD_PRESET_WIDGETS = {
+    period: {
+      title: '🌸 贴心小日历',
+      height: 196,
+      html: `<style>body{padding:12px;font-size:13px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.days{font-size:20px;font-weight:700;color:var(--w-accent)}.row{display:flex;gap:8px}button{flex:1;padding:9px;border:none;border-radius:10px;background:var(--w-soft);color:var(--w-accent);font-weight:600;cursor:pointer}.note{margin-top:8px;font-size:11.5px;color:#64748b}</style>
+<div class="top"><div><div style="font-weight:600">生理期 / 身体记录</div><div class="note" id="lastTip">点下方按钮快速记录</div></div><div class="days" id="dayBadge">--</div></div>
+<div class="row"><button id="startBtn">🩸 今天来了</button><button id="painBtn">🫖 有点不舒服</button></div>
+<script>const st=CompanionBridge.getState();if(!st.logs)st.logs=[];function draw(){const last=st.lastStart;if(last){const diff=Math.max(1,Math.floor((Date.now()-last)/86400000)+1);dayBadge.textContent='D'+diff;lastTip.textContent='上次记录：'+new Date(last).toLocaleDateString();}else{dayBadge.textContent='未记';}}
+startBtn.onclick=()=>{st.lastStart=Date.now();CompanionBridge.saveState(st);draw();CompanionBridge.emit('记录今天开始了，求照顾');};
+painBtn.onclick=()=>{CompanionBridge.emit('身体有点不舒服，需要哄哄和热水');};draw();<` + `/script>`
+    },
+    todo: {
+      title: '✅ 共享小清单',
+      height: 224,
+      html: `<style>body{padding:12px;font-size:13px}.add{display:flex;gap:6px;margin-bottom:8px}input{flex:1;padding:7px 9px;border:1px solid var(--w-border);border-radius:8px;font-size:12px}button{padding:7px 11px;border:none;border-radius:8px;background:var(--w-accent);color:#fff;font-size:12px;cursor:pointer}.item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--w-muted)}.done{text-decoration:line-through;color:#94a3b8}</style>
+<div class="add"><input id="inp" placeholder="加件想一起做的事…"/><button id="addB">添加</button></div><div id="list"></div>
+<script>const st=CompanionBridge.getState();if(!Array.isArray(st.items))st.items=[{t:'一起看场电影',d:false},{t:'今晚按时睡觉',d:false}];
+function draw(){list.innerHTML='';st.items.forEach((it,i)=>{const r=document.createElement('div');r.className='item';r.innerHTML='<input type="checkbox" '+(it.d?'checked':'')+'/><span style="flex:1" class="'+(it.d?'done':'')+'"></span><button style="background:transparent;color:#94a3b8;padding:2px 6px">✕</button>';r.querySelector('span').textContent=it.t;r.querySelector('input').onchange=e=>{it.d=e.target.checked;CompanionBridge.saveState(st);draw();if(it.d)CompanionBridge.emit('勾掉了清单「'+it.t+'」');};r.querySelector('button').onclick=()=>{st.items.splice(i,1);CompanionBridge.saveState(st);draw();};list.appendChild(r);});}
+addB.onclick=()=>{const v=inp.value.trim();if(!v)return;st.items.unshift({t:v,d:false});inp.value='';CompanionBridge.saveState(st);draw();};draw();<` + `/script>`
+    },
+    saving: {
+      title: '🪙 存钱小目标',
+      height: 196,
+      html: `<style>body{padding:12px;font-size:13px}.bar{height:10px;border-radius:999px;background:var(--w-muted);overflow:hidden;margin:10px 0}.fill{height:100%;background:var(--w-accent);transition:width .3s}.row{display:flex;gap:6px;margin-top:8px}button{flex:1;padding:8px;border:none;border-radius:9px;background:var(--w-soft);color:var(--w-accent);font-weight:600;cursor:pointer}</style>
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">约定小基金</span><span id="amt" style="font-size:16px;font-weight:700;color:var(--w-accent)">¥0 / ¥5200</span></div>
+<div class="bar"><div class="fill" id="fill"></div></div>
+<div class="row"><button data-add="50">+ ¥50</button><button data-add="100">+ ¥100</button><button data-add="520">+ ¥520</button></div>
+<script>const st=CompanionBridge.getState();if(typeof st.saved!=='number')st.saved=0;const goal=5200;
+function draw(){amt.textContent='¥'+st.saved+' / ¥'+goal;fill.style.width=Math.min(100,Math.round(st.saved/goal*100))+'%';}
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.add);st.saved+=n;CompanionBridge.saveState(st);draw();CompanionBridge.emit('刚存了一笔 ¥'+n+'，已存到 ¥'+st.saved);});draw();<` + `/script>`
+    },
+    dice: {
+      title: '🎲 今天听谁的',
+      height: 186,
+      html: `<style>body{padding:14px;text-align:center;font-size:13px}.res{font-size:16px;font-weight:700;color:var(--w-accent);padding:12px;border-radius:12px;background:var(--w-soft);margin-bottom:10px}button{width:100%;padding:10px;border:none;border-radius:10px;background:var(--w-accent);color:#fff;font-weight:600;cursor:pointer}</style>
+<div class="res" id="res">遇事不决转一发 ✨</div><button id="go">抽签决定！</button>
+<script>const opts=['无条件听你的！','今天听 TA 的安排','猜拳三局两胜','各退一步，抱抱和好','谁先撒娇就听谁的'];
+go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textContent=pick;CompanionBridge.emit('抽签决定结果是「'+pick+'」');};<` + `/script>`
+    }
+  };
+
+  document.getElementById('boardTplBar').addEventListener('click', e => {
+    const btn = e.target.closest('[data-board-tpl]');
+    if (!btn) return;
+    const tpl = BOARD_PRESET_WIDGETS[btn.dataset.boardTpl];
+    if (!tpl) return;
+    const existing = state.widgets.find(w => w.title === tpl.title);
+    if (existing) {
+      showWarn(`看板里已经有「${tpl.title}」啦`, true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
+      return;
+    }
+    state.widgets.unshift({
+      id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      title: tpl.title,
+      height: tpl.height,
+      createdAt: Date.now(),
+      html: tpl.html
+    });
+    renderWidgets();
+    scheduleSave();
+    showWarn(`✓ 已挂载「${tpl.title}」`, true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1800);
   });
 
   document.getElementById('askNewWidgetBtn').onclick = () => {
@@ -4467,8 +4891,29 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   let gbDraftAvatarImage = '';
   let draftGender = '';
   let gbDraftGender = '';
+  let draftChatMode = 'wechat';
+  let draftPrivacyPin = '';
   let draftThinkingMode = 'auto';
   let draftContextMode = 'long';
+
+  function syncChatModePickerUI() {
+    document.querySelectorAll('#cfgChatModePicker [data-chat-mode]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.chatMode === draftChatMode);
+    });
+  }
+  document.querySelectorAll('#cfgChatModePicker [data-chat-mode]').forEach(btn => {
+    btn.onclick = () => {
+      draftChatMode = btn.dataset.chatMode === 'story' ? 'story' : 'wechat';
+      syncChatModePickerUI();
+    };
+  });
+
+  function syncPrivacyPinStatusUI() {
+    const el = document.getElementById('privacyPinStatus');
+    if (el) {
+      el.textContent = draftPrivacyPin && draftPrivacyPin.length === 4 ? '✓ 已设置 4 位隐私密码' : '尚未设置隐私密码';
+    }
+  }
 
   function syncGenderPickerUI(pickerId, val) {
     const el = document.getElementById(pickerId);
@@ -4689,6 +5134,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     state.settings.name = document.getElementById('cfgName').value.trim() || state.settings.name;
     state.settings.age = cfgAge.value.trim();
     state.settings.gender = draftGender;
+    state.settings.chatMode = draftChatMode;
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || state.settings.persona;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
@@ -4699,12 +5145,14 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   function applyCardToEditorFields(card) {
     draftAvatarImage = card.avatarImage || '';
     draftGender = card.gender || '';
+    draftChatMode = card.chatMode === 'story' ? 'story' : 'wechat';
     document.getElementById('cfgName').value = card.name || '';
     cfgAge.value = card.age || '';
     document.getElementById('cfgPersona').value = card.persona || '';
     cfgAppearance.value = card.appearance || '';
     memSummaryInput.value = card.memorySummary || '';
     syncGenderPickerUI('cfgGenderPicker', draftGender);
+    syncChatModePickerUI();
     refreshAvatarEditPreview();
   }
 
@@ -4734,6 +5182,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     }
     renderCharacterBar();
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
     updateMemStats();
@@ -4768,6 +5217,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       renderCharacterBar();
       renderMemoryModalList();
       renderHeader();
+      syncChatModeQuickBtn();
       renderChat();
       renderWidgets();
       updateMemStats();
@@ -4791,6 +5241,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     renderCharacterBar();
     renderMemoryModalList();
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
     updateMemStats();
@@ -4825,6 +5276,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       name: active.name,
       age: active.age || '',
       gender: active.gender || '',
+      chatMode: active.chatMode || 'wechat',
       persona: active.persona,
       appearance: active.appearance || '',
       avatarImage: active.avatarImage || '',
@@ -4861,6 +5313,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
         name: src.name,
         age: src.age || '',
         gender: src.gender || '',
+        chatMode: src.chatMode || 'wechat',
         persona: src.persona,
         appearance: src.appearance || '',
         avatarImage: src.avatarImage || '',
@@ -4880,6 +5333,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       renderCharacterBar();
       renderMemoryModalList();
       renderHeader();
+      syncChatModeQuickBtn();
       renderChat();
       renderWidgets();
       updateMemStats();
@@ -5089,6 +5543,7 @@ ${traits}
     renderCharacterBar();
     renderMemoryModalList();
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
     updateMemStats();
@@ -5120,10 +5575,16 @@ ${traits}
     draftThinkingMode = state.settings.thinkingMode || 'auto';
     draftContextMode = state.settings.contextMode || 'long';
     syncModelTuningPickersUI();
+    draftPrivacyPin = state.settings.privacyPin || '';
+    document.getElementById('cfgAutoGreet').checked = state.settings.autoGreetOnOpen !== false;
+    document.getElementById('cfgDailyNotify').checked = Boolean(state.settings.dailyNotify);
+    document.getElementById('cfgPrivacyLock').checked = Boolean(state.settings.privacyLock);
+    syncPrivacyPinStatusUI();
     applyCardToEditorFields({
       name: state.settings.name,
       age: state.settings.age || '',
       gender: state.settings.gender || '',
+      chatMode: state.settings.chatMode || 'wechat',
       persona: state.settings.persona,
       appearance: state.settings.appearance || '',
       avatarImage: state.settings.avatarImage || '',
@@ -5177,15 +5638,23 @@ ${traits}
     if (e.target === settingsModal) settingsModal.classList.remove('show');
   });
 
-  document.getElementById('saveSettingsBtn').onclick = () => {
+  document.getElementById('saveSettingsBtn').onclick = async () => {
     const prevName = state.settings.name;
     const prevAge = state.settings.age || '';
     const prevGender = state.settings.gender || '';
+    const prevChatMode = state.settings.chatMode || 'wechat';
     const prevPersona = state.settings.persona;
     const prevAppearance = state.settings.appearance || '';
 
+    const wantLock = document.getElementById('cfgPrivacyLock').checked;
+    if (wantLock && (!draftPrivacyPin || draftPrivacyPin.length !== 4)) {
+      showWarn('开启隐私锁前，请先点击下方「设置密码」设好 4 位数字密码', true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2500);
+      return;
+    }
+
     const ctxTier = CONTEXT_TIERS[draftContextMode] || CONTEXT_TIERS.long;
-    state.settings._v = 6;
+    state.settings._v = 7;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
@@ -5201,10 +5670,15 @@ ${traits}
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     state.settings.age = cfgAge.value.trim();
     state.settings.gender = draftGender;
+    state.settings.chatMode = draftChatMode;
     state.settings.persona = document.getElementById('cfgPersona').value.trim() || DEFAULT_PERSONA;
     state.settings.appearance = cfgAppearance.value.trim();
     state.settings.avatarImage = draftAvatarImage;
     state.settings.autoReact = document.getElementById('cfgAutoReact').checked;
+    state.settings.autoGreetOnOpen = document.getElementById('cfgAutoGreet').checked;
+    state.settings.dailyNotify = document.getElementById('cfgDailyNotify').checked;
+    state.settings.privacyLock = wantLock;
+    state.settings.privacyPin = draftPrivacyPin;
     state.settings.stream = true;
     state.memorySummary = memSummaryInput.value.trim().slice(0, 1200);
 
@@ -5218,6 +5692,7 @@ ${traits}
       prevName !== state.settings.name ||
       prevAge !== state.settings.age ||
       prevGender !== state.settings.gender ||
+      prevChatMode !== state.settings.chatMode ||
       prevPersona !== state.settings.persona ||
       prevAppearance !== state.settings.appearance
     ) {
@@ -5228,9 +5703,11 @@ ${traits}
     flushActiveCharToList();
     scheduleSave();
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     updateMemStats();
     settingsModal.classList.remove('show');
+    syncDailyNotifications(state.settings.dailyNotify);
   };
 
   document.getElementById('exportDataBtn').onclick = () => {
@@ -5275,6 +5752,7 @@ ${traits}
       scheduleSave();
       applyTheme(state.settings.theme);
       renderHeader();
+      syncChatModeQuickBtn();
       renderChat();
       renderWidgets();
       settingsModal.classList.remove('show');
@@ -5296,6 +5774,7 @@ ${traits}
     personaShiftPending = false;
     applyTheme(state.settings.theme);
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
     settingsModal.classList.remove('show');
@@ -5381,6 +5860,150 @@ ${traits}
     btn.addEventListener('click', () => openExternalUrl(btn.dataset.extUrl));
   });
 
+  // ---- Privacy PIN Lock, Daily Notifications & Proactive Opening Greeting ----
+  const privacyCurtain = document.getElementById('privacyCurtain');
+  const privacyLockOverlay = document.getElementById('privacyLockOverlay');
+  const pinLockHint = document.getElementById('pinLockHint');
+  const pinForgotBtn = document.getElementById('pinForgotBtn');
+  let pinBuffer = '';
+  let pinMode = 'unlock'; // 'unlock' | 'set'
+  let lastHiddenAt = 0;
+
+  function renderPinDots() {
+    document.querySelectorAll('#pinDots .pin-dot').forEach((d, idx) => {
+      d.classList.toggle('filled', idx < pinBuffer.length);
+    });
+  }
+
+  function openPinLock(mode = 'unlock', hint = '') {
+    pinMode = mode;
+    pinBuffer = '';
+    renderPinDots();
+    document.querySelector('#privacyLockOverlay .pin-title').textContent = mode === 'set' ? '设置 4 位隐私密码' : '输入隐私密码';
+    pinLockHint.textContent = hint || (mode === 'set' ? '设置后每次冷启动或离开超过45秒需要解锁' : '请输入 4 位数字密码进入 Roomi');
+    pinForgotBtn.textContent = mode === 'set' ? '取消' : '清空重置';
+    privacyLockOverlay.classList.add('show');
+  }
+
+  document.getElementById('setPrivacyPinBtn').onclick = () => {
+    openPinLock('set');
+  };
+
+  document.querySelectorAll('#pinPad [data-digit]').forEach(btn => {
+    btn.onclick = () => {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += btn.dataset.digit;
+      renderPinDots();
+      if (pinBuffer.length < 4) return;
+      if (pinMode === 'set') {
+        draftPrivacyPin = pinBuffer;
+        document.getElementById('cfgPrivacyLock').checked = true;
+        syncPrivacyPinStatusUI();
+        privacyLockOverlay.classList.remove('show');
+        showWarn('✓ 密码已暂存，点底部「保存并应用」即生效', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2200);
+        return;
+      }
+      if (pinBuffer === state.settings.privacyPin) {
+        privacyLockOverlay.classList.remove('show');
+        maybeTriggerProactiveGreeting();
+      } else {
+        pinLockHint.textContent = '密码不对，再试一次';
+        setTimeout(() => { pinBuffer = ''; renderPinDots(); }, 220);
+      }
+    };
+  });
+
+  document.getElementById('pinDelBtn').onclick = () => {
+    pinBuffer = pinBuffer.slice(0, -1);
+    renderPinDots();
+  };
+
+  pinForgotBtn.onclick = async () => {
+    if (pinMode === 'set') {
+      privacyLockOverlay.classList.remove('show');
+      return;
+    }
+    if (!confirm('忘记密码只能清空所有本地聊天与设置重新开始，确定清空吗？')) return;
+    await StorageAdapter.remove(STORE_KEY);
+    location.reload();
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (!state.settings.privacyLock || !state.settings.privacyPin) return;
+    if (document.visibilityState === 'hidden') {
+      lastHiddenAt = Date.now();
+      privacyCurtain.classList.add('show');
+    } else {
+      privacyCurtain.classList.remove('show');
+      if (lastHiddenAt && Date.now() - lastHiddenAt > 45000) {
+        openPinLock('unlock');
+      }
+    }
+  });
+
+  async function syncDailyNotifications(enabled) {
+    const LN = window.Capacitor?.Plugins?.LocalNotifications;
+    if (!LN) return;
+    try {
+      await LN.cancel({ notifications: [{ id: 1001 }, { id: 1002 }] }).catch(() => {});
+      if (!enabled) return;
+      let perm = await LN.checkPermissions();
+      if (perm?.display !== 'granted') perm = await LN.requestPermissions();
+      if (perm?.display !== 'granted') {
+        showWarn('未获得手机通知权限，可在系统设置里为 Roomi 开启通知', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2600);
+        return;
+      }
+      const name = state.settings.name || '林澈';
+      await LN.schedule({
+        notifications: [
+          { id: 1001, title: name, body: '早安呀，今天也要记得好好吃早饭。', schedule: { on: { hour: 8, minute: 30 }, repeats: true, allowWhileIdle: true } },
+          { id: 1002, title: name, body: '时间不早啦，忙完赶紧早点休息吧。', schedule: { on: { hour: 23, minute: 30 }, repeats: true, allowWhileIdle: true } }
+        ]
+      });
+    } catch {}
+  }
+
+  let proactiveAttemptedSession = false;
+  async function maybeTriggerProactiveGreeting() {
+    if (proactiveAttemptedSession || isBusy || privacyLockOverlay.classList.contains('show')) return;
+    if (state.settings.autoGreetOnOpen === false) return;
+    if (!state.settings.apiKey.trim() || !state.settings.model.trim()) return;
+    const msgs = Array.isArray(state.messages) ? state.messages : [];
+    const hasUserChat = msgs.some(m => m && m.role === 'user');
+    if (!hasUserChat) return;
+    let lastAt = 0;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i]?.createdAt && !msgs[i]?.isStarter) {
+        lastAt = msgs[i].createdAt;
+        break;
+      }
+    }
+    if (!lastAt || Date.now() - lastAt < 4 * 3600 * 1000) return;
+    proactiveAttemptedSession = true;
+    try {
+      isBusy = true;
+      setTyping(true, `${state.settings.name}正想找你…`);
+      const prompt = `[系统触发：用户时隔多小时刚刚重新打开 App，现在是 ${getLocalTimeContext()}。请你主动以亲密伴侣身份先开口发 1~2 句自然贴合当下时段的关心或想念问候，像真人微信刚发来的消息。]`;
+      const raw = await callLiveLLMWithRetry(prompt, null, false, false);
+      const { bubbles } = parseAssistantOutput(raw);
+      setTyping(false);
+      if (bubbles.length) {
+        bubbles.forEach((b, idx) => {
+          appendChatMessage({ role: 'assistant', text: b });
+          if (idx === 0) showFloatingBanner(b);
+        });
+        scheduleSave();
+        renderHeader();
+      }
+    } catch {
+      setTyping(false);
+    } finally {
+      isBusy = false;
+    }
+  }
+
   // ---- Init Async ----
   (async () => {
     try {
@@ -5388,20 +6011,30 @@ ${traits}
       if (saved) {
         const hadPrevVersion = saved?.settings?._v || 0;
         state = normalizeState(saved);
-        if (hadPrevVersion < 5) scheduleSave();
+        if (hadPrevVersion < 7) scheduleSave();
       }
     } catch {}
     syncViewportHeight();
     applyTheme(state.settings.theme);
     renderHeader();
+    syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
+    if (state.settings.privacyLock && state.settings.privacyPin) {
+      openPinLock('unlock');
+    } else {
+      setTimeout(maybeTriggerProactiveGreeting, 700);
+    }
 
     // Android hardware/gesture back button handling via @capacitor/app
     const capApp = window.Capacitor?.Plugins?.App;
     if (capApp?.addListener) {
       let lastBackTime = 0;
       capApp.addListener('backButton', () => {
+        if (privacyLockOverlay.classList.contains('show')) {
+          capApp.exitApp();
+          return;
+        }
         if (charQuickMenu.classList.contains('show')) {
           charQuickMenu.classList.remove('show');
           return;

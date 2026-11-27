@@ -56,6 +56,8 @@ jobs:
           xml = manifest.read_text(encoding='utf-8')
           if 'android:usesCleartextTraffic' not in xml:
               xml = xml.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          if 'POST_NOTIFICATIONS' not in xml:
+              xml = xml.replace('<application', '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application', 1)
           if 'android:windowSoftInputMode' not in xml:
               xml = xml.replace('android:name=".MainActivity"', 'android:name=".MainActivity" android:windowSoftInputMode="adjustResize"', 1)
           manifest.write_text(xml, encoding='utf-8')
