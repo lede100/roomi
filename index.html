@@ -1761,7 +1761,10 @@
         </div>
 
         <div class="field">
-          <label>思考模式</label>
+          <div class="field-label-row">
+            <label>思考模式</label>
+            <button type="button" class="detect-btn" id="resetModelCompatBtn">↻ 重置兼容缓存</button>
+          </div>
           <div class="presets" id="thinkingPicker" style="margin-bottom:4px;">
             <button type="button" class="preset-btn active" data-thinking="auto">跟随模型默认</button>
             <button type="button" class="preset-btn" data-thinking="off">关闭思考（快）</button>
@@ -2273,6 +2276,7 @@
       affection: typeof opts.affection === 'number' ? opts.affection : 68,
       mood: (!opts.mood || opts.mood === '正在传照片…') ? '在线等你' : opts.mood,
       memories: Array.isArray(opts.memories) ? opts.memories.filter(m => m && typeof m === 'object' && m.key && m.value) : [],
+      sceneStates: Array.isArray(opts.sceneStates) ? opts.sceneStates.filter(s => s && typeof s === 'object' && s.key && s.value) : [],
       memorySummary: String(opts.memorySummary || ''),
       summarizedCount: Number(opts.summarizedCount) || 0,
       favorites: Array.isArray(opts.favorites) ? opts.favorites.filter(f => f && f.text) : [],
@@ -2297,7 +2301,7 @@
     });
     return {
       settings: {
-        _v: 10,
+        _v: 11,
         theme: 'claude',
         baseUrl: '',
         apiKey: '',
@@ -2338,6 +2342,7 @@
       affection: firstChar.affection,
       mood: firstChar.mood,
       memories: firstChar.memories,
+      sceneStates: firstChar.sceneStates,
       memorySummary: firstChar.memorySummary,
       summarizedCount: firstChar.summarizedCount,
       favorites: firstChar.favorites,
@@ -2386,6 +2391,7 @@
     active.affection = state.affection;
     active.mood = state.mood;
     active.memories = Array.isArray(state.memories) ? state.memories : [];
+    active.sceneStates = Array.isArray(state.sceneStates) ? state.sceneStates : [];
     active.memorySummary = state.memorySummary || '';
     active.summarizedCount = state.summarizedCount || 0;
     active.favorites = Array.isArray(state.favorites) ? state.favorites : [];
@@ -2411,6 +2417,7 @@
     state.affection = typeof char.affection === 'number' ? char.affection : 68;
     state.mood = char.mood || '在线等你';
     state.memories = Array.isArray(char.memories) ? char.memories : [];
+    state.sceneStates = Array.isArray(char.sceneStates) ? char.sceneStates : [];
     state.memorySummary = char.memorySummary || '';
     state.summarizedCount = Number(char.summarizedCount) || 0;
     state.favorites = Array.isArray(char.favorites) ? char.favorites : [];
@@ -2485,10 +2492,11 @@
     if (!['calm', 'balanced', 'vivid'].includes(mergedSettings.temperatureMode)) {
       mergedSettings.temperatureMode = 'balanced';
     }
-    if ((mergedSettings._v || 0) < 10) {
-      // Reset previously over-broad noThinking cache so high reasoning_effort probes cleanly per field
+    if ((mergedSettings._v || 0) < 11) {
+      // Reset previously un-scoped / over-broad model compat caches so endpoints probe cleanly with TTL
       next.nonThinkingModels = [];
       next.noReasoningModels = [];
+      next.nonVisionModels = [];
     }
     if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
     if (!Array.isArray(next.noReasoningModels)) next.noReasoningModels = [];
@@ -2501,7 +2509,7 @@
     if (!/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgDefaultSize || '')) mergedSettings.imgDefaultSize = '1152x1536';
     mergedSettings.privacyLock = Boolean(mergedSettings.privacyLock);
     mergedSettings.privacyPin = String(mergedSettings.privacyPin || '').replace(/\D/g, '').slice(0, 4);
-    mergedSettings._v = 10;
+    mergedSettings._v = 11;
 
     const active = next.characters.find(c => c.id === next.activeCharId) || next.characters[0];
     next.activeCharId = active.id;
@@ -2518,6 +2526,7 @@
     next.affection = active.affection;
     next.mood = active.mood;
     next.memories = active.memories;
+    next.sceneStates = Array.isArray(active.sceneStates) ? active.sceneStates : [];
     next.memorySummary = active.memorySummary;
     next.summarizedCount = active.summarizedCount;
     next.favorites = active.favorites;
@@ -3808,6 +3817,53 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     }
   }
 
+  const SCENE_STATE_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function pruneSceneStates(list = state.sceneStates) {
+    if (!Array.isArray(list)) return [];
+    const now = Date.now();
+    const valid = list
+      .filter(item => item && typeof item === 'object' && item.key && item.value && (now - (Number(item.updatedAt) || 0) <= SCENE_STATE_TTL_MS))
+      .sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0))
+      .slice(0, 12);
+    if (list === state.sceneStates && valid.length !== list.length) {
+      state.sceneStates = valid;
+    }
+    return valid;
+  }
+
+  function upsertSceneState(key, value) {
+    const k = String(key || '').trim().slice(0, 20);
+    const v = String(value || '').trim().slice(0, 60);
+    if (!k || !v) return false;
+    state.sceneStates = pruneSceneStates(state.sceneStates);
+    const low = k.toLowerCase();
+    const existing = state.sceneStates.find(item => String(item.key || '').trim().toLowerCase() === low);
+    if (existing) {
+      existing.key = k;
+      existing.value = v;
+      existing.updatedAt = Date.now();
+    } else {
+      state.sceneStates.unshift({ key: k, value: v, updatedAt: Date.now() });
+      if (state.sceneStates.length > 12) state.sceneStates.length = 12;
+    }
+    return true;
+  }
+
+  function removeSceneStateByKey(key) {
+    const k = String(key || '').trim().toLowerCase();
+    if (!k || !Array.isArray(state.sceneStates)) return;
+    state.sceneStates = state.sceneStates.filter(item => String(item?.key || '').trim().toLowerCase() !== k);
+  }
+
+  function formatSceneAge(ts) {
+    const diffSec = Math.max(0, Math.floor((Date.now() - (Number(ts) || Date.now())) / 1000));
+    if (diffSec < 60) return '刚刚';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}分钟前`;
+    return `${Math.floor(diffMin / 60)}小时前`;
+  }
+
   function stripThinkingTags(rawText) {
     return String(rawText || '')
       .replace(/<think(?:ing)?\b[^>]*>[\s\S]*?<\/think(?:ing)?>/gi, '')
@@ -3853,6 +3909,16 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
         if (attrs.key) removeMemoryByKey(attrs.key);
       } else if (attrs.key && attrs.value) {
         upsertMemory(attrs.key, attrs.value);
+      }
+      return '';
+    });
+
+    cleanText = cleanText.replace(/<STATE\b([^>]*?)\/?>(?:<\/STATE>)?/gi, (_, attrStr) => {
+      const attrs = parseTagAttrs(attrStr);
+      if (attrs.op === 'del' || attrs.op === 'delete' || attrs.value === '') {
+        if (attrs.key) removeSceneStateByKey(attrs.key);
+      } else if (attrs.key && attrs.value) {
+        upsertSceneState(attrs.key, attrs.value);
       }
       return '';
     });
@@ -4241,23 +4307,24 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
 
     const modeRule = isStory
       ? '1. 「小剧场」模式开启：入戏扮演用户私密恋人，自然带有 *神态、动作、眼神* 描写推进互动；严禁说教与 1.2.3. 列表腔。\n2. 长短完全随场景流动，可一句话直出，需要换气停顿时再用 ||| 拆成 1~3 条。\n3. 严格保持前后事实、物理场景与刚答应的约定连贯一致，绝不自相矛盾。'
-      : '1. 当前处于「日常微信纯文字聊天」模式（格式权重最高，覆盖一切角色卡文风与历史惯性）：只输出手机聊天软件里真人会直接发出的纯说话口语！哪怕下方人设档案、示范或历史记录里自带舞台动作、神态描述、环境描写或小说旁白，在当前模式下也一律只提取人物性格与关系，绝不模仿任何动作/心理/旁白格式。\n2. 严禁使用星号动作标记、括号神态旁白或 1.2.3. 列表腔；所有情绪与态度只通过纯说话用词与节奏自然流露。\n3. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n4. 严格记住近几轮刚说过的事实与答应过的事（比如约定开着灯、还没睡、在做什么），绝不自相矛盾；别像客服一样每轮反问安抚。';
+      : '1. 当前为「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只剥离非对话排版——只输出手机聊天软件里真人会直接发出的纯说话口语！哪怕人设档案、示范或前文带有舞台动作、神态描述或小说旁白，此处也一律只讲纯对话，绝不模仿任何动作/心理/旁白格式。\n2. 严禁使用星号动作标记、括号神态旁白或 1.2.3. 列表腔；所有情绪与态度只通过纯说话用词与节奏自然流露。\n3. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n4. 严格遵守后台【当前实时场景状态】，若有临时状态（如灯光开关、位置、刚答应的事）发生变化，必须附 <STATE> 更新。';
 
     const widgetRule = needWidget
       ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
       : '';
     const imgRule = needImage ? getImagePromptSection() : '';
 
-    return `【当前聊天形式与格式铁律（最高优先级）】
-${modeRule}
-
-【私密伴侣身份档案（静态锚点，绝不跳脱或反问自己是谁）】
+    return `【私密伴侣身份档案（静态锚点，绝不跳脱或反问自己是谁）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
 性格与相处方式：
 ${promptPersona}${anchorBlock}${sampleBlock}
 
+【当前聊天形式与输出格式（强制覆盖一切旁白/小说排版惯性）】
+${modeRule}
+
 【极简后台暗标（用户不可见，别说破）】
 - 情绪波动时附：<AFFECTION delta="+1" mood="二到四字心情" />
+- 当房间灯光、彼此位置、刚答应的临时约定或正在做的事变化时附：<STATE key="对象名" value="当前状态" />（同 key 新状态自动覆盖旧状态，作废用 op="del"）
 - 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）${widgetRule}${imgRule}`;
   }
 
@@ -4312,7 +4379,7 @@ ${promptPersona}${anchorBlock}${sampleBlock}
     return `🎉 特殊日子提醒：今天正好是「${hits.slice(0, 3).join('；')}」，自然提起并给对方一点心意或小惊喜吧！`;
   }
 
-  function buildDynamicContextNote(needWidget = false) {
+  function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
     const charName = state.settings.name || '林澈';
     const isStory = state.settings.chatMode === 'story';
     const anchors = (state.settings.anchors || '').trim();
@@ -4320,6 +4387,10 @@ ${promptPersona}${anchorBlock}${sampleBlock}
     const timeNote = gapHint
       ? `${getLocalTimeContext()}（${gapHint}，自然感知即可）`
       : `${getLocalTimeContext()}（自然感知时段，别刻意报时）`;
+    const activeSceneStates = pruneSceneStates(state.sceneStates);
+    const sceneStateLines = activeSceneStates.length
+      ? activeSceneStates.map(s => `- ${s.key}：${s.value}（${formatSceneAge(s.updatedAt)}）`).join('\n')
+      : '';
     const memList = selectRelevantMemories();
     const memLines = memList.length
       ? memList.map(m => `- ${m.pinned ? '[核心]' : ''}${m.key}：${m.value}`).join('\n')
@@ -4331,6 +4402,9 @@ ${promptPersona}${anchorBlock}${sampleBlock}
       `当前时间：${timeNote}`
     ];
     if (specialCue) lines.push(specialCue);
+    if (sceneStateLines) {
+      lines.push(`【当前实时场景状态（绝对为准，直接覆盖更早历史里任何相反的旧状态）】\n${sceneStateLines}`);
+    }
     if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`命中长期记忆：\n${memLines}`);
     if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 500)}`);
@@ -4339,19 +4413,19 @@ ${promptPersona}${anchorBlock}${sampleBlock}
         ? '即时提醒：刚刚开启了小剧场或更新了人设，从本条起立刻按最新设定入戏。'
         : '即时提醒：小剧场已关闭或设定刚更新，从本条起严禁任何星号或括号神态旁白，只发纯口语短句！');
     } else if (!isStory) {
-      const recentAssistantMsgs = state.messages
-        .filter(m => m && m.role === 'assistant' && m.text)
-        .slice(-4);
-      const hasLegacyStageHistory = recentAssistantMsgs.some(m =>
-        /(?<!\*)\*(?!\*)[^*\n]{1,120}(?<!\*)\*(?!\*)/.test(m.text) ||
-        /^\s*[（(][^（）()\n]{1,80}[)）]\s*$/m.test(m.text)
+      const scanPool = Array.isArray(windowMsgs) && windowMsgs.length
+        ? windowMsgs.filter(m => m && m.role === 'assistant' && typeof m.content === 'string').map(m => m.content)
+        : state.messages.filter(m => m && m.role === 'assistant' && m.text).map(m => m.text);
+      const hasLegacyStageHistory = scanPool.some(txt =>
+        /(?<!\*)\*(?!\*)[^*\n]{1,120}(?<!\*)\*(?!\*)/.test(txt) ||
+        /^\s*[（(][^（）()\n]{1,80}[)）]\s*$/m.test(txt)
       );
       if (hasLegacyStageHistory) {
-        lines.push('格式纠偏：上方历史对话里残留了旧的旁白/动作习惯，当前是日常纯文字聊天模式，从本条回复起请彻底切回纯说话口语，不要延续历史里的括号或星号旁白。');
+        lines.push('格式纠偏：上方发送历史里存在旧的旁白/动作习惯，当前是日常纯文字聊天模式，从本条回复起请彻底切回纯说话口语，绝不延续历史里的括号或星号旁白。');
       }
     }
     lines.push(
-      `一致性与口吻校准：回答前先核对近几轮对话里刚确认过的状态与约定（绝不推翻或忘记刚刚说过的话），再以「${charName}」本人语气接下方这句${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，禁止动作旁白与客服说教'}。`
+      `一致性与口吻校准：先严格核对上方【当前实时场景状态】及刚确认过的物理状态/约定（新状态覆盖旧说法），若发生改变请附 <STATE> 更新；再以「${charName}」本人语气接下方这句${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，严禁星号与括号旁白、严禁客服说教'}。`
     );
     return lines.join('\n');
   }
@@ -4394,45 +4468,75 @@ ${promptPersona}${anchorBlock}${sampleBlock}
     return /(vision|image_url|image|multimodal|does not support|not support.*media|content must be a string|expected a string|invalid type.*array|415|422)/.test(msg);
   }
 
-  function isModelMarkedNonVision(modelName) {
+  const MODEL_COMPAT_TTL_MS = 6 * 60 * 60 * 1000;
+  const VISION_COMPAT_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function getModelEndpointKey(baseUrl, modelName) {
     const m = String(modelName || '').trim().toLowerCase();
-    if (!m || !Array.isArray(state.nonVisionModels)) return false;
-    return state.nonVisionModels.some(item => item.toLowerCase() === m);
+    if (!m) return '';
+    let hostKey = String(baseUrl || '').trim().replace(/\/+$/, '').toLowerCase();
+    try {
+      const u = new URL(hostKey);
+      hostKey = `${u.origin}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+    } catch {}
+    return `${hostKey || 'default'}::${m}`;
   }
 
-  function markModelNonVision(modelName) {
-    const m = String(modelName || '').trim();
-    if (!m) return;
-    if (!Array.isArray(state.nonVisionModels)) state.nonVisionModels = [];
-    if (!isModelMarkedNonVision(m)) {
-      state.nonVisionModels.push(m);
-      scheduleSave();
+  function isModelFieldUnsupported(list, modelName, baseUrl = state.settings.baseUrl, ttlMs = MODEL_COMPAT_TTL_MS) {
+    const epKey = getModelEndpointKey(baseUrl, modelName);
+    if (!epKey || !Array.isArray(list)) return false;
+    const now = Date.now();
+    return list.some(item => {
+      if (typeof item === 'string') return false;
+      if (!item || typeof item !== 'object') return false;
+      return item.key === epKey && (now - (Number(item.at) || 0) <= ttlMs);
+    });
+  }
+
+  function markModelFieldUnsupported(prop, modelName, baseUrl = state.settings.baseUrl) {
+    const epKey = getModelEndpointKey(baseUrl, modelName);
+    if (!epKey) return;
+    if (!Array.isArray(state[prop])) state[prop] = [];
+    const now = Date.now();
+    state[prop] = state[prop].filter(item => item && typeof item === 'object' && item.key && item.key !== epKey);
+    state[prop].push({ key: epKey, at: now });
+    if (state[prop].length > 40) state[prop] = state[prop].slice(-40);
+    scheduleSave();
+  }
+
+  function clearModelCompatCache(baseUrl = '', modelName = '', clearAll = false) {
+    if (clearAll) {
+      state.nonThinkingModels = [];
+      state.noReasoningModels = [];
+      state.nonVisionModels = [];
+      updateVisionBtnState();
+      return;
+    }
+    const epKey = getModelEndpointKey(baseUrl, modelName);
+    if (!epKey) return;
+    for (const prop of ['nonThinkingModels', 'noReasoningModels', 'nonVisionModels']) {
+      if (Array.isArray(state[prop])) {
+        state[prop] = state[prop].filter(item => item && typeof item === 'object' && item.key !== epKey);
+      }
     }
     updateVisionBtnState();
   }
 
-  function isModelFieldUnsupported(list, modelName) {
-    const m = String(modelName || '').trim().toLowerCase();
-    if (!m || !Array.isArray(list)) return false;
-    return list.some(item => item.toLowerCase() === m);
+  function isModelMarkedNonVision(modelName, baseUrl = state.settings.baseUrl) {
+    return isModelFieldUnsupported(state.nonVisionModels, modelName, baseUrl, VISION_COMPAT_TTL_MS);
   }
 
-  function markModelFieldUnsupported(prop, modelName) {
-    const m = String(modelName || '').trim();
-    if (!m) return;
-    if (!Array.isArray(state[prop])) state[prop] = [];
-    if (!isModelFieldUnsupported(state[prop], m)) {
-      state[prop].push(m);
-      scheduleSave();
-    }
+  function markModelNonVision(modelName, baseUrl = state.settings.baseUrl) {
+    markModelFieldUnsupported('nonVisionModels', modelName, baseUrl);
+    updateVisionBtnState();
   }
 
-  function isModelMarkedNoThinking(modelName) {
-    return isModelFieldUnsupported(state.nonThinkingModels, modelName);
+  function isModelMarkedNoThinking(modelName, baseUrl = state.settings.baseUrl) {
+    return isModelFieldUnsupported(state.nonThinkingModels, modelName, baseUrl, MODEL_COMPAT_TTL_MS);
   }
 
-  function isModelMarkedNoReasoning(modelName) {
-    return isModelFieldUnsupported(state.noReasoningModels, modelName);
+  function isModelMarkedNoReasoning(modelName, baseUrl = state.settings.baseUrl) {
+    return isModelFieldUnsupported(state.noReasoningModels, modelName, baseUrl, MODEL_COMPAT_TTL_MS);
   }
 
   async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
@@ -4441,13 +4545,13 @@ ${promptPersona}${anchorBlock}${sampleBlock}
       throw new Error('请先在设置中填写 API Base URL 和模型名称');
     }
     const url = baseUrl.trim().replace(/\/+$/, '') + '/chat/completions';
-    const allowVision = hasPendingImg && !isModelMarkedNonVision(model);
+    const allowVision = hasPendingImg && !isModelMarkedNonVision(model, baseUrl);
     const built = buildConversationHistory(promptOverride, isEvent, budgetChars, allowVision);
     lastWindowStartIndex = built.windowStartIndex;
 
     const historyMsgs = built.msgs;
     const intents = detectPromptIntents(historyMsgs, promptOverride);
-    const dynNote = buildDynamicContextNote(intents.needWidget);
+    const dynNote = buildDynamicContextNote(intents.needWidget, historyMsgs);
 
     // Put <context_memo> directly above the latest user text so ALL relays/proxies preserve it 100% cleanly without mid-array system rejection
     if (dynNote) {
@@ -4480,8 +4584,8 @@ ${promptPersona}${anchorBlock}${sampleBlock}
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
     const useStream = Boolean(stream) && !isCapacitorNative;
     const thinkingMode = state.settings.thinkingMode || 'auto';
-    const allowThinkingField = !isModelMarkedNoThinking(model);
-    const allowReasoningField = !isModelMarkedNoReasoning(model);
+    const allowThinkingField = !isModelMarkedNoThinking(model, baseUrl);
+    const allowReasoningField = !isModelMarkedNoReasoning(model, baseUrl);
 
     const reqBody = {
       model: model.trim(),
@@ -4507,30 +4611,31 @@ ${promptPersona}${anchorBlock}${sampleBlock}
     });
 
     let res = await postOnce(reqBody);
+    const paramUnsupportedRe = /(thinking|reasoning_effort|reasoning|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties|not[_ ]allowed)/i;
 
     if (!res.ok && (res.status === 400 || res.status === 422) && (reqBody.thinking || reqBody.reasoning_effort)) {
       const errText = await res.text().catch(() => '');
-      if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
+      if (paramUnsupportedRe.test(errText)) {
         const retryBody = { ...reqBody };
         const onlyReasoningRejected = /reasoning/i.test(errText) && !/thinking/i.test(errText);
         if (onlyReasoningRejected && retryBody.reasoning_effort) {
           delete retryBody.reasoning_effort;
           res = await postOnce(retryBody);
-          if (res.ok) markModelFieldUnsupported('noReasoningModels', model);
+          if (res.ok) markModelFieldUnsupported('noReasoningModels', model, baseUrl);
         } else if (retryBody.thinking) {
           // Strip `thinking` first while keeping `reasoning_effort` intact so OpenAI/OpenRouter/Gemini high reasoning stays enabled!
           delete retryBody.thinking;
           res = await postOnce(retryBody);
           if (res.ok) {
-            markModelFieldUnsupported('nonThinkingModels', model);
+            markModelFieldUnsupported('nonThinkingModels', model, baseUrl);
           } else if ((res.status === 400 || res.status === 422) && retryBody.reasoning_effort) {
             const errText2 = await res.text().catch(() => '');
-            if (/(reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText2)) {
+            if (/(reasoning_effort|reasoning|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties)/i.test(errText2)) {
               delete retryBody.reasoning_effort;
               res = await postOnce(retryBody);
               if (res.ok) {
-                markModelFieldUnsupported('nonThinkingModels', model);
-                markModelFieldUnsupported('noReasoningModels', model);
+                markModelFieldUnsupported('nonThinkingModels', model, baseUrl);
+                markModelFieldUnsupported('noReasoningModels', model, baseUrl);
               }
             } else {
               throw new Error(`HTTP ${res.status} ${errText2.slice(0, 160)}`);
@@ -4539,7 +4644,7 @@ ${promptPersona}${anchorBlock}${sampleBlock}
         } else if (retryBody.reasoning_effort) {
           delete retryBody.reasoning_effort;
           res = await postOnce(retryBody);
-          if (res.ok) markModelFieldUnsupported('noReasoningModels', model);
+          if (res.ok) markModelFieldUnsupported('noReasoningModels', model, baseUrl);
         }
       } else {
         throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
@@ -4598,7 +4703,7 @@ ${promptPersona}${anchorBlock}${sampleBlock}
   }
 
   async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isEvent = false, hasPendingImg = false) {
-    if (hasPendingImg && isModelMarkedNonVision(state.settings.model)) {
+    if (hasPendingImg && isModelMarkedNonVision(state.settings.model, state.settings.baseUrl)) {
       const err = new Error(`当前模型「${state.settings.model}」不支持识图，请在设置中切换到支持视觉的模型（如 GPT-4o / Claude / Gemini / Qwen-VL）后重试。`);
       err.isVisionNotice = true;
       throw err;
@@ -4611,7 +4716,7 @@ ${promptPersona}${anchorBlock}${sampleBlock}
         return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
       } catch (err) {
         if (hasPendingImg && isVisionUnsupportedError(err)) {
-          markModelNonVision(state.settings.model);
+          markModelNonVision(state.settings.model, state.settings.baseUrl);
           const vErr = new Error(`当前模型「${state.settings.model}」不支持图片输入，已为你记住该限制。以后直接发文字即可，或换一个支持视觉的模型再发图。`);
           vErr.isVisionNotice = true;
           throw vErr;
@@ -5480,9 +5585,11 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
             .replace(/<think[\s\S]*$/i, '')
             .replace(/<affection[\s\S]*$/i, '')
             .replace(/<memory[\s\S]*$/i, '')
+            .replace(/<state[\s\S]*$/i, '')
             .replace(/<image[\s\S]*$/i, '')
             .replace(/<affection\b[^>]*?\/?>(?:<\/affection>)?/gi, '')
             .replace(/<memory\b[^>]*?\/?>(?:<\/memory>)?/gi, '')
+            .replace(/<state\b[^>]*?\/?>(?:<\/state>)?/gi, '')
             .replace(/<image\b[^>]*?\/?>(?:<\/image>)?/gi, '')
             .replace(/\|\|\|/g, '\n');
 
@@ -7767,7 +7874,17 @@ ${traits}
     if (e.target === settingsModal) settingsModal.classList.remove('show');
   });
 
+  document.getElementById('resetModelCompatBtn').onclick = () => {
+    clearModelCompatCache('', '', true);
+    scheduleSave();
+    showWarn('已重置模型思考与识图兼容缓存，下一条消息会自动重新探测', true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2600);
+  };
+
   document.getElementById('saveSettingsBtn').onclick = async () => {
+    const prevBaseUrl = state.settings.baseUrl || '';
+    const prevModel = state.settings.model || '';
+    const prevThinkingMode = state.settings.thinkingMode || 'auto';
     const prevName = state.settings.name;
     const prevAge = state.settings.age || '';
     const prevGender = state.settings.gender || '';
@@ -7785,11 +7902,19 @@ ${traits}
     }
 
     const ctxTier = CONTEXT_TIERS[draftContextMode] || CONTEXT_TIERS.long;
-    state.settings._v = 10;
+    state.settings._v = 11;
     state.settings.baseUrl = cfgBaseUrl.value.trim();
     state.settings.apiKey = cfgApiKey.value.trim();
     state.settings.model = cfgModel.value.trim();
     state.settings.thinkingMode = draftThinkingMode || 'auto';
+    if (
+      prevBaseUrl !== state.settings.baseUrl ||
+      prevModel !== state.settings.model ||
+      prevThinkingMode !== state.settings.thinkingMode
+    ) {
+      clearModelCompatCache(prevBaseUrl, prevModel);
+      clearModelCompatCache(state.settings.baseUrl, state.settings.model);
+    }
     state.settings.contextMode = draftContextMode || 'long';
     state.settings.maxContextChars = ctxTier.chars;
     state.settings.maxContextMsgs = ctxTier.msgs;
@@ -7975,8 +8100,9 @@ ${traits}
   };
 
   document.getElementById('clearMemBtn').onclick = () => {
-    if (!confirm('确定清空 TA 的长期记忆和近期印象吗？（聊天记录不会被删除）')) return;
+    if (!confirm('确定清空 TA 的长期记忆、临时场景状态和近期印象吗？（聊天记录不会被删除）')) return;
     state.memories = [];
+    state.sceneStates = [];
     state.memorySummary = '';
     state.summarizedCount = 0;
     memSummaryInput.value = '';
