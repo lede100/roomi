@@ -856,10 +856,12 @@ export function initChatUI() {
             .replace(/<memory[\s\S]*$/i, '')
             .replace(/<runtime.state[\s\S]*$/i, '')
             .replace(/<image[\s\S]*$/i, '')
+            .replace(/<board[\s\S]*$/i, '')
             .replace(/<affection\b[^>]*?\/?>(?:<\/affection>)?/gi, '')
             .replace(/<memory\b[^>]*?\/?>(?:<\/memory>)?/gi, '')
             .replace(/<state\b[^>]*?\/?>(?:<\/state>)?/gi, '')
             .replace(/<image\b[^>]*?\/?>(?:<\/image>)?/gi, '')
+            .replace(/<board\b[^>]*?\/?>(?:<\/board>)?/gi, '')
             .replace(/\|\|\|/g, '\n');
 
           if (widgetPos >= 0) {
@@ -883,7 +885,10 @@ export function initChatUI() {
         streamPreviewRow = null;
       }
 
-      const { bubbles, newWidgets, newImages } = parseAssistantOutput(raw);
+      const { bubbles, newWidgets, newImages, boardOps } = parseAssistantOutput(raw);
+      if (boardOps?.length && ui.applyBoardOperations?.(boardOps)) {
+        if (runtime.currentPage === 0) boardDot.classList.add('show');
+      }
       const mountedWidgets = [];
 
       if (newWidgets.length) {

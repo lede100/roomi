@@ -578,11 +578,26 @@
           </div>
         </div>
 
-        <div class="btn-row" style="margin-top:10px;">
-          <button class="btn-ghost" style="flex:1;" id="exportDataBtn">导出备份</button>
-          <button class="btn-ghost" style="flex:1;" id="importDataBtn">导入恢复</button>
-          <input type="file" id="importFileInput" accept="application/json" style="display:none" />
-          <button class="btn-ghost" id="resetAllBtn">重置数据</button>
+        <div class="sub-card">
+          <div class="sub-card-head">
+            <span class="sub-card-title">本地一键全量备份与恢复（卸载不丢）</span>
+          </div>
+          <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
+            <span style="font-size:12.5px;">备份同时包含对话 API Key 与生图 Token</span>
+            <input id="cfgBackupIncludeKeys" type="checkbox" checked style="width:17px;height:17px;accent-color:var(--blue);" />
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <input id="cfgBackupPassphrase" type="password" placeholder="可选：设置备份加密口令（留空则明文备份）" autocomplete="new-password" />
+          </div>
+          <div class="btn-row" style="margin-top:4px;">
+            <button type="button" class="btn-ghost" style="flex:1;color:var(--blue);border-color:var(--blue-border);font-weight:600;" id="exportDataBtn">📦 一键本地备份</button>
+            <button type="button" class="btn-ghost" style="flex:1;" id="importDataBtn">📥 导入恢复</button>
+            <input type="file" id="importFileInput" accept="application/json,.json" style="display:none" />
+            <button type="button" class="btn-ghost" id="resetAllBtn">重置数据</button>
+          </div>
+          <div class="hint" style="margin-top:6px;">
+            安卓端直存手机公共目录「文档 / Roomi」，卸载 App 不会删除；含 Key 时建议设口令加密。
+          </div>
         </div>
         <div class="about-bar">
           <span>数据与 Key 仅存本地沙盒</span>

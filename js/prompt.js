@@ -51,6 +51,7 @@ export function parseAssistantOutput(rawText) {
   let cleanText = stripThinkingTags(rawText);
   const newWidgets = [];
   const newImages = [];
+  const boardOps = [];
   let hasUnclosedWidget = false;
 
   cleanText = cleanText.replace(/<AFFECTION\b([^>]*?)\/?>(?:<\/AFFECTION>)?/gi, (_, attrStr) => {
@@ -81,6 +82,16 @@ export function parseAssistantOutput(rawText) {
       if (attrs.key) removeSceneStateByKey(attrs.key);
     } else if (attrs.key && attrs.value) {
       upsertSceneState(attrs.key, attrs.value);
+    }
+    return '';
+  });
+
+  cleanText = cleanText.replace(/<BOARD\b([^>]*?)\/?>(?:<\/BOARD>)?/gi, (_, attrStr) => {
+    const attrs = parseTagAttrs(attrStr);
+    const op = String(attrs.op || '').trim().toLowerCase();
+    const text = String(attrs.text || attrs.item || attrs.value || '').trim();
+    if (['todo_add', 'todo_done', 'note'].includes(op) && text && boardOps.length < 4) {
+      boardOps.push({ op, text: text.slice(0, 80) });
     }
     return '';
   });
@@ -167,7 +178,7 @@ export function parseAssistantOutput(rawText) {
     bubbles.push('哎呀，组件代码写到一半被模型长度截断了，你让我再试一次吧。');
   }
 
-  return { bubbles, newWidgets, newImages };
+  return { bubbles, newWidgets, newImages, boardOps };
 }
 
 export function formatMessageForModel(m) {
@@ -397,7 +408,8 @@ ${modeRule}
 【极简后台暗标（用户不可见，别说破）】
 - 情绪波动时附：<AFFECTION delta="+1" mood="二到四字心情" />
 - 当房间灯光、彼此位置、刚答应的临时约定或正在做的事变化时附：<STATE key="对象名" value="当前状态" />（同 key 新状态自动覆盖旧状态，作废用 op="del"）
-- 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）${widgetRule}${imgRule}`;
+- 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
+- 对方明确让你记待办、勾掉待办或换家里便利贴时可附：<BOARD op="todo_add" text="待办内容" />、<BOARD op="todo_done" text="关键词" /> 或 <BOARD op="note" text="便利贴内容" />${widgetRule}${imgRule}`;
 }
 
 export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
@@ -420,9 +432,12 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
     : '';
   const widgetSummary = needWidget ? state.widgets.map(w => `「${w.title}」`).join('、') : '';
   const specialCue = getSpecialDateCue();
+  const curMood = (state.mood && state.mood !== '正在传照片…') ? state.mood : '';
+  const affLine = `当前情绪与亲密度：${curMood ? `心情「${curMood}」，` : ''}亲密度 ${typeof state.affection === 'number' ? state.affection : 68}/100`;
   const lines = [
     `[后台实时情景与一致性校准]`,
-    `当前时间：${timeNote}`
+    `当前时间：${timeNote}`,
+    affLine
   ];
   if (specialCue) lines.push(specialCue);
   if (sceneStateLines) {
@@ -450,8 +465,26 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
       lines.push('格式纠偏：上方发送历史里存在旧的旁白/动作习惯，当前是日常纯文字聊天模式，从本条回复起请彻底切回纯说话口语，绝不延续历史里的括号或星号旁白。');
     }
   }
+  const recentAsstMsgs = state.messages
+    .filter(m => m && m.role === 'assistant' && m.text && !m.isStarter)
+    .slice(-2)
+    .map(m => String(m.text).trim());
+  if (recentAsstMsgs.length === 2 && recentAsstMsgs.every(t => /[?？]\s*$/.test(t))) {
+    lines.push('节奏提醒：你已连续两轮以问句结尾，本轮直接自然接话即可，不要再抛反问句收尾。');
+  }
+  const rawSampleFirst = (state.settings.sampleDialogue || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .find(Boolean) || '';
+  const sampleAnchor = rawSampleFirst
+    ? (isStory ? rawSampleFirst : stripStageDirections(rawSampleFirst, false)).slice(0, 80)
+    : '';
+  const anchorSuffix = [
+    anchors ? `铁规：${anchors.slice(0, 110)}` : '',
+    sampleAnchor ? `口吻示范：${sampleAnchor}` : ''
+  ].filter(Boolean).join('；');
   lines.push(
-    `一致性与口吻校准：先严格核对上方【当前实时场景状态】及刚确认过的物理状态/约定（新状态覆盖旧说法），若发生改变请附 <STATE> 更新；再以「${charName}」本人语气接下方这句${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，严禁星号与括号旁白、严禁客服说教'}。`
+    `一致性与口吻校准：先严格核对上方【当前实时场景状态】及当前心情/亲密度（新状态覆盖旧说法），若发生改变请附 <STATE> 更新；再以「${charName}」本人语气接下方这句${anchorSuffix ? `（${anchorSuffix}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，严禁星号与括号旁白、严禁客服说教'}。`
   );
   return lines.join('\n');
 }

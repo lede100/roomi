@@ -35,6 +35,13 @@ import {
   formatSceneAge,
   maybeCompressHistory
 } from './memory.js';
+import {
+  buildBackupPackage,
+  saveLocalBackupFile,
+  isEncryptedBackup,
+  decryptBackupPayload,
+  summarizeBackupData
+} from './backup.js';
 import { ui, registerUI } from './ui-bridge.js';
 
 export function initSettingsUI() {
@@ -1635,18 +1642,29 @@ export function initSettingsUI() {
     ui.syncDailyNotifications?.(runtime.state.settings.dailyNotify);
   };
 
-  document.getElementById('exportDataBtn').onclick = () => {
+  document.getElementById('exportDataBtn').onclick = async () => {
     syncDraftCharFieldsIfModalOpen();
     flushActiveCharToList();
-    const exportCopy = JSON.parse(JSON.stringify(runtime.state));
-    exportCopy.settings.apiKey = '';
-    exportCopy.settings.imgApiKey = '';
-    const blob = new Blob([JSON.stringify(exportCopy, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `roomi-backup-${todayKey()}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const btn = document.getElementById('exportDataBtn');
+    const includeKeys = document.getElementById('cfgBackupIncludeKeys')?.checked !== false;
+    const passEl = document.getElementById('cfgBackupPassphrase');
+    const passphrase = passEl ? passEl.value.trim() : '';
+    btn.disabled = true;
+    btn.textContent = passphrase ? '加密备份中…' : '备份中…';
+    try {
+      const pkg = await buildBackupPackage(runtime.state, { includeKeys, passphrase });
+      const res = await saveLocalBackupFile(pkg.jsonText, pkg.fileName);
+      if (passEl) passEl.value = '';
+      const keyTip = includeKeys ? (pkg.encrypted ? '已加密含 Key' : '含 Key 明文') : '不含 Key';
+      const locTip = res.mode === 'capacitor_documents' ? `已存至手机 ${res.path}` : `已导出 ${res.path}`;
+      showWarn(`✓ 全量备份完成（${keyTip}）：${locTip}`, true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4200);
+    } catch (err) {
+      showWarn(`备份失败：${err.message || '请稍后重试'}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📦 一键本地备份';
+    }
   };
 
   const importFileInput = document.getElementById('importFileInput');
@@ -1661,10 +1679,28 @@ export function initSettingsUI() {
     }
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text);
+      let parsed = JSON.parse(text);
+      if (isEncryptedBackup(parsed)) {
+        const pass = prompt('这是一份加密备份，请输入导出时设置的解密口令：');
+        if (pass === null) return;
+        parsed = await decryptBackupPayload(parsed, pass.trim());
+      }
       if (!parsed || (!Array.isArray(parsed.characters) && (!Array.isArray(parsed.messages) || !Array.isArray(parsed.widgets)))) {
         throw new Error('备份文件格式不对');
       }
+      const sum = summarizeBackupData(parsed);
+      const keyLabel = (sum.hasApiKey || sum.hasImgApiKey)
+        ? `包含${[sum.hasApiKey ? '对话 API Key' : '', sum.hasImgApiKey ? '生图 Token' : ''].filter(Boolean).join('与')}`
+        : '不含 API Key（将保留你当前的 Key）';
+      const ok = confirm(
+        `确认恢复这份本地备份吗？（将覆盖当前本地数据）\n` +
+        `• 角色数：${sum.charCount} 个\n` +
+        `• 聊天记录：${sum.msgCount} 条（含 ${sum.imgCount} 张照片）\n` +
+        `• 长期记忆：${sum.memCount} 条 · 小组件：${sum.widgetCount} 个\n` +
+        `• 密钥：${keyLabel}`
+      );
+      if (!ok) return;
+
       const prevKey = runtime.state.settings.apiKey;
       const prevImgKey = runtime.state.settings.imgApiKey;
       runtime.state = normalizeState(parsed);
@@ -1682,7 +1718,10 @@ export function initSettingsUI() {
       ui.syncChatModeQuickBtn?.();
       ui.renderChat?.();
       ui.renderWidgets?.();
+      updateMemStats();
       settingsModal.classList.remove('show');
+      showWarn(`✓ 已恢复 ${sum.charCount} 个角色与 ${sum.msgCount} 条聊天记录`, true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 3200);
     } catch (err) {
       showWarn(`导入失败：${err.message}`);
     } finally {

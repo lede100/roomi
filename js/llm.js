@@ -6,6 +6,7 @@ import {
   isModelMarkedNoReasoning,
   markModelFieldUnsupported
 } from './state.js';
+import { CONTEXT_TIERS } from './presets.js';
 import { sleep } from './utils.js';
 import {
   buildConversationHistory,

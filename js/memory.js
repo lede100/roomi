@@ -5,7 +5,7 @@ import {
   isModelMarkedNoThinking,
   markModelFieldUnsupported
 } from './state.js';
-import { fetchWithTimeout, cnNumToInt } from './utils.js';
+import { fetchWithTimeout, cnNumToInt, formatCompactTimeAnchor } from './utils.js';
 import { stripThinkingTags, formatMessageForModel } from './prompt.js';
 
 export function isTrivialEventFact(key, value) {
@@ -160,11 +160,12 @@ export function selectRelevantMemories() {
     for (const tok of expanded) {
       if (hay.includes(tok)) synHits += 1;
     }
-    const matchScore = directHits * 30 + Math.min(synHits, 3) * 10;
+    const matchScore = directHits * 32 + Math.min(synHits, 3) * 10;
+    const recencyBoost = (total - idx) * 0.15 + (m.updatedAt ? Math.min(5, (m.updatedAt / 1e13)) : 0);
     if (m.pinned) {
-      pinned.push({ m, score: matchScore + (total - idx) * 0.15 });
-    } else if (matchScore > 0) {
-      candidates.push({ m, score: matchScore + (total - idx) * 0.15 });
+      pinned.push({ m, score: matchScore + recencyBoost });
+    } else if (directHits >= 1 || synHits >= 2) {
+      candidates.push({ m, score: matchScore + recencyBoost });
     }
   });
 
@@ -284,7 +285,8 @@ export async function maybeCompressHistory(force = false, onStatsUpdated = null)
     const formatted = formatMessageForModel(msgsRef[i]);
     sliceEnd = i + 1;
     if (!formatted || !formatted.content) continue;
-    const line = `${formatted.role === 'user' ? '用户' : '伴侣'}: ${formatted.content}`;
+    const timeTag = msgsRef[i]?.createdAt ? `[${formatCompactTimeAnchor(msgsRef[i].createdAt)}] ` : '';
+    const line = `${timeTag}${formatted.role === 'user' ? '用户' : '伴侣'}: ${formatted.content}`;
     if (chunkLines.length >= 2 && chunkChars + line.length > 5600) {
       sliceEnd = i;
       break;
@@ -323,7 +325,7 @@ ${chunk}
 3. 如果【已有长期记忆】里已经混入了上述流水账/废话，或有被新事实推翻的旧标签，请把它们的标签名放进 dropKeys 清理掉。
 
 请严格只输出一个 JSON 对象：
-{"summary":"450字以内的连贯前情摘要，保留重要经历、关系进展与未完成约定","facts":[],"dropKeys":[]}`;
+{"summary":"450字以内的连贯前情摘要，按时间先后清晰保留日期边界、关键情绪转折点与未完成约定","facts":[],"dropKeys":[]}`;
 
     const compressBody = {
       model: model.trim(),

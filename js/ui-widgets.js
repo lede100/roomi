@@ -118,8 +118,76 @@ export function flushWidgetEvents() {
   );
 }
 
+
+export function applyBoardOperations(boardOps) {
+  if (!Array.isArray(boardOps) || !boardOps.length) return false;
+  const state = runtime.state;
+  let changed = false;
+
+  const ensureTodoWidget = () => {
+    let w = state.widgets.find(item => item && /清单|todo/i.test(item.title || ''));
+    if (!w) {
+      const tpl = BOARD_PRESET_WIDGETS.todo;
+      w = {
+        id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        title: tpl.title,
+        height: tpl.height,
+        createdAt: Date.now(),
+        html: tpl.html
+      };
+      state.widgets.unshift(w);
+    }
+    if (!state.widgetStates[w.id] || !Array.isArray(state.widgetStates[w.id].items)) {
+      state.widgetStates[w.id] = {
+        items: [
+          { t: '一起看场电影', d: false },
+          { t: '今晚按时睡觉', d: false }
+        ]
+      };
+    }
+    return { w, items: state.widgetStates[w.id].items };
+  };
+
+  for (const opObj of boardOps) {
+    if (!opObj || !opObj.op || !opObj.text) continue;
+    if (opObj.op === 'todo_add') {
+      const { items } = ensureTodoWidget();
+      const clean = opObj.text.trim().slice(0, 48);
+      if (clean && !items.some(it => it && String(it.t || '').trim() === clean)) {
+        items.unshift({ t: clean, d: false });
+        if (items.length > 40) items.length = 40;
+        changed = true;
+      }
+    } else if (opObj.op === 'todo_done') {
+      const w = state.widgets.find(item => item && /清单|todo/i.test(item.title || ''));
+      const items = w ? state.widgetStates[w.id]?.items : null;
+      if (Array.isArray(items)) {
+        const kw = opObj.text.trim().toLowerCase();
+        const hit = items.find(it => it && !it.d && String(it.t || '').toLowerCase().includes(kw));
+        if (hit) {
+          hit.d = true;
+          changed = true;
+        }
+      }
+    } else if (opObj.op === 'note') {
+      const cleanNote = opObj.text.trim().slice(0, 80);
+      if (cleanNote) {
+        state.dailyNote = { date: todayKey(), text: cleanNote };
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    flushActiveCharToList();
+    renderWidgets();
+    scheduleSave();
+  }
+  return changed;
+}
+
 export function initWidgetBoard() {
-  registerUI({ syncDailyNoteCard, renderWidgets, enqueueWidgetEvent, flushWidgetEvents });
+  registerUI({ syncDailyNoteCard, renderWidgets, enqueueWidgetEvent, flushWidgetEvents, applyBoardOperations });
 
   window.addEventListener('message', e => {
     const data = e.data;
