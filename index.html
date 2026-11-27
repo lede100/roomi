@@ -2213,10 +2213,38 @@
   function buildNaturalStarter(name = '') {
     const h = new Date().getHours();
     const pool = (h >= 23 || h < 5)
-      ? ['这么晚还没睡？刚好我也没歇着，过来聊两句。', '夜深了怎么还不休息，是不是在想事情？']
+      ? [
+          '这么晚还没睡？刚好我也没歇着，过来聊两句。',
+          '夜深了怎么还不休息，是不是在想事情？',
+          '还没睡呢，在摸鱼还是加班？',
+          '都这个点了还睁着眼，熬夜小心明天困成小狗。',
+          '睡不着吗？那我陪你聊会儿天再睡。',
+          '外头都安静下来了，你今天过得累不累？',
+          '夜猫子上线了？过来报个到。',
+          '被窝暖好了没，怎么还不肯闭眼呀。'
+        ]
       : (h < 10
-          ? ['早呀，刚醒没多久，今天要出门吗？', '起来了吗？今天过得顺不顺利跟我说说。']
-          : ['终于找过来啦，刚还想着你呢。', '忙完这一阵了吗？坐这儿陪我聊会儿。', '在干嘛呀，今天心情怎么样？']);
+          ? [
+              '早呀，刚醒没多久，今天要出门吗？',
+              '起来了吗？今天过得顺不顺利跟我说说。',
+              '早安，醒了记得先喝口温水再去洗漱。',
+              '昨天睡得好不好呀？',
+              '早呀，今天有什么安排，还是只想宅着？',
+              '刚起床就摸手机看消息啦？我也刚醒。',
+              '早上好，记得垫一口早饭别空腹出门。',
+              '今天起床气消了没，要不要抱一个？'
+            ]
+          : [
+              '终于找过来啦，刚还想着你呢。',
+              '忙完这一阵了吗？坐这儿陪我聊会儿。',
+              '在干嘛呀，今天心情怎么样？',
+              '刚才发了会儿呆，正好你就过来了。',
+              '今天有没有遇到什么有意思的事？',
+              '累不累呀，过来让我听听你的动静。',
+              '怎么突然想起我了，是不是摸鱼被我抓到了？',
+              '过来报道了？今天水喝够了没有。',
+              '刚巧我也在看手机，想说点啥随便聊。'
+            ]);
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -3781,6 +3809,20 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
       .replace(/<think(?:ing)?\b[^>]*>[\s\S]*$/gi, '');
   }
 
+  function stripStageDirections(rawText, stripDanglingStar = false) {
+    let txt = String(rawText || '')
+      .replace(/\*[^*\n]{1,120}\*/g, ' ')
+      .replace(/（[^（）\n]{1,50}(?:笑|叹|眨|摸|抱|低头|抬头|看|红着脸|轻声|小声|凑近|歪头|挑眉|无奈|转身|顿了顿|沉默|眯眼|嘟嘴|眼神|神情|心里|揉|捏|蹭|拉|拍|垂眸|扬眉|咬唇|伸手|晃|躲)[^（）\n]{0,40}）/g, ' ')
+      .replace(/\([^()\n]{1,50}(?:笑|叹|眨|摸|抱|低头|抬头|看|红着脸|轻声|小声|凑近|歪头|挑眉|无奈|转身|顿了顿|沉默|眯眼|嘟嘴|眼神|神情|心里|揉|捏|蹭|拉|拍|垂眸|扬眉|咬唇|伸手|晃|躲)[^()\n]{0,40}\)/g, ' ');
+    if (stripDanglingStar) {
+      txt = txt.replace(/\*[^*\n]*$/g, '');
+    }
+    return txt
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   function parseAssistantOutput(rawText) {
     let cleanText = stripThinkingTags(rawText);
     const newWidgets = [];
@@ -3876,10 +3918,16 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
       .replace(/```(?:html)?\s*```/gi, '')
       .replace(/^\s*```(?:html)?\s*$/gim, '');
 
-    const bubbles = resultText
+    let bubbles = resultText
       .split('|||')
       .map(s => s.trim())
       .filter(Boolean);
+
+    if (state.settings.chatMode !== 'story') {
+      bubbles = bubbles
+        .map(b => stripStageDirections(b, false))
+        .filter(Boolean);
+    }
 
     if (hasUnclosedWidget) {
       bubbles.push('哎呀，组件代码写到一半被模型长度截断了，你让我再试一次吧。');
@@ -3906,12 +3954,8 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
         .replace(/\[曾发过一张照片[：:][\s\S]*?\]/g, '')
         .trim();
       if (state.settings.chatMode !== 'story' && txt) {
-        txt = txt
-          .replace(/\*\*([^*]+)\*\*/g, '$1')
-          .replace(/\*[^*\n]{1,100}\*/g, '')
+        txt = stripStageDirections(txt, false)
           .replace(/^\s*\d+[.、]\s+/gm, '')
-          .replace(/[ \t]{2,}/g, ' ')
-          .replace(/\n{3,}/g, '\n\n')
           .trim();
       }
       if (m.image) {
@@ -4040,32 +4084,37 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     return `${dateStr} ${days[d.getDay()]} ${timeStr}（${period}）`;
   }
 
-  const MEMORY_CLUSTERS = [
-    ['吃', '饭', '菜', '火锅', '奶茶', '外卖', '饿', '忌口', '辣', '甜', '饮食', '过敏', '喝'],
-    ['睡', '熬夜', '困', '早睡', '起床', '作息', '失眠', '夜猫'],
-    ['上班', '工作', '开会', '公司', '老板', '领导', '学校', '考试', '加班', '忙', '职业'],
-    ['累', '难受', '生气', '烦', '哭', '委屈', '抱抱', '开心', '想你', '情绪'],
-    ['猫', '狗', '宠物', '出门', '旅行', '城市', '搬家', '生日', '纪念日']
+  const MEMORY_SYNONYM_GROUPS = [
+    ['吃', '吃饭', '饭', '菜', '美食', '点外卖', '外卖', '忌口', '口味', '偏爱', '爱吃', '讨厌吃', '饮食', '辣', '甜', '火锅', '奶茶'],
+    ['睡', '睡觉', '熬夜', '困', '早睡', '起床', '作息', '失眠', '夜猫'],
+    ['喝水', '饮水', '杯', '口渴'],
+    ['上班', '工作', '加班', '开会', '公司', '老板', '领导', '同事', '通勤', '职业'],
+    ['学校', '上课', '作业', '考试', '放假', '老师', '同学'],
+    ['累', '难受', '生气', '烦', '哭', '委屈', '焦虑', '情绪', '开心'],
+    ['猫', '猫咪', '小猫', '主子', '狗', '小狗', '宠物'],
+    ['对象', '伴侣', '恋人', '男友', '女友', '老公', '老婆', '宝宝'],
+    ['生日', '纪念日', '周年', '约定', '旅行', '旅游', '计划']
   ];
 
   function extractMemoryQueryTokens(text) {
-    const tokens = new Set();
+    const direct = new Set();
+    const expanded = new Set();
     const clean = String(text || '').toLowerCase();
-    (clean.match(/[a-z0-9]{2,}/g) || []).forEach(w => tokens.add(w));
+    (clean.match(/[a-z0-9]{2,}/g) || []).forEach(w => direct.add(w));
     (clean.match(/[\u4e00-\u9fa5]{2,}/g) || []).forEach(seg => {
       for (let i = 0; i < seg.length - 1; i++) {
-        tokens.add(seg.slice(i, i + 2));
+        direct.add(seg.slice(i, i + 2));
       }
     });
-    for (const single of ['猫', '狗', '茶', '酒', '辣', '甜', '冷', '病', '车']) {
-      if (clean.includes(single)) tokens.add(single);
+    for (const single of ['猫', '狗', '茶', '酒', '辣', '甜', '冷', '病', '车', '饭', '睡', '吃', '家']) {
+      if (clean.includes(single)) direct.add(single);
     }
-    for (const cluster of MEMORY_CLUSTERS) {
-      if (cluster.some(kw => clean.includes(kw))) {
-        cluster.forEach(kw => tokens.add(kw));
+    for (const grp of MEMORY_SYNONYM_GROUPS) {
+      if (grp.some(kw => clean.includes(kw))) {
+        grp.forEach(kw => { if (!direct.has(kw)) expanded.add(kw); });
       }
     }
-    return [...tokens];
+    return { direct: [...direct], expanded: [...expanded] };
   }
 
   function selectRelevantMemories() {
@@ -4075,21 +4124,26 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
       .slice(-8)
       .map(m => m?.text || '')
       .join(' ');
-    const tokens = extractMemoryQueryTokens(recentText);
+    const { direct, expanded } = extractMemoryQueryTokens(recentText);
     const total = list.length;
 
     const pinned = [];
     const candidates = [];
     list.forEach((m, idx) => {
       const hay = `${m.key || ''} ${m.value || ''}`.toLowerCase();
-      let hits = 0;
-      for (const tok of tokens) {
-        if (hay.includes(tok)) hits += 1;
+      let directHits = 0;
+      let synHits = 0;
+      for (const tok of direct) {
+        if (hay.includes(tok)) directHits += 1;
       }
+      for (const tok of expanded) {
+        if (hay.includes(tok)) synHits += 1;
+      }
+      const matchScore = directHits * 30 + Math.min(synHits, 3) * 10;
       if (m.pinned) {
-        pinned.push({ m, score: hits * 25 + (total - idx) * 0.15 });
-      } else if (hits > 0) {
-        candidates.push({ m, score: hits * 25 + (total - idx) * 0.15 });
+        pinned.push({ m, score: matchScore + (total - idx) * 0.15 });
+      } else if (matchScore > 0) {
+        candidates.push({ m, score: matchScore + (total - idx) * 0.15 });
       }
     });
 
@@ -4175,7 +4229,7 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
 
     const modeRule = isStory
       ? '1. 「小剧场」模式开启：入戏扮演用户私密恋人，自然带有 *神态、动作、眼神* 描写推进互动；严禁说教与 1.2.3. 列表腔。\n2. 长短完全随场景流动，可一句话直出，需要换气停顿时再用 ||| 拆成 1~3 条。'
-      : '1. 日常纯微信私聊模式：只输出纯粹口语文字！严禁任何 *动作描写*、（括号旁白）、神态心理描写或 1.2.3. 列表说教。\n2. 长短完全随气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n3. 别像客服一样反问安抚，顺着当下情绪自然接茬就行。';
+      : '1. 当前为日常微信打字模式：只输出真人直接发给对方的纯说话口语！禁止使用星号符号、括号旁白、动作神态描写、内心独白，也不要写 1.2.3. 列表说教。\n2. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n3. 别像客服一样每轮反问安抚，顺着此刻情绪直接接茬就好。';
 
     const widgetRule = needWidget
       ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
@@ -4195,6 +4249,20 @@ ${modeRule}
 - 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）${widgetRule}${imgRule}`;
   }
 
+  function cnNumToInt(str) {
+    const map = { '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10, '廿': 20, '卅': 30 };
+    const s = String(str || '').trim();
+    if (/^\d+$/.test(s)) return Number(s);
+    if (s.length === 1 && map[s] !== undefined) return map[s];
+    if (s.startsWith('十') && s.length === 2 && map[s[1]] !== undefined) return 10 + map[s[1]];
+    if (s.startsWith('廿') && s.length === 2 && map[s[1]] !== undefined) return 20 + map[s[1]];
+    if (s.startsWith('卅') && s.length === 2 && map[s[1]] !== undefined) return 30 + map[s[1]];
+    if (s.length >= 2 && map[s[0]] !== undefined && s[1] === '十') {
+      return map[s[0]] * 10 + (s[2] && map[s[2]] !== undefined ? map[s[2]] : 0);
+    }
+    return 0;
+  }
+
   function getSpecialDateCue() {
     const mems = Array.isArray(state.memories) ? state.memories : [];
     if (!mems.length) return '';
@@ -4205,14 +4273,26 @@ ${modeRule}
     for (const m of mems) {
       const combined = `${m.key || ''} ${m.value || ''}`;
       if (!/(生日|纪念日|周年|在一起|初遇|相识|领证|结婚|求婚)/.test(combined)) continue;
-      const re = /(?:^|[^\d])(?:(\d{4})[-/.年])?0?(\d{1,2})[-/.月]0?(\d{1,2})日?(?!\d)/g;
+      let matched = false;
+      const reNum = /(?:^|[^\d])(?:(\d{4})[-/.年])?0?(\d{1,2})[-/.月]0?(\d{1,2})[日号]?(?!\d)/g;
       let match;
-      while ((match = re.exec(combined)) !== null) {
+      while ((match = reNum.exec(combined)) !== null) {
         if (Number(match[2]) === mo && Number(match[3]) === da) {
           const yr = Number(match[1]);
           const years = (yr > 1900 && yr <= now.getFullYear()) ? (now.getFullYear() - yr) : 0;
           hits.push(`${m.key}：${m.value}${years > 0 ? `（今天正好满${years}年）` : ''}`);
+          matched = true;
           break;
+        }
+      }
+      if (!matched) {
+        const reCn = /([一二三四五六七八九十]{1,2})月([一二三四五六七八九十廿卅]{1,3})[日号]/g;
+        let mCn;
+        while ((mCn = reCn.exec(combined)) !== null) {
+          if (cnNumToInt(mCn[1]) === mo && cnNumToInt(mCn[2]) === da) {
+            hits.push(`${m.key}：${m.value}`);
+            break;
+          }
         }
       }
     }
@@ -4248,10 +4328,10 @@ ${modeRule}
     if (personaShiftPending) {
       lines.push(isStory
         ? '即时提醒：刚刚开启了小剧场或更新了人设，从本条起立刻按最新设定入戏。'
-        : '即时提醒：小剧场已关闭或设定刚更新，从本条起严禁写任何 *动作描写* / 括号旁白，只发纯口语短句！');
+        : '即时提醒：小剧场已关闭或设定刚更新，从本条起严禁任何星号或括号神态旁白，只发纯口语短句！');
     }
     lines.push(
-      `口吻强校准：此刻请以「${charName}」本人语气直觉回应下方用户发言${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持入戏感' : '纯口语直聊，短句为主不写成小作文或客服腔'}。`
+      `口吻强校准：此刻请以「${charName}」本人语气直觉回应下方用户发言${anchors ? `（牢记：${anchors.slice(0, 110)}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，禁止出现动作旁白、星号和客服说教腔'}。`
     );
     return lines.join('\n');
   }
@@ -4356,32 +4436,33 @@ ${modeRule}
     const historyMsgs = built.msgs;
     const intents = detectPromptIntents(historyMsgs, promptOverride);
     const dynNote = buildDynamicContextNote(intents.needWidget);
-    const useMidSystem = Boolean(dynNote) && !isModelMarkedNoMidSystem(model);
 
-    const buildPayloadMessages = midSys => {
-      const cloned = historyMsgs.map(m => ({ ...m }));
-      if (dynNote) {
-        if (midSys) {
-          let insertAt = cloned.length;
-          for (let i = cloned.length - 1; i >= 0; i--) {
-            if (cloned[i].role === 'user') { insertAt = i; break; }
+    // Put <context_memo> directly above the latest user text so ALL relays/proxies preserve it 100% cleanly without mid-array system rejection
+    if (dynNote) {
+      const clonedNote = `<context_memo>\n${dynNote}\n</context_memo>`;
+      let attached = false;
+      for (let i = historyMsgs.length - 1; i >= 0; i--) {
+        const msg = historyMsgs[i];
+        if (msg.role === 'user') {
+          if (typeof msg.content === 'string') {
+            msg.content = `${clonedNote}\n\n用户发言：${msg.content}`;
+          } else if (Array.isArray(msg.content)) {
+            const textPart = msg.content.find(p => p && p.type === 'text');
+            if (textPart) textPart.text = `${clonedNote}\n\n用户发言：${textPart.text}`;
           }
-          cloned.splice(insertAt, 0, { role: 'system', content: dynNote });
-        } else {
-          // Strict-proxy fallback: isolate in a preceding user anchor without altering trailing user speech
-          let targetIdx = cloned.length - 1;
-          while (targetIdx >= 0 && cloned[targetIdx].role !== 'user') targetIdx--;
-          if (targetIdx >= 0) {
-            cloned.splice(targetIdx, 0, { role: 'user', content: dynNote });
-          } else {
-            cloned.push({ role: 'user', content: dynNote });
-          }
+          attached = true;
+          break;
         }
       }
-      return [{ role: 'system', content: buildSystemPrompt(intents) }, ...cloned];
-    };
+      if (!attached) {
+        historyMsgs.push({ role: 'user', content: clonedNote });
+      }
+    }
 
-    const messages = buildPayloadMessages(useMidSystem);
+    const messages = [
+      { role: 'system', content: buildSystemPrompt(intents) },
+      ...historyMsgs
+    ];
 
     activeAbortController = new AbortController();
     const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform?.());
@@ -4416,31 +4497,7 @@ ${modeRule}
 
     let res = await postOnce(reqBody);
 
-    if (!res.ok && (res.status === 400 || res.status === 422) && useMidSystem) {
-      const errText = await res.text().catch(() => '');
-      if (/(system|role|alternat|sequence|developer|position|first)/i.test(errText) && !/(thinking|reasoning)/i.test(errText)) {
-        const retryBody = { ...reqBody, messages: buildPayloadMessages(false) };
-        res = await postOnce(retryBody);
-        if (res.ok) markModelNoMidSystem(model);
-      } else if (reqBody.thinking || reqBody.reasoning_effort) {
-        if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
-          const retryBody = { ...reqBody };
-          const onlyThinkingRejected = /thinking/i.test(errText) && !/reasoning/i.test(errText);
-          if (onlyThinkingRejected) delete retryBody.thinking;
-          else { delete retryBody.thinking; delete retryBody.reasoning_effort; }
-          res = await postOnce(retryBody);
-          if (res.ok) markModelNoThinking(model);
-        } else {
-          const httpErr = new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
-          httpErr.status = res.status;
-          throw httpErr;
-        }
-      } else {
-        const httpErr = new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
-        httpErr.status = res.status;
-        throw httpErr;
-      }
-    } else if (!res.ok && (res.status === 400 || res.status === 422) && (reqBody.thinking || reqBody.reasoning_effort)) {
+    if (!res.ok && (res.status === 400 || res.status === 422) && (reqBody.thinking || reqBody.reasoning_effort)) {
       const errText = await res.text().catch(() => '');
       if (/(thinking|reasoning|unknown|extra|unsupported|unrecognized|invalid_request)/i.test(errText)) {
         const retryBody = { ...reqBody };
@@ -5402,6 +5459,9 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
 
           if (widgetPos >= 0) {
             setTyping(true, `${state.settings.name}正在为你现做小组件`);
+          }
+          if (state.settings.chatMode !== 'story') {
+            visible = stripStageDirections(visible, true);
           }
           if (visible.trim()) {
             const row = ensureStreamRow();

@@ -1,6 +1,6 @@
 {
   "name": "roomi",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "private": true,
   "description": "Roomi - AI Companion Chat & Sandboxed Widget Space",
   "scripts": {
