@@ -10,6 +10,25 @@
     --bg-sub: #f5f8fc;
     --surface: #ffffff;
     --surface-muted: #ebf0f8;
+    --surface-elevated: #ffffff;
+    --canvas-bg: var(--bg);
+    --board-bg: var(--bg-sub);
+    --header-bg: var(--bg);
+    --composer-wrap-bg: var(--bg);
+    --composer-bg: #ffffff;
+    --bubble-ai-bg: var(--bg-sub);
+    --bubble-user-border: rgba(77, 107, 254, 0.14);
+    --tab-active-bg: #ffffff;
+    --input-bg: var(--bg-sub);
+    --input-focus-bg: #ffffff;
+    --code-bg: #f8fafc;
+    --code-color: #1e293b;
+    --avatar-ring: #ffffff;
+    --backdrop-scrim: rgba(15, 23, 42, 0.42);
+    --veil-bg: var(--bg);
+    --veil-opacity: 0.72;
+    --glass-blur: none;
+    --glass-rim: transparent;
     --border: #e4ebf5;
     --border-strong: #d3deef;
     --text: #1c2433;
@@ -32,7 +51,6 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --app-height: 100dvh;
-    --header-bg: rgba(253, 254, 255, 0.92);
     --avatar-grad: linear-gradient(135deg, #6896f2 0%, #92b5f7 100%);
   }
 
@@ -42,6 +60,22 @@
     --bg-sub: #f2efe7;
     --surface: #ffffff;
     --surface-muted: #ebe7dc;
+    --surface-elevated: #ffffff;
+    --canvas-bg: var(--bg);
+    --board-bg: var(--bg-sub);
+    --header-bg: var(--bg);
+    --composer-wrap-bg: var(--bg);
+    --composer-bg: #ffffff;
+    --bubble-ai-bg: var(--bg-sub);
+    --bubble-user-border: rgba(217, 119, 87, 0.18);
+    --tab-active-bg: #ffffff;
+    --input-bg: var(--bg-sub);
+    --input-focus-bg: #ffffff;
+    --code-bg: #f6f3eb;
+    --code-color: #1f1e1b;
+    --avatar-ring: #ffffff;
+    --veil-bg: var(--bg);
+    --veil-opacity: 0.72;
     --border: #e5e0d4;
     --border-strong: #d3ccbc;
     --text: #1f1e1b;
@@ -53,14 +87,105 @@
     --blue-soft: #fdf2ee;
     --blue-bubble: #efeae0;
     --blue-border: rgba(217, 119, 87, 0.28);
-    --header-bg: rgba(250, 249, 245, 0.92);
     --avatar-grad: linear-gradient(135deg, #d97757 0%, #e69679 100%);
+  }
+
+  /* Apple Liquid Frost Light Glass */
+  [data-theme="glass-light"] {
+    --bg: #eef4fc;
+    --bg-sub: rgba(255, 255, 255, 0.62);
+    --surface: rgba(255, 255, 255, 0.78);
+    --surface-muted: rgba(255, 255, 255, 0.56);
+    --surface-elevated: rgba(255, 255, 255, 0.80);
+    --canvas-bg:
+      radial-gradient(circle at 14% 12%, rgba(96, 165, 250, 0.24), transparent 46%),
+      radial-gradient(circle at 86% 78%, rgba(196, 181, 253, 0.22), transparent 50%),
+      linear-gradient(180deg, #f3f7ff 0%, #e7eefb 100%);
+    --board-bg: transparent;
+    --header-bg: rgba(255, 255, 255, 0.68);
+    --composer-wrap-bg: linear-gradient(180deg, rgba(238, 244, 252, 0.0) 0%, rgba(235, 242, 252, 0.72) 45%);
+    --composer-bg: rgba(255, 255, 255, 0.78);
+    --bubble-ai-bg: rgba(255, 255, 255, 0.74);
+    --blue-bubble: rgba(219, 234, 254, 0.82);
+    --bubble-user-border: rgba(91, 141, 239, 0.24);
+    --tab-active-bg: rgba(255, 255, 255, 0.94);
+    --input-bg: rgba(241, 245, 251, 0.72);
+    --input-focus-bg: rgba(255, 255, 255, 0.94);
+    --code-bg: rgba(241, 245, 249, 0.85);
+    --code-color: #1e293b;
+    --avatar-ring: rgba(255, 255, 255, 0.92);
+    --backdrop-scrim: rgba(15, 23, 42, 0.34);
+    --veil-bg: linear-gradient(180deg, rgba(243, 247, 255, 0.36) 0%, rgba(235, 242, 252, 0.50) 100%);
+    --veil-opacity: 1;
+    --glass-blur: blur(22px) saturate(185%);
+    --glass-rim: rgba(255, 255, 255, 0.88);
+    --border: rgba(255, 255, 255, 0.72);
+    --border-strong: rgba(148, 163, 184, 0.34);
+    --text: #141c2c;
+    --text-2: #334155;
+    --text-muted: #5d6b82;
+    --text-dim: #8b98ae;
+    --blue: #3b7df6;
+    --blue-hover: #2563eb;
+    --blue-soft: rgba(59, 125, 246, 0.14);
+    --blue-border: rgba(59, 125, 246, 0.28);
+    --shadow-sm: 0 4px 16px rgba(15, 23, 42, 0.06);
+    --shadow-composer: 0 8px 28px rgba(30, 58, 138, 0.10);
+    --shadow-float: 0 14px 36px rgba(15, 23, 42, 0.14);
+  }
+
+  /* Apple Midnight Dark Glass */
+  [data-theme="glass-dark"] {
+    --bg: #0b101b;
+    --bg-sub: rgba(255, 255, 255, 0.06);
+    --surface: rgba(24, 32, 48, 0.76);
+    --surface-muted: rgba(255, 255, 255, 0.09);
+    --surface-elevated: rgba(22, 30, 46, 0.86);
+    --canvas-bg:
+      radial-gradient(circle at 18% 12%, rgba(59, 130, 246, 0.24), transparent 48%),
+      radial-gradient(circle at 86% 78%, rgba(167, 139, 250, 0.18), transparent 52%),
+      linear-gradient(180deg, #090d16 0%, #111828 100%);
+    --board-bg: transparent;
+    --header-bg: rgba(15, 22, 36, 0.72);
+    --composer-wrap-bg: linear-gradient(180deg, rgba(11, 16, 27, 0) 0%, rgba(11, 16, 27, 0.72) 48%);
+    --composer-bg: rgba(24, 33, 50, 0.76);
+    --bubble-ai-bg: rgba(28, 37, 56, 0.76);
+    --blue-bubble: rgba(68, 122, 245, 0.28);
+    --bubble-user-border: rgba(125, 174, 255, 0.34);
+    --tab-active-bg: rgba(255, 255, 255, 0.16);
+    --input-bg: rgba(255, 255, 255, 0.07);
+    --input-focus-bg: rgba(255, 255, 255, 0.12);
+    --code-bg: rgba(15, 23, 42, 0.85);
+    --code-color: #cbd5e1;
+    --avatar-ring: #161e2e;
+    --backdrop-scrim: rgba(2, 6, 15, 0.64);
+    --veil-bg: linear-gradient(180deg, rgba(8, 12, 22, 0.44) 0%, rgba(8, 12, 22, 0.62) 100%);
+    --veil-opacity: 1;
+    --glass-blur: blur(22px) saturate(185%);
+    --glass-rim: rgba(255, 255, 255, 0.16);
+    --border: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.20);
+    --text: #eef2ff;
+    --text-2: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --blue: #7aa7ff;
+    --blue-hover: #6094fb;
+    --blue-soft: rgba(122, 167, 255, 0.16);
+    --blue-border: rgba(122, 167, 255, 0.34);
+    --green: #34d399;
+    --green-soft: rgba(52, 211, 153, 0.16);
+    --red: #f87171;
+    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.28);
+    --shadow-composer: 0 10px 30px rgba(0, 0, 0, 0.42);
+    --shadow-float: 0 14px 40px rgba(0, 0, 0, 0.55);
+    --avatar-grad: linear-gradient(135deg, #5280e8 0%, #8b6ff5 100%);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%; width: 100%;
-    background: #eef1f6; color: var(--text);
+    background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Inter", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
@@ -69,25 +194,28 @@
   .app-shell {
     position: relative;
     width: 100%; height: var(--app-height);
-    background: var(--bg);
+    background: var(--canvas-bg);
     display: flex; flex-direction: column;
     overflow: hidden;
   }
   @media (min-width: 520px) {
-    body { display: flex; align-items: center; justify-content: center; }
+    body { display: flex; align-items: center; justify-content: center; background: #1e293b; }
     .app-shell {
       width: 416px; height: min(868px, 94dvh);
       border-radius: 30px;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
     }
   }
 
-  /* Header — Clean White-Blue / Warm Paper Top Bar */
+  /* Header */
   .header {
     padding: calc(10px + var(--safe-top)) 16px 10px;
-    background: var(--bg);
+    background: var(--header-bg);
     border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 -1px 0 var(--glass-rim);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     z-index: 20;
     flex-shrink: 0;
   }
@@ -106,7 +234,7 @@
   .avatar::after {
     content: ""; position: absolute; right: 0; bottom: 0;
     width: 9px; height: 9px; border-radius: 50%;
-    background: var(--green); border: 2px solid #fff;
+    background: var(--green); border: 2px solid var(--avatar-ring);
   }
   .companion-meta { min-width: 0; }
   .companion-name-row { display: flex; align-items: center; gap: 6px; }
@@ -163,9 +291,11 @@
   }
   .scroll-bottom-btn {
     position: absolute; right: 14px; bottom: 114px; z-index: 32;
-    border: 1px solid var(--border-strong); background: var(--surface);
+    border: 1px solid var(--border-strong); background: var(--surface-elevated);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     color: var(--text-2); font-size: 11.5px; font-weight: 600;
-    padding: 6px 11px; border-radius: 999px; box-shadow: var(--shadow-sm);
+    padding: 6px 11px; border-radius: 999px;
     cursor: pointer; opacity: 0; visibility: hidden; pointer-events: none;
     transform: translateY(8px); transition: all 0.18s; font-family: inherit;
   }
@@ -175,9 +305,9 @@
   .tab-indicator {
     position: absolute; top: 3px; left: 3px;
     width: calc(50% - 3px); height: calc(100% - 6px);
-    background: #ffffff;
+    background: var(--tab-active-bg);
     border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
     transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: none;
   }
@@ -209,9 +339,10 @@
   .floating-banner {
     position: absolute; top: calc(102px + var(--safe-top)); left: 14px; right: 14px;
     z-index: 40; padding: 10px 14px; border-radius: 14px;
-    background: #ffffff;
+    background: var(--surface-elevated);
     border: 1px solid var(--blue-border);
-    box-shadow: var(--shadow-float);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-float);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     display: flex; align-items: center; gap: 10px;
     cursor: pointer;
     transform: translateY(-14px); opacity: 0; pointer-events: none;
@@ -257,7 +388,7 @@
     position: absolute; inset: 0; pointer-events: none; z-index: 0; display: none;
   }
   .chat-bg-layer { background-size: cover; background-position: center; }
-  .chat-bg-veil { background: var(--bg); opacity: 0.72; }
+  .chat-bg-veil { background: var(--veil-bg); opacity: var(--veil-opacity); }
   .chat-bg-layer.show, .chat-bg-veil.show { display: block; }
   .pane-chat-inner {
     position: relative; z-index: 2; flex: 1; min-height: 0;
@@ -312,15 +443,15 @@
   .notify-times-row input[type="time"] {
     width: auto !important; padding: 5px 8px !important; font-size: 12px !important;
   }
-  .pane-board { background: var(--bg-sub); }
+  .pane-board { background: var(--board-bg); }
 
-  /* LEFT PANE: Chat (DeepSeek Clean White Style) */
+  /* LEFT PANE: Chat */
   .chat-scroll {
     flex: 1; overflow-y: auto; padding: 16px 16px 12px;
     display: flex; flex-direction: column; gap: 12px;
     scroll-behavior: smooth;
     overscroll-behavior-y: contain;
-    background: var(--bg);
+    background: transparent;
   }
   .chat-scroll::-webkit-scrollbar, .board-scroll::-webkit-scrollbar { width: 4px; }
   .chat-scroll::-webkit-scrollbar-thumb, .board-scroll::-webkit-scrollbar-thumb {
@@ -352,15 +483,17 @@
   }
   .msg-row.ai .bubble {
     padding: 8px 13px;
-    background: var(--bg-sub);
+    background: var(--bubble-ai-bg);
     border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
     border-radius: 6px 16px 16px 16px;
     color: var(--text);
   }
   .msg-row.user .bubble {
     padding: 10px 14px;
     background: var(--blue-bubble);
-    border: 1px solid rgba(77, 107, 254, 0.14);
+    border: 1px solid var(--bubble-user-border);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
     border-radius: 16px 16px 4px 16px;
     color: var(--text);
   }
@@ -383,10 +516,11 @@
   .spawn-card {
     margin-left: 35px;
     padding: 11px 14px;
-    background: #ffffff;
+    background: var(--surface-elevated);
     border: 1px solid var(--blue-border);
     border-radius: 14px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; transition: border-color 0.16s, background 0.16s;
   }
@@ -424,30 +558,33 @@
   .quick-bar {
     display: flex; gap: 7px; overflow-x: auto;
     padding: 6px 14px 8px; flex-shrink: 0;
-    background: var(--bg);
+    background: transparent;
     scrollbar-width: none;
   }
   .quick-bar::-webkit-scrollbar { display: none; }
   .chip {
     flex-shrink: 0; font-size: 12px; color: var(--text-2);
-    background: #ffffff; border: 1px solid var(--border);
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 var(--glass-rim);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     padding: 6px 12px; border-radius: 999px; cursor: pointer;
     transition: all 0.16s;
   }
   .chip:hover { color: var(--blue); border-color: var(--blue-border); background: var(--blue-soft); }
 
-  /* Floating Pill Composer — DeepSeek App Signature */
+  /* Floating Pill Composer */
   .composer-wrap {
     padding: 2px 12px calc(12px + var(--safe-bottom));
-    background: var(--bg);
+    background: var(--composer-wrap-bg);
     flex-shrink: 0;
   }
   .composer {
-    background: #ffffff;
+    background: var(--composer-bg);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
     padding: 7px 7px 7px 16px;
-    box-shadow: var(--shadow-composer);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-composer);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     display: flex; align-items: flex-end; gap: 10px;
     transition: border-color 0.18s, box-shadow 0.18s;
   }
@@ -510,7 +647,7 @@
   .bubble-edit-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 210px; }
   .bubble-edit-ta {
     width: 100%; min-height: 64px; border: 1px solid var(--border-strong);
-    background: #fff; color: #111827; border-radius: 9px; padding: 7px 9px;
+    background: var(--input-focus-bg); color: var(--text); border-radius: 9px; padding: 7px 9px;
     font-size: 13px; line-height: 1.45; font-family: inherit; resize: vertical; outline: none;
   }
   .bubble-edit-btns { display: flex; gap: 6px; justify-content: flex-end; }
@@ -582,9 +719,10 @@
   .board-hero {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 13px 15px; border-radius: 16px;
-    background: #ffffff;
+    background: var(--surface-elevated);
     border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
   }
   .board-hero-title { font-size: 14px; font-weight: 600; color: var(--text); }
   .board-hero-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
@@ -593,25 +731,26 @@
     background: var(--blue-soft); color: var(--blue);
     font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;
   }
-  .new-widget-btn:hover { background: #e0e7ff; }
+  .new-widget-btn:hover { background: var(--blue-border); }
 
   .widget-card {
-    background: #ffffff;
+    background: var(--surface-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     animation: popIn 0.22s ease;
   }
   .widget-card.highlight {
     border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(77, 107, 254, 0.14);
+    box-shadow: 0 0 0 3px var(--blue-border);
   }
   .widget-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px;
     border-bottom: 1px solid var(--border);
-    background: #fafbfd;
+    background: var(--surface-muted);
   }
   .widget-title-wrap { display: flex; align-items: center; gap: 7px; min-width: 0; }
   .widget-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
@@ -622,23 +761,23 @@
     font-size: 11px; padding: 4px 7px; border-radius: 7px; cursor: pointer;
   }
   .mini-btn:hover { background: var(--surface-muted); color: var(--text); }
-  .mini-btn.danger:hover { background: #fef2f2; color: var(--red); }
+  .mini-btn.danger:hover { background: rgba(239, 68, 68, 0.14); color: var(--red); }
   .widget-frame {
     width: 100%; border: none; display: block;
-    background: #ffffff;
+    background: transparent;
     transition: height 0.2s ease;
   }
 
   .empty-board {
     text-align: center; padding: 44px 20px; color: var(--text-muted);
-    background: #ffffff;
+    background: var(--surface-elevated);
     border: 1px dashed var(--border-strong); border-radius: 18px;
   }
 
-  /* Modal (Light Sheet — GPU flicker-free on Android WebView) */
+  /* Modal */
   .modal-backdrop {
     position: absolute; inset: 0; z-index: 60;
-    background: rgba(15, 23, 42, 0.42);
+    background: var(--backdrop-scrim);
     display: flex; align-items: flex-end; justify-content: center;
     opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity 0.2s ease, visibility 0.2s ease;
@@ -648,10 +787,11 @@
   }
   .modal-sheet {
     width: 100%; max-height: 86%; overflow-y: auto;
-    background: #ffffff; border-top: 1px solid var(--border);
+    background: var(--surface-elevated); border-top: 1px solid var(--border);
     border-radius: 22px 22px 0 0;
     padding: 18px 18px calc(22px + var(--safe-bottom));
-    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.12);
+    box-shadow: inset 0 1px 0 var(--glass-rim), 0 -10px 40px rgba(15, 23, 42, 0.18);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     transform: translateY(28px);
     transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
@@ -672,7 +812,7 @@
   .modal-sheet textarea,
   .field input, .field textarea {
     border: 1px solid var(--border-strong);
-    background: var(--bg-sub); color: var(--text);
+    background: var(--input-bg); color: var(--text);
     border-radius: 11px; padding: 9px 12px; font-size: 13px;
     font-family: inherit; outline: none; transition: border-color 0.16s, background 0.16s;
     appearance: none; -webkit-appearance: none;
@@ -681,7 +821,7 @@
   .mem-add-row input, .mem-edit-inputs input { width: auto; min-width: 0; }
   .modal-sheet input:not([type="checkbox"]):not([type="file"]):not([type="radio"]):focus,
   .modal-sheet textarea:focus,
-  .field input:focus, .field textarea:focus { border-color: var(--blue); background: #fff; }
+  .field input:focus, .field textarea:focus { border-color: var(--blue); background: var(--input-focus-bg); }
   .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   .preset-btn {
     font-size: 11px; padding: 5px 10px; border-radius: 999px;
@@ -716,7 +856,7 @@
   .model-list.show { display: flex; }
   .model-pill {
     font-size: 11px; padding: 4px 9px; border-radius: 999px;
-    border: 1px solid var(--border); background: #fff; color: var(--text-2);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
     cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .model-pill:hover { border-color: var(--blue-border); color: var(--blue); }
@@ -755,7 +895,7 @@
     border: 1px solid var(--border-strong); background: var(--bg-sub); color: var(--text);
     border-radius: 10px; padding: 8px 10px; font-size: 12.5px; outline: none; font-family: inherit;
   }
-  .mem-add-row input:focus { border-color: var(--blue); background: #fff; }
+  .mem-add-row input:focus { border-color: var(--blue); background: var(--input-focus-bg); }
   .about-bar {
     margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
@@ -783,13 +923,13 @@
   .btn-primary:hover { background: var(--blue-hover); }
   .btn-ghost {
     padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 12px;
-    background: #fff; color: var(--text-2); font-size: 12px; cursor: pointer;
+    background: var(--surface); color: var(--text-2); font-size: 12px; cursor: pointer;
   }
-  .btn-ghost:hover { background: var(--bg-sub); border-color: var(--text-dim); }
+  .btn-ghost:hover { background: var(--surface-muted); border-color: var(--text-dim); }
   .hint { font-size: 11px; color: var(--text-muted); line-height: 1.55; margin-top: 10px; }
   .code-pre {
-    background: #f8fafc; border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px; font-size: 11px; line-height: 1.5; color: #1e293b;
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; font-size: 11px; line-height: 1.5; color: var(--code-color);
     overflow-x: auto; white-space: pre-wrap; word-break: break-all;
     max-height: 55dvh; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -897,8 +1037,9 @@
   .char-quick-menu {
     position: absolute; top: calc(58px + var(--safe-top)); left: 12px;
     min-width: 210px; max-width: 270px; z-index: 48;
-    background: var(--surface); border: 1px solid var(--border-strong);
-    border-radius: 16px; box-shadow: var(--shadow-float);
+    background: var(--surface-elevated); border: 1px solid var(--border-strong);
+    border-radius: 16px; box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-float);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     padding: 6px;
     opacity: 0; visibility: hidden; transform: translateY(-6px); pointer-events: none;
     transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
@@ -1024,7 +1165,7 @@
     transition: all 0.14s;
   }
   .mini-chip:hover, .mini-chip.active {
-    border-color: var(--blue); color: var(--blue); background: #fff; font-weight: 600;
+    border-color: var(--blue); color: var(--blue); background: var(--blue-soft); font-weight: 600;
   }
   .section-kicker {
     font-size: 11px; font-weight: 700; color: var(--text-muted);
@@ -1061,7 +1202,7 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
         </button>
-        <button class="icon-btn" id="quickThemeBtn" title="切换白蓝/暖纸主题" aria-label="切换主题">
+        <button class="icon-btn" id="quickThemeBtn" title="切换界面风格（暖纸 / 晴蓝 / 白玻璃 / 深玻璃）" aria-label="切换主题">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="4"></circle>
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
@@ -1495,7 +1636,16 @@
 
         <div class="sub-card">
           <div class="sub-card-head">
-            <span class="sub-card-title">第三步 · 互动体验、提醒与隐私锁（可选）</span>
+            <span class="sub-card-title">第三步 · 外观风格、互动体验与隐私锁</span>
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <label>界面风格</label>
+            <div class="presets" id="themePicker" style="margin-bottom:0;">
+              <button type="button" class="preset-btn" data-theme-choice="claude">暖纸张</button>
+              <button type="button" class="preset-btn" data-theme-choice="deepseek">晴蓝白</button>
+              <button type="button" class="preset-btn" data-theme-choice="glass-light">白玻璃</button>
+              <button type="button" class="preset-btn" data-theme-choice="glass-dark">深夜玻璃</button>
+            </div>
           </div>
           <div class="toggle-row" style="margin-bottom:8px;padding:8px 10px;background:var(--surface);">
             <span style="font-size:12.5px;">连发攒句：1.8秒内连续发消息合并后再回复</span>
@@ -2031,6 +2181,9 @@
       if (mergedSettings.theme === 'deepseek') {
         mergedSettings.theme = 'claude';
       }
+    }
+    if (!['claude', 'deepseek', 'glass-light', 'glass-dark'].includes(mergedSettings.theme)) {
+      mergedSettings.theme = 'claude';
     }
     if (String(mergedSettings.baseUrl || '').includes('opencode.ai/zen') && mergedSettings.apiKey === 'public') {
       mergedSettings.baseUrl = '';
@@ -2761,11 +2914,18 @@
     const safeId = JSON.stringify(widget.id).replace(/</g, '\\u003c');
     const safeTitle = JSON.stringify(widget.title).replace(/</g, '\\u003c');
     const bodyHtml = sanitizeWidgetHtml(widget.html);
-    const isClaude = state.settings.theme === 'claude';
-    const wAccent = isClaude ? '#d97757' : '#5b8def';
-    const wSoft = isClaude ? '#fdf2ee' : '#eef4fd';
-    const wMuted = isClaude ? '#f3f1ea' : '#f5f8fc';
-    const wBorder = isClaude ? '#e5e0d4' : '#e4ebf5';
+    const themeKey = state.settings.theme || 'claude';
+    const isDarkGlass = themeKey === 'glass-dark';
+    const isLightGlass = themeKey === 'glass-light';
+    const isClaude = themeKey === 'claude';
+    const wAccent = isDarkGlass ? '#7aa7ff' : (isLightGlass ? '#3b7df6' : (isClaude ? '#d97757' : '#5b8def'));
+    const wSoft = isDarkGlass ? 'rgba(122,167,255,0.16)' : (isLightGlass ? 'rgba(59,125,246,0.13)' : (isClaude ? '#fdf2ee' : '#eef4fd'));
+    const wMuted = isDarkGlass ? 'rgba(255,255,255,0.08)' : (isClaude ? '#f3f1ea' : '#f5f8fc');
+    const wBorder = isDarkGlass ? 'rgba(255,255,255,0.14)' : (isClaude ? '#e5e0d4' : '#e4ebf5');
+    const wBg = (isDarkGlass || isLightGlass) ? 'transparent' : '#ffffff';
+    const wText = isDarkGlass ? '#eef2ff' : '#111827';
+    const wSub = isDarkGlass ? '#94a3b8' : '#64748b';
+    const wInputBg = isDarkGlass ? 'rgba(255,255,255,0.08)' : '#ffffff';
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -2774,8 +2934,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-  :root { --w-accent: ${wAccent}; --w-soft: ${wSoft}; --w-muted: ${wMuted}; --w-border: ${wBorder}; }
-  html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; overflow-x: hidden; }
+  :root { --w-accent: ${wAccent}; --w-soft: ${wSoft}; --w-muted: ${wMuted}; --w-border: ${wBorder}; --w-sub: ${wSub}; }
+  html, body { margin: 0; padding: 0; background: ${wBg}; color: ${wText}; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; overflow-x: hidden; }
+  input, textarea, select { background: ${wInputBg}; color: ${wText}; }
   * { box-sizing: border-box; }
 </style>
 <script>
@@ -3325,9 +3486,13 @@
     const gender = (state.settings.gender || '').trim();
     const appearance = (state.settings.appearance || '').trim();
     const isStory = state.settings.chatMode === 'story';
-    const themeHint = state.settings.theme === 'claude'
-      ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
-      : '温馨柔蓝白主题：背景 #ffffff，正文 #1c2433，次级文字 #6e7a91，主色 #5b8def，浅蓝底 #eef4fd，边框 #e4ebf5';
+    const themeHint = state.settings.theme === 'glass-dark'
+      ? '深夜玻璃主题：透明背景适配暗底，正文 #eef2ff，次级文字 #94a3b8，主色 #7aa7ff，柔高亮底 rgba(122,167,255,0.16)，细边框 rgba(255,255,255,0.14)'
+      : (state.settings.theme === 'glass-light'
+        ? '液态白玻璃主题：透明或极浅白底，正文 #141c2c，次级文字 #5d6b82，主色 #3b7df6，浅蓝底 rgba(59,125,246,0.14)，细边框 rgba(148,163,184,0.34)'
+        : (state.settings.theme === 'claude'
+          ? '极简暖纸主题：背景 #ffffff，正文 #1f1e1b，次级文字 #767065，主色 #d97757，浅橙底 #fdf2ee，边框 #e5e0d4'
+          : '温馨柔蓝白主题：背景 #ffffff，正文 #1c2433，次级文字 #6e7a91，主色 #5b8def，浅蓝底 #eef4fd，边框 #e4ebf5'));
 
     const ageLine = age ? `\n年龄：${age}` : '';
     const genderLine = gender ? `\n性别：${gender}` : '';
@@ -4972,7 +5137,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     period: {
       title: '🌸 贴心小日历',
       height: 196,
-      html: `<style>body{padding:12px;font-size:13px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.days{font-size:20px;font-weight:700;color:var(--w-accent)}.row{display:flex;gap:8px}button{flex:1;padding:9px;border:none;border-radius:10px;background:var(--w-soft);color:var(--w-accent);font-weight:600;cursor:pointer}.note{margin-top:8px;font-size:11.5px;color:#64748b}</style>
+      html: `<style>body{padding:12px;font-size:13px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.days{font-size:20px;font-weight:700;color:var(--w-accent)}.row{display:flex;gap:8px}button{flex:1;padding:9px;border:none;border-radius:10px;background:var(--w-soft);color:var(--w-accent);font-weight:600;cursor:pointer}.note{margin-top:8px;font-size:11.5px;color:var(--w-sub,#64748b)}</style>
 <div class="top"><div><div style="font-weight:600">生理期 / 身体记录</div><div class="note" id="lastTip">点下方按钮快速记录</div></div><div class="days" id="dayBadge">--</div></div>
 <div class="row"><button id="startBtn">🩸 今天来了</button><button id="painBtn">🫖 有点不舒服</button></div>
 <script>const st=CompanionBridge.getState();if(!st.logs)st.logs=[];function draw(){const last=st.lastStart;if(last){const diff=Math.max(1,Math.floor((Date.now()-last)/86400000)+1);dayBadge.textContent='D'+diff;lastTip.textContent='上次记录：'+new Date(last).toLocaleDateString();}else{dayBadge.textContent='未记';}}
@@ -5039,19 +5204,49 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     chatInput.focus();
   };
 
+  const THEME_ORDER = ['claude', 'deepseek', 'glass-light', 'glass-dark'];
+  const THEME_LABELS = {
+    claude: '暖纸张',
+    deepseek: '晴蓝白',
+    'glass-light': '液态白玻璃',
+    'glass-dark': '深夜玻璃'
+  };
+
+  function syncThemePickerUI(theme) {
+    const activeT = THEME_ORDER.includes(theme) ? theme : 'claude';
+    document.querySelectorAll('#themePicker [data-theme-choice]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.themeChoice === activeT);
+    });
+  }
+
   function applyTheme(theme) {
-    const t = theme === 'claude' ? 'claude' : 'deepseek';
+    const t = THEME_ORDER.includes(theme) ? theme : 'claude';
     if (document.documentElement.getAttribute('data-theme') !== t) {
       document.documentElement.setAttribute('data-theme', t);
     }
+    syncThemePickerUI(t);
   }
 
   document.getElementById('quickThemeBtn').onclick = () => {
-    state.settings.theme = state.settings.theme === 'claude' ? 'deepseek' : 'claude';
-    applyTheme(state.settings.theme);
+    const cur = THEME_ORDER.includes(state.settings.theme) ? state.settings.theme : 'claude';
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(cur) + 1) % THEME_ORDER.length];
+    state.settings.theme = next;
+    applyTheme(next);
     renderWidgets();
     scheduleSave();
+    showWarn(`已切换到「${THEME_LABELS[next] || next}」风格`, true);
+    setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 1400);
   };
+
+  document.querySelectorAll('#themePicker [data-theme-choice]').forEach(btn => {
+    btn.onclick = () => {
+      const next = btn.dataset.themeChoice || 'claude';
+      state.settings.theme = next;
+      applyTheme(next);
+      renderWidgets();
+      scheduleSave();
+    };
+  });
 
   // ---- Settings & Backup Modal ----
   const settingsModal = document.getElementById('settingsModal');
