@@ -105,8 +105,8 @@
     --header-bg: rgba(255, 255, 255, 0.68);
     --composer-wrap-bg: linear-gradient(180deg, rgba(238, 244, 252, 0.0) 0%, rgba(235, 242, 252, 0.72) 45%);
     --composer-bg: rgba(255, 255, 255, 0.78);
-    --bubble-ai-bg: rgba(255, 255, 255, 0.74);
-    --blue-bubble: rgba(219, 234, 254, 0.82);
+    --bubble-ai-bg: rgba(255, 255, 255, 0.84);
+    --blue-bubble: rgba(219, 234, 254, 0.86);
     --bubble-user-border: rgba(91, 141, 239, 0.24);
     --tab-active-bg: rgba(255, 255, 255, 0.94);
     --input-bg: rgba(241, 245, 251, 0.72);
@@ -115,9 +115,9 @@
     --code-color: #1e293b;
     --avatar-ring: rgba(255, 255, 255, 0.92);
     --backdrop-scrim: rgba(15, 23, 42, 0.34);
-    --veil-bg: linear-gradient(180deg, rgba(243, 247, 255, 0.36) 0%, rgba(235, 242, 252, 0.50) 100%);
+    --veil-bg: linear-gradient(180deg, rgba(243, 247, 255, 0.44) 0%, rgba(235, 242, 252, 0.58) 100%);
     --veil-opacity: 1;
-    --glass-blur: blur(22px) saturate(185%);
+    --glass-blur: blur(16px) saturate(175%);
     --glass-rim: rgba(255, 255, 255, 0.88);
     --border: rgba(255, 255, 255, 0.72);
     --border-strong: rgba(148, 163, 184, 0.34);
@@ -159,9 +159,9 @@
     --code-color: #cbd5e1;
     --avatar-ring: #161e2e;
     --backdrop-scrim: rgba(2, 6, 15, 0.64);
-    --veil-bg: linear-gradient(180deg, rgba(8, 12, 22, 0.44) 0%, rgba(8, 12, 22, 0.62) 100%);
+    --veil-bg: linear-gradient(180deg, rgba(8, 12, 22, 0.48) 0%, rgba(8, 12, 22, 0.66) 100%);
     --veil-opacity: 1;
-    --glass-blur: blur(22px) saturate(185%);
+    --glass-blur: blur(16px) saturate(175%);
     --glass-rim: rgba(255, 255, 255, 0.16);
     --border: rgba(255, 255, 255, 0.12);
     --border-strong: rgba(255, 255, 255, 0.20);
@@ -182,6 +182,21 @@
     --avatar-grad: linear-gradient(135deg, #5280e8 0%, #8b6ff5 100%);
   }
 
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    [data-theme="glass-light"] {
+      --header-bg: rgba(255, 255, 255, 0.94);
+      --composer-bg: rgba(255, 255, 255, 0.96);
+      --surface: rgba(255, 255, 255, 0.94);
+      --surface-elevated: rgba(255, 255, 255, 0.96);
+    }
+    [data-theme="glass-dark"] {
+      --header-bg: rgba(15, 22, 36, 0.94);
+      --composer-bg: rgba(24, 33, 50, 0.94);
+      --surface: rgba(24, 32, 48, 0.92);
+      --surface-elevated: rgba(22, 30, 46, 0.96);
+    }
+  }
+
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%; width: 100%;
@@ -199,7 +214,7 @@
     overflow: hidden;
   }
   @media (min-width: 520px) {
-    body { display: flex; align-items: center; justify-content: center; background: #1e293b; }
+    body { display: flex; align-items: center; justify-content: center; background: var(--bg); }
     .app-shell {
       width: 416px; height: min(868px, 94dvh);
       border-radius: 30px;
@@ -290,7 +305,7 @@
     border-color: var(--blue-border); font-weight: 600;
   }
   .scroll-bottom-btn {
-    position: absolute; right: 14px; bottom: 114px; z-index: 32;
+    position: absolute; right: 14px; bottom: calc(114px + var(--safe-bottom)); z-index: 32;
     border: 1px solid var(--border-strong); background: var(--surface-elevated);
     box-shadow: inset 0 1px 0 var(--glass-rim), var(--shadow-sm);
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
@@ -729,9 +744,9 @@
   .new-widget-btn {
     border: none; padding: 7px 12px; border-radius: 999px;
     background: var(--blue-soft); color: var(--blue);
-    font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+    font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0; transition: filter 0.16s;
   }
-  .new-widget-btn:hover { background: var(--blue-border); }
+  .new-widget-btn:hover { filter: brightness(0.94); }
 
   .widget-card {
     background: var(--surface-elevated);
@@ -744,7 +759,7 @@
   }
   .widget-card.highlight {
     border-color: var(--blue);
-    box-shadow: 0 0 0 3px var(--blue-border);
+    box-shadow: inset 0 1px 0 var(--glass-rim), 0 0 0 3px var(--blue-border);
   }
   .widget-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -1791,7 +1806,10 @@
           }
         };
         req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error || new Error('IDB open failed'));
+        req.onerror = () => {
+          dbPromise = null;
+          reject(req.error || new Error('IDB open failed'));
+        };
       });
       return dbPromise;
     }
@@ -1815,7 +1833,13 @@
           await set(key, parsed).catch(() => {});
           return parsed;
         }
-      } catch {}
+      } catch (err) {
+        try {
+          const broken = localStorage.getItem(key);
+          if (broken) localStorage.setItem(`roomi_corrupt_backup_${Date.now()}`, broken.slice(0, 120000));
+        } catch {}
+        window.__roomiCorruptNotice = true;
+      }
       return null;
     }
 
@@ -1871,10 +1895,10 @@
     height: 178,
     createdAt: Date.now(),
     html: `<style>
-      body { font-family: -apple-system, sans-serif; color: #111827; margin: 0; padding: 14px; background: #ffffff; }
+      body { font-family: -apple-system, sans-serif; color: var(--w-text, #111827); margin: 0; padding: 14px; background: var(--w-bg, #ffffff); }
       .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
       .count { font-size: 24px; font-weight: 700; color: var(--w-accent, #4d6bfe); }
-      .sub { font-size: 12px; color: #6b7280; }
+      .sub { font-size: 12px; color: var(--w-sub, #6b7280); }
       .cups { display: flex; gap: 6px; margin: 10px 0 14px; }
       .cup { flex: 1; height: 24px; border-radius: 7px; background: var(--w-muted, #f2f4f8); border: 1px solid var(--w-border, #e6e9f0); cursor: pointer; transition: .18s; }
       .cup.on { background: var(--w-accent, #4d6bfe); border-color: var(--w-accent, #4d6bfe); }
@@ -2017,11 +2041,17 @@
       lastActiveAt: Number(opts.lastActiveAt) || Date.now(),
       affection: typeof opts.affection === 'number' ? opts.affection : 68,
       mood: (!opts.mood || opts.mood === '正在传照片…') ? '在线等你' : opts.mood,
-      memories: Array.isArray(opts.memories) ? opts.memories : [],
+      memories: Array.isArray(opts.memories) ? opts.memories.filter(m => m && typeof m === 'object' && m.key && m.value) : [],
       memorySummary: String(opts.memorySummary || ''),
       summarizedCount: Number(opts.summarizedCount) || 0,
       messages: rawMsgs,
-      widgets: Array.isArray(opts.widgets) ? opts.widgets : [cloneStarterWidget()],
+      widgets: Array.isArray(opts.widgets)
+        ? opts.widgets.filter(w => w && typeof w === 'object' && w.id && w.html).map(w => (
+            w.id === 'starter_checkin' && String(w.html).includes('background: #ffffff')
+              ? { ...w, html: STARTER_WIDGET.html }
+              : w
+          ))
+        : [cloneStarterWidget()],
       widgetStates: (opts.widgetStates && typeof opts.widgetStates === 'object') ? opts.widgetStates : {}
     };
   }
@@ -2199,8 +2229,8 @@
     if (!mergedSettings.contextMode || !CONTEXT_TIERS[mergedSettings.contextMode]) {
       mergedSettings.contextMode = 'long';
     }
-    if (!mergedSettings.maxContextChars) mergedSettings.maxContextChars = ctxTier.chars;
-    if (!mergedSettings.maxContextMsgs) mergedSettings.maxContextMsgs = ctxTier.msgs;
+    mergedSettings.maxContextChars = ctxTier.chars;
+    mergedSettings.maxContextMsgs = ctxTier.msgs;
     if (!['auto', 'off', 'low', 'high'].includes(mergedSettings.thinkingMode)) {
       mergedSettings.thinkingMode = 'auto';
     }
@@ -2934,11 +2964,12 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:;" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-  :root { --w-accent: ${wAccent}; --w-soft: ${wSoft}; --w-muted: ${wMuted}; --w-border: ${wBorder}; --w-sub: ${wSub}; }
+  :root { --w-accent: ${wAccent}; --w-soft: ${wSoft}; --w-muted: ${wMuted}; --w-border: ${wBorder}; --w-sub: ${wSub}; --w-bg: ${wBg}; --w-text: ${wText}; }
   html, body { margin: 0; padding: 0; background: ${wBg}; color: ${wText}; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; overflow-x: hidden; }
   input, textarea, select { background: ${wInputBg}; color: ${wText}; }
   * { box-sizing: border-box; }
 </style>
+${isDarkGlass ? `<style>body { background: transparent !important; color: ${wText}; }</style>` : ''}
 <script>
   window.__WIDGET_ID__ = ${safeId};
   window.__WIDGET_TITLE__ = ${safeTitle};
@@ -3067,6 +3098,8 @@
     );
   }
 
+  const widgetEmitTimestamps = new Map();
+
   window.addEventListener('message', e => {
     const data = e.data;
     if (!data || typeof data !== 'object' || !data.widgetId) return;
@@ -3076,10 +3109,22 @@
     if (data.type === 'loom:resize' && typeof data.height === 'number') {
       registeredIframe.style.height = Math.max(110, Math.min(520, data.height)) + 'px';
     } else if (data.type === 'loom:saveState') {
-      state.widgetStates[data.widgetId] = data.state;
-      scheduleSave();
+      try {
+        const serialized = JSON.stringify(data.state ?? {});
+        if (serialized.length > 65536) {
+          showWarn('小组件保存的数据太大，已跳过保存');
+          return;
+        }
+        state.widgetStates[data.widgetId] = JSON.parse(serialized);
+        scheduleSave();
+      } catch {}
     } else if (data.type === 'loom:emit' && data.message) {
-      const eventText = `在「${data.title}」中：${data.message}`;
+      const now = Date.now();
+      const stamps = (widgetEmitTimestamps.get(data.widgetId) || []).filter(ts => now - ts < 10000);
+      if (stamps.length >= 5) return;
+      stamps.push(now);
+      widgetEmitTimestamps.set(data.widgetId, stamps);
+      const eventText = `在「${data.title}」中：${String(data.message).slice(0, 200)}`;
       appendChatMessage({ role: 'event', text: eventText });
       scheduleSave();
 
@@ -3160,8 +3205,14 @@
     }
   }
 
+  function stripThinkingTags(rawText) {
+    return String(rawText || '')
+      .replace(/<think(?:ing)?\b[^>]*>[\s\S]*?<\/think(?:ing)?>/gi, '')
+      .replace(/<think(?:ing)?\b[^>]*>[\s\S]*$/gi, '');
+  }
+
   function parseAssistantOutput(rawText) {
-    let cleanText = String(rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
+    let cleanText = stripThinkingTags(rawText);
     const newWidgets = [];
     const newImages = [];
     let hasUnclosedWidget = false;
@@ -3283,6 +3334,7 @@
         .trim();
       if (state.settings.chatMode !== 'story' && txt) {
         txt = txt
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
           .replace(/\*[^*\n]{1,100}\*/g, '')
           .replace(/[ \t]{2,}/g, ' ')
           .replace(/\n{3,}/g, '\n\n')
@@ -3324,6 +3376,18 @@
     const selected = [];
     let usedChars = 0;
 
+    // Find the latest user image in the trailing burst (since last assistant message) so multi-bubble bursts don't blind vision
+    let lastUserImgIdx = -1;
+    for (let i = total - 1; i >= 0; i--) {
+      const m = state.messages[i];
+      if (!m || m.imgPending) continue;
+      if (m.role === 'assistant') break;
+      if (m.role === 'user' && m.image) {
+        lastUserImgIdx = i;
+        break;
+      }
+    }
+
     // Walk backwards within character & message budget (always keep at least last 4 valid messages)
     let windowStartIndex = total;
     for (let i = total - 1; i >= 0; i--) {
@@ -3334,8 +3398,7 @@
       if (selected.length >= 4 && (usedChars + len > limit || selected.length >= maxMsgs)) {
         break;
       }
-      // Only attach multimodal image payload to the very latest user message if allowed
-      const attachImage = allowVisionForLast && i === total - 1 && rawMsg.role === 'user' && rawMsg.image;
+      const attachImage = allowVisionForLast && i === lastUserImgIdx && rawMsg.role === 'user' && rawMsg.image;
       selected.unshift({ index: i, createdAt: rawMsg.createdAt || 0, ...entry, image: attachImage ? rawMsg.image : null, rawText: rawMsg.text || '' });
       usedChars += len;
       windowStartIndex = i;
@@ -3408,7 +3471,7 @@
     ['睡', '熬夜', '困', '早睡', '起床', '作息', '失眠', '夜猫'],
     ['上班', '工作', '开会', '公司', '老板', '领导', '学校', '考试', '加班', '忙', '职业'],
     ['累', '难受', '生气', '烦', '哭', '委屈', '抱抱', '开心', '想你', '情绪'],
-    ['猫', '狗', '宠物', '家', '住', '城市', '出门', '旅行']
+    ['猫', '狗', '宠物', '出门', '旅行', '城市', '搬家', '生日', '纪念日']
   ];
 
   function extractMemoryQueryTokens(text) {
@@ -3420,6 +3483,9 @@
         tokens.add(seg.slice(i, i + 2));
       }
     });
+    for (const single of ['猫', '狗', '茶', '酒', '辣', '甜', '冷', '病', '车']) {
+      if (clean.includes(single)) tokens.add(single);
+    }
     for (const cluster of MEMORY_CLUSTERS) {
       if (cluster.some(kw => clean.includes(kw))) {
         cluster.forEach(kw => tokens.add(kw));
@@ -3432,29 +3498,35 @@
     const list = Array.isArray(state.memories) ? state.memories : [];
     if (!list.length) return [];
     const recentText = state.messages
-      .slice(-10)
+      .slice(-8)
       .map(m => m?.text || '')
       .join(' ');
     const tokens = extractMemoryQueryTokens(recentText);
     const total = list.length;
 
-    const scored = list.map((m, idx) => {
+    const pinned = [];
+    const candidates = [];
+    list.forEach((m, idx) => {
       const hay = `${m.key || ''} ${m.value || ''}`.toLowerCase();
       let hits = 0;
       for (const tok of tokens) {
         if (hay.includes(tok)) hits += 1;
       }
-      const score = (m.pinned ? 1000 : 0) + hits * 25 + ((total - idx) * 0.15);
-      return { m, score };
+      if (m.pinned) {
+        pinned.push({ m, score: hits * 25 + (total - idx) * 0.15 });
+      } else if (hits > 0) {
+        candidates.push({ m, score: hits * 25 + (total - idx) * 0.15 });
+      }
     });
-    scored.sort((a, b) => b.score - a.score);
+
+    pinned.sort((a, b) => b.score - a.score);
+    candidates.sort((a, b) => b.score - a.score);
 
     const picked = [];
     let chars = 0;
-    for (const item of scored) {
-      if (picked.length >= 50) break;
-      const lineLen = (item.m.key?.length || 0) + (item.m.value?.length || 0) + 12;
-      if (picked.length >= 10 && chars + lineLen > 2800) break;
+    for (const item of [...pinned.slice(0, 8), ...candidates.slice(0, 8)]) {
+      const lineLen = (item.m.key?.length || 0) + (item.m.value?.length || 0) + 8;
+      if (picked.length >= 3 && chars + lineLen > 1400) break;
       picked.push(item.m);
       chars += lineLen;
     }
@@ -3540,7 +3612,7 @@ ${modeRule}
       }
     }
     if (!hits.length) return '';
-    return `🎉 特殊日子提醒：今天正好是「${hits[0]}」，自然提起并给对方一点心意或小惊喜吧！`;
+    return `🎉 特殊日子提醒：今天正好是「${hits.slice(0, 3).join('；')}」，自然提起并给对方一点心意或小惊喜吧！`;
   }
 
   function buildDynamicContextNote() {
@@ -3563,7 +3635,7 @@ ${modeRule}
     if (specialCue) lines.push(specialCue);
     if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
     if (memLines) lines.push(`记得关于对方的事：\n${memLines}`);
-    if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
+    if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 600)}`);
     if (personaShiftPending) {
       lines.push(isStory
         ? '即时提醒：用户刚更新了设定或开启了小剧场，请从本条起立刻按最新设定回复。'
@@ -3582,18 +3654,23 @@ ${modeRule}
       if (payload === '[DONE]') continue;
       try {
         const parsed = JSON.parse(payload);
+        if (parsed?.error) {
+          const errMsg = parsed.error.message || (typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error));
+          throw new Error(`流式接口返回异常：${String(errMsg).slice(0, 140)}`);
+        }
         const delta = parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.message?.content;
         if (typeof delta === 'string') {
           acc += delta;
           if (onChunk) onChunk(delta);
         }
-      } catch {}
+      } catch (e) {
+        if (e && String(e.message || '').startsWith('流式接口返回异常')) throw e;
+      }
     }
     return acc;
   }
 
   let lastWindowStartIndex = 0;
-  let isCompressing = false;
 
   function isContextLimitError(err) {
     const msg = String(err?.message || '').toLowerCase();
@@ -3721,7 +3798,7 @@ ${modeRule}
           delete retryBody.reasoning_effort;
         }
         res = await postOnce(retryBody);
-        if (res.ok && !onlyThinkingRejected) {
+        if (res.ok) {
           markModelNoThinking(model);
         }
       } else {
@@ -3731,7 +3808,9 @@ ${modeRule}
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
+      const httpErr = new Error(`HTTP ${res.status} ${errText.slice(0, 160)}`);
+      httpErr.status = res.status;
+      throw httpErr;
     }
 
     const contentType = res.headers.get('content-type') || '';
@@ -3771,6 +3850,13 @@ ${modeRule}
     return fullText || '刚才走神了，再跟我说一遍？';
   }
 
+  function isRetryableTransientError(err) {
+    const s = err?.status;
+    if (s === 429 || (s >= 500 && s <= 504)) return true;
+    const msg = String(err?.message || '').toLowerCase();
+    return /\b(429|500|502|503|504)\b|rate limit|overloaded|bad gateway|service unavailable/.test(msg);
+  }
+
   async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isEvent = false, hasPendingImg = false) {
     if (hasPendingImg && isModelMarkedNonVision(state.settings.model)) {
       const err = new Error(`当前模型「${state.settings.model}」不支持识图，请在设置中切换到支持视觉的模型（如 GPT-4o / Claude / Gemini / Qwen-VL）后重试。`);
@@ -3779,7 +3865,8 @@ ${modeRule}
     }
     const tier = CONTEXT_TIERS[state.settings.contextMode] || CONTEXT_TIERS.long;
     let budget = state.settings.maxContextChars || tier.chars;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    let transientRetries = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
       try {
         return await callLiveLLM(promptOverride, onStreamProgress, isEvent, budget, hasPendingImg);
       } catch (err) {
@@ -3789,7 +3876,13 @@ ${modeRule}
           vErr.isVisionNotice = true;
           throw vErr;
         }
-        if (err.name === 'AbortError' || !isContextLimitError(err) || attempt === 4) {
+        if (err.name === 'AbortError') throw err;
+        if (isRetryableTransientError(err) && transientRetries < 2) {
+          transientRetries++;
+          await sleep(transientRetries * 1400);
+          continue;
+        }
+        if (!isContextLimitError(err) || attempt >= 4) {
           throw err;
         }
         budget = Math.max(8000, Math.floor(budget / 2));
@@ -3799,12 +3892,43 @@ ${modeRule}
 
   // ---- Rolling Context Compression & Fact Extraction (Per-Character Isolated) ----
   const compressingChars = new Set();
+  const compressCooldownByChar = new Map();
+
+  function extractFirstJsonObject(rawText) {
+    const cleaned = stripThinkingTags(rawText).trim();
+    const fence = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const src = fence ? fence[1].trim() : cleaned;
+    const start = src.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < src.length; i++) {
+      const ch = src[i];
+      if (inStr) {
+        if (esc) { esc = false; }
+        else if (ch === '\\') { esc = true; }
+        else if (ch === '"') { inStr = false; }
+      } else {
+        if (ch === '"') inStr = true;
+        else if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            return JSON.parse(src.slice(start, i + 1));
+          }
+        }
+      }
+    }
+    return null;
+  }
 
   async function maybeCompressHistory(force = false) {
     const targetCharId = state.activeCharId;
     const targetChar = getActiveCharacter();
     if (!targetChar || compressingChars.has(targetCharId)) {
       return { ok: false, reason: 'busy' };
+    }
+    if (!force && (compressCooldownByChar.get(targetCharId) || 0) > Date.now()) {
+      return { ok: false, reason: 'cooldown' };
     }
     const { baseUrl, apiKey, model } = state.settings;
     if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
@@ -3821,12 +3945,23 @@ ${modeRule}
     if (!force && pendingCount < 20) return { ok: false, reason: 'few' };
     if (pendingCount < 3) return { ok: false, reason: 'few' };
 
-    const sliceEnd = Math.min(safeEnd, curSummarized + 36);
-    const chunk = msgsRef.slice(curSummarized, sliceEnd)
-      .map(formatMessageForModel)
-      .filter(Boolean)
-      .map(m => `${m.role === 'user' ? '用户' : '伴侣'}: ${m.content}`)
-      .join('\n');
+    const maxBatchEnd = Math.min(safeEnd, curSummarized + 36);
+    const chunkLines = [];
+    let chunkChars = 0;
+    let sliceEnd = curSummarized;
+    for (let i = curSummarized; i < maxBatchEnd; i++) {
+      const formatted = formatMessageForModel(msgsRef[i]);
+      sliceEnd = i + 1;
+      if (!formatted || !formatted.content) continue;
+      const line = `${formatted.role === 'user' ? '用户' : '伴侣'}: ${formatted.content}`;
+      if (chunkLines.length >= 2 && chunkChars + line.length > 5600) {
+        sliceEnd = i;
+        break;
+      }
+      chunkLines.push(line);
+      chunkChars += line.length + 1;
+    }
+    const chunk = chunkLines.join('\n');
 
     if (!chunk.trim()) {
       targetChar.summarizedCount = sliceEnd;
@@ -3849,7 +3984,7 @@ ${targetChar.memorySummary || '（暂无）'}
 ${existingKeys}
 
 【待归档的新增旧对话】
-${chunk.slice(0, 6000)}
+${chunk}
 
 【记忆筛选红线（极其重要）】
 1. facts 只能记录对未来一个月后依然成立的用户个人长期事实（如：昵称/职业/城市、作息习惯、饮食喜好或忌口、生日纪念日、养的宠物、重要约定）。
@@ -3868,14 +4003,14 @@ ${chunk.slice(0, 6000)}
       if (!isModelMarkedNoThinking(model)) {
         compressBody.thinking = { type: 'disabled' };
       }
-      const postCompress = bodyObj => fetch(url, {
+      const postCompress = bodyObj => fetchWithTimeout(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey.trim()}`
         },
         body: JSON.stringify(bodyObj)
-      });
+      }, 45000);
       let res = await postCompress(compressBody);
       if (!res.ok && (res.status === 400 || res.status === 422) && compressBody.thinking) {
         const errText = await res.text().catch(() => '');
@@ -3889,10 +4024,10 @@ ${chunk.slice(0, 6000)}
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('摘要格式解析失败');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const raw = json.choices?.[0]?.message?.content || '';
+      const parsed = extractFirstJsonObject(raw);
+      if (!parsed) throw new Error('摘要格式解析失败');
+      compressCooldownByChar.delete(targetCharId);
 
       const destChar = state.characters.find(c => c.id === targetCharId);
       if (!destChar) return { ok: false, reason: 'char_removed' };
@@ -3922,6 +4057,7 @@ ${chunk.slice(0, 6000)}
       scheduleSave();
       return { ok: true, moved: sliceEnd - curSummarized };
     } catch (err) {
+      compressCooldownByChar.set(targetCharId, Date.now() + 5 * 60 * 1000);
       return { ok: false, reason: err.message };
     } finally {
       compressingChars.delete(targetCharId);
@@ -4427,6 +4563,15 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
     throw new Error('生图等待超时，请稍后再试');
   }
 
+  function normalizeOpenAISize(rawSize, modelName = '') {
+    const clean = normalizeImageSize(rawSize);
+    const [w, h] = clean.split('x').map(Number);
+    if (w === h) return '1024x1024';
+    const isGptImage = /gpt-image/i.test(modelName);
+    if (w > h) return isGptImage ? '1536x1024' : '1792x1024';
+    return isGptImage ? '1024x1536' : '1024x1792';
+  }
+
   async function generateImageViaOpenAI({ prompt, size }) {
     const key = (state.settings.imgApiKey || state.settings.apiKey || '').trim();
     const base = (state.settings.imgBaseUrl || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
@@ -4442,7 +4587,7 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       body: JSON.stringify({
         model,
         prompt,
-        size: normalizeImageSize(size),
+        size: normalizeOpenAISize(size, model),
         n: 1,
         response_format: 'b64_json'
       })
@@ -4538,9 +4683,12 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   }
 
   // ---- Orchestrate AI Reply ----
+  let replyAbortRequested = false;
+
   async function triggerCompanionReply(userText, isEvent = false, hasImage = false) {
     const targetCharId = state.activeCharId;
     isBusy = true;
+    replyAbortRequested = false;
     sendBtn.innerHTML = STOP_SVG;
     sendBtn.classList.add('stop');
     sendBtn.setAttribute('aria-label', '停止');
@@ -4622,12 +4770,18 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       if (newWidgets.length) {
         newWidgets.forEach(w => {
           const targetName = (w.replace || '').trim().replace(/[「」]/g, '');
-          const matchFn = item => {
-            const t = item.title.trim();
-            if (targetName) return t === targetName || t.includes(targetName) || targetName.includes(t);
-            return t === w.title.trim();
-          };
-          const existingIdx = state.widgets.findIndex(matchFn);
+          let existingIdx = -1;
+          if (targetName) {
+            existingIdx = state.widgets.findIndex(item => item.title.trim() === targetName);
+            if (existingIdx < 0) {
+              existingIdx = state.widgets.findIndex(item => {
+                const t = item.title.trim();
+                return t.includes(targetName) || targetName.includes(t);
+              });
+            }
+          } else {
+            existingIdx = state.widgets.findIndex(item => item.title.trim() === w.title.trim());
+          }
           if (existingIdx >= 0) {
             const existing = state.widgets[existingIdx];
             existing.title = w.title || existing.title;
@@ -4654,9 +4808,11 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
         : (mountedWidgets.length ? [`好啦，已经帮你摆在「${state.settings.name || '我'}的家」里咯～`] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
 
       for (let i = 0; i < finalBubbles.length; i++) {
+        if (replyAbortRequested) break;
         if (i > 0) {
           setTyping(true, `${state.settings.name}正在输入`);
           await sleep(380 + Math.min(460, finalBubbles[i].length * 14));
+          if (replyAbortRequested) break;
         }
         setTyping(false);
         appendChatMessage({ role: 'assistant', text: finalBubbles[i] });
@@ -4664,7 +4820,9 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
         if (i === 0) showFloatingBanner(finalBubbles[i]);
       }
 
-      if (newImages.length && isImageGenReady()) {
+      if (replyAbortRequested) {
+        appendChatMessage({ role: 'event', text: '已停止本次生成' });
+      } else if (newImages.length && isImageGenReady()) {
         setTyping(false);
         const lastImg = findLastChatImage(targetCharId);
         for (const imgReq of newImages) {
@@ -4908,8 +5066,24 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
   const clearQuoteBtn = document.getElementById('clearQuoteBtn');
   if (clearQuoteBtn) clearQuoteBtn.onclick = clearPendingQuote;
 
+  function flushSendBurst() {
+    sendMergeTimer = null;
+    if (!pendingBurstTexts.length) return;
+    if (isBusy) {
+      // Wait for current turn to finish instead of dropping queued messages
+      sendMergeTimer = setTimeout(flushSendBurst, 320);
+      return;
+    }
+    const merged = pendingBurstTexts.join('\n').trim();
+    const hasImg = pendingBurstHasImg;
+    pendingBurstTexts = [];
+    pendingBurstHasImg = false;
+    triggerCompanionReply(merged, false, hasImg);
+  }
+
   function handleSend(overrideText) {
     if (isBusy) {
+      replyAbortRequested = true;
       if (activeAbortController) activeAbortController.abort();
       cancelPendingSendBurst();
       return;
@@ -4931,15 +5105,16 @@ ${canEdit ? '仅当用户明确要求基于上一张图“修改/换装/换背�
       pendingBurstTexts.push(text || (image ? '[发来一张图片]' : ''));
       pendingBurstHasImg = pendingBurstHasImg || Boolean(image);
       clearTimeout(sendMergeTimer);
-      sendMergeTimer = setTimeout(() => {
-        sendMergeTimer = null;
-        if (isBusy) return;
-        const merged = pendingBurstTexts.join('\n').trim();
-        const hasImg = pendingBurstHasImg;
-        pendingBurstTexts = [];
-        pendingBurstHasImg = false;
-        triggerCompanionReply(merged, false, hasImg);
-      }, 1800);
+      sendMergeTimer = setTimeout(flushSendBurst, 1800);
+      return;
+    }
+
+    if (pendingBurstTexts.length) {
+      pendingBurstTexts.push(text || (image ? '[发来一张图片]' : ''));
+      const merged = pendingBurstTexts.join('\n').trim();
+      const hasImg = pendingBurstHasImg || Boolean(image);
+      cancelPendingSendBurst();
+      triggerCompanionReply(merged, false, hasImg);
       return;
     }
 
@@ -5876,6 +6051,8 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
         const res = await compressImageFile(file, 1440, 0.82);
         draftWallpaper = res.dataUrl;
         state.settings.wallpaper = draftWallpaper;
+        flushActiveCharToList();
+        scheduleSave();
         syncWallpaperBtnsUI();
         applyChatWallpaper(draftWallpaper);
         showWarn('✓ 已设为当前角色专属聊天壁纸', true);
@@ -5891,6 +6068,8 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     cfgWallpaperClearBtn.onclick = () => {
       draftWallpaper = '';
       state.settings.wallpaper = '';
+      flushActiveCharToList();
+      scheduleSave();
       syncWallpaperBtnsUI();
       applyChatWallpaper('');
     };
@@ -6016,6 +6195,8 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     state.characters = state.characters.filter(c => c.id !== state.activeCharId);
     const fallback = state.characters[0];
     pendingEventQueue = [];
+    cancelPendingSendBurst();
+    clearPendingQuote();
     lastWindowStartIndex = 0;
     visibleChatStart = -1;
     draftAiGreeting = '';
@@ -6037,7 +6218,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     const name = document.getElementById('cfgName').value.trim() || state.settings.name || '当前角色';
     if (!confirm(`清空与「${name}」的聊天记录？（TA 的人设、长期记忆与家里小组件都会保留）`)) return;
     const greetingVal = document.getElementById('cfgGreeting')?.value.trim() || '';
-    state.messages = [{ role: 'assistant', text: greetingVal || buildNaturalStarter(name), isStarter: true }];
+    state.messages = [{ id: `msg_init_${Date.now()}`, role: 'assistant', text: greetingVal || buildNaturalStarter(name), isStarter: true }];
     state.summarizedCount = 0;
     visibleChatStart = -1;
     lastWindowStartIndex = 0;
@@ -6152,12 +6333,19 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
             } else {
               // iTXt layout: kw \0 compFlag \0 compMethod \0 lang \0 transKw \0 text
               const compFlag = chunk[nul + 1];
-              if (compFlag === 0) {
-                let p = nul + 3;
-                const z1 = chunk.indexOf(0, p);
-                if (z1 !== -1) {
-                  const z2 = chunk.indexOf(0, z1 + 1);
-                  if (z2 !== -1) rawPayload = dec.decode(chunk.subarray(z2 + 1));
+              let p = nul + 3;
+              const z1 = chunk.indexOf(0, p);
+              if (z1 !== -1) {
+                const z2 = chunk.indexOf(0, z1 + 1);
+                if (z2 !== -1) {
+                  const payloadBytes = chunk.subarray(z2 + 1);
+                  if (compFlag === 0) {
+                    rawPayload = dec.decode(payloadBytes);
+                  } else if (compFlag === 1 && typeof DecompressionStream !== 'undefined') {
+                    const ds = new DecompressionStream('deflate');
+                    const decompressed = await new Response(new Blob([payloadBytes]).stream().pipeThrough(ds)).arrayBuffer();
+                    rawPayload = dec.decode(new Uint8Array(decompressed));
+                  }
                 }
               }
             }
@@ -6192,11 +6380,12 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     }
     const persona = personaParts.filter(Boolean).join('\n\n').trim();
     if (!persona) throw new Error('角色卡缺少人设描述（persona/description）');
-    const greetings = [];
-    if (Array.isArray(root.greeting)) greetings.push(...root.greeting);
-    else if (typeof root.greeting === 'string' && root.greeting) greetings.push(root.greeting);
-    if (typeof root.first_mes === 'string' && root.first_mes) greetings.push(root.first_mes);
-    if (Array.isArray(root.alternate_greetings)) greetings.push(...root.alternate_greetings);
+    const greetingsRaw = [];
+    if (Array.isArray(root.greeting)) greetingsRaw.push(...root.greeting);
+    else if (typeof root.greeting === 'string' && root.greeting) greetingsRaw.push(root.greeting);
+    if (typeof root.first_mes === 'string' && root.first_mes) greetingsRaw.push(root.first_mes);
+    if (Array.isArray(root.alternate_greetings)) greetingsRaw.push(...root.alternate_greetings);
+    const greetings = [...new Set(greetingsRaw.map(g => String(g || '').trim()).filter(Boolean))];
     return {
       name: root.name,
       age: root.age || '',
@@ -6207,7 +6396,7 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
       avatarImage: root.avatarImage || fallbackAvatar || '',
       wallpaper: root.wallpaper || '',
       avatarColor: root.avatarColor || '',
-      greeting: greetings.filter(Boolean)
+      greeting: greetings
     };
   }
 
@@ -7006,6 +7195,9 @@ ${traits}
     syncChatModeQuickBtn();
     renderChat();
     renderWidgets();
+    if (window.__roomiCorruptNotice) {
+      showWarn('检测到本地存档曾异常损坏，已为你备份到 localStorage（roomi_corrupt_backup_*），建议核对或重新导入备份');
+    }
     if (state.settings.privacyLock && state.settings.privacyPin) {
       openPinLock('unlock');
     } else {
