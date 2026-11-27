@@ -1815,13 +1815,19 @@
               <input id="cfgImgApiKey" type="password" placeholder="ms-..." />
             </div>
             <div class="field">
-              <label id="imgModelLabel">生图模型（支持填 LoRA 模型 ID）</label>
+              <div class="field-label-row">
+                <label id="imgModelLabel">生图模型</label>
+                <button type="button" class="detect-btn" id="fetchImgModelsBtn" style="display:none;">↻ 检测模型</button>
+              </div>
               <div class="presets" id="imgModelPresets" style="margin-bottom:6px;">
                 <button type="button" class="preset-btn" data-img-model="Tongyi-MAI/Z-Image-Turbo">Z-Image-Turbo（快）</button>
                 <button type="button" class="preset-btn" data-img-model="krea/Krea-2-Turbo">Krea-2-Turbo（质感）</button>
                 <button type="button" class="preset-btn" data-img-model="Qwen/Qwen-Image-2.1">Qwen-Image-2.1（可改图）</button>
               </div>
-              <input id="cfgImgModel" type="text" placeholder="Tongyi-MAI/Z-Image-Turbo" autocomplete="off" />
+              <input id="cfgMsCustomModel" type="text" placeholder="手填其他魔搭模型名（填了优先用填的，留空用上方所选）" autocomplete="off" style="display:none;" />
+              <input id="cfgImgModel" type="text" placeholder="点右上角「检测模型」列出可选，或手动填写" autocomplete="off" />
+              <div class="model-status" id="imgModelStatus"></div>
+              <div class="model-list" id="imgModelSuggestions"></div>
             </div>
             <div class="field">
               <label>触发时机</label>
@@ -2334,6 +2340,9 @@
         imgBaseUrl: '',
         imgApiKey: '',
         imgModel: 'Tongyi-MAI/Z-Image-Turbo',
+        msImgPreset: 'Tongyi-MAI/Z-Image-Turbo',
+        msImgCustomModel: '',
+        openaiImgModel: '',
         imgTrigger: 'asked',
         imgDefaultSize: '1152x1536'
       },
@@ -2507,6 +2516,27 @@
     if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyMorning || '')) mergedSettings.notifyMorning = '08:30';
     if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyNight || '')) mergedSettings.notifyNight = '23:30';
     if (!/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgDefaultSize || '')) mergedSettings.imgDefaultSize = '1152x1536';
+    const msFixedModels = ['Tongyi-MAI/Z-Image-Turbo', 'krea/Krea-2-Turbo', 'Qwen/Qwen-Image-2.1'];
+    if (!mergedSettings.msImgPreset && !mergedSettings.msImgCustomModel) {
+      if (mergedSettings.imgProvider === 'modelscope' && mergedSettings.imgModel) {
+        if (msFixedModels.includes(mergedSettings.imgModel)) {
+          mergedSettings.msImgPreset = mergedSettings.imgModel;
+          mergedSettings.msImgCustomModel = '';
+        } else {
+          mergedSettings.msImgPreset = 'Tongyi-MAI/Z-Image-Turbo';
+          mergedSettings.msImgCustomModel = mergedSettings.imgModel;
+        }
+      } else {
+        mergedSettings.msImgPreset = 'Tongyi-MAI/Z-Image-Turbo';
+        mergedSettings.msImgCustomModel = '';
+      }
+    }
+    if (!msFixedModels.includes(mergedSettings.msImgPreset)) mergedSettings.msImgPreset = 'Tongyi-MAI/Z-Image-Turbo';
+    mergedSettings.msImgCustomModel = String(mergedSettings.msImgCustomModel || '').trim();
+    if (!mergedSettings.openaiImgModel && mergedSettings.imgProvider === 'openai' && mergedSettings.imgModel) {
+      mergedSettings.openaiImgModel = String(mergedSettings.imgModel).trim();
+    }
+    mergedSettings.openaiImgModel = String(mergedSettings.openaiImgModel || '').trim();
     mergedSettings.privacyLock = Boolean(mergedSettings.privacyLock);
     mergedSettings.privacyPin = String(mergedSettings.privacyPin || '').replace(/\D/g, '').slice(0, 4);
     mergedSettings._v = 11;
@@ -5232,7 +5262,7 @@ ${chunk}
     if (p === 'openai') {
       const key = (state.settings.imgApiKey || state.settings.apiKey || '').trim();
       const base = (state.settings.imgBaseUrl || state.settings.baseUrl || '').trim();
-      const model = (state.settings.imgModel || '').trim();
+      const model = (state.settings.openaiImgModel || state.settings.imgModel || '').trim();
       return Boolean(key && base && model);
     }
     return false;
@@ -5242,6 +5272,7 @@ ${chunk}
     if (!state.settings.apiKey.trim() || !isImageGenReady()) return '';
     const isAuto = state.settings.imgTrigger === 'auto';
     const isModelScope = state.settings.imgProvider === 'modelscope';
+    const canEdit = isModelScope || state.settings.imgProvider === 'openai';
     const defSize = normalizeImageSize(state.settings.imgDefaultSize || '1152x1536');
     const promptPolicy = isModelScope
       ? 'prompt 避开露骨敏感词。'
@@ -5252,8 +5283,11 @@ ${chunk}
 ${isAuto ? '你可以在聊到日常画面、分享穿搭风景、自拍或气氛刚好时自然配图，也可按用户要求拍照或画图。' : '平时不要主动发图；仅在用户明确让你拍照、发照片、画图或修图/改图时才生图。'}
 需要发图时，先用 1~2 句自然口语接话，然后在回复末尾附带隐藏标签（只有输出该标签系统才会真正生成并发送图片）：
 <IMAGE prompt="详细的中文或英文画面描述；若出现东亚人物请明确写出东亚/中国年轻女性或男性、真实摄影质感、光线和构图" size="${defSize}" />
-${isModelScope ? '仅当用户明确要求基于上一张图“修改/换装/换背景/P一下”时才附带 ref="last"，并在 prompt 里写明“保持原图人物五官/发型/主体构图不变，只修改…”；若是要求“重拍/再来一张新照片”，请勿加 ref="last"，直接写新的 prompt（速度更快）。' : ''}
-注意：严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；${promptPolicy}`;
+${canEdit ? '改图/新图判定规则：当用户明确说基于上一张图“改一下、换装、换背景、P一下”时，必须附带 ref="last"，并在 prompt 里写明保持原图人物五官/主体不变、只修改指定部分；当用户说“拍一张、画一张、重拍、再来一张”时，严禁附带 ref="last"，直接全新画新画面。' : ''}
+prompt 写法铁律（非常重要）：
+- 写 prompt 必须只写正面视觉描述，把一切否定词直接改写成对应的正面词汇（例如：“不穿衣服”写成“裸体”，“不高兴”写成“生气”，“没戴眼镜”写成“双眼素颜清晰”），整段 prompt 里绝对不要留“不”字或任何否定表达；
+- 不要添加 negative 属性（后端固定 cfg 1.0，负向词无效）；
+- 严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；${promptPolicy}`;
   }
 
   function normalizeImageSize(rawSize) {
@@ -5362,9 +5396,11 @@ ${isModelScope ? '仅当用户明确要求基于上一张图“修改/换装/换
     const token = (state.settings.imgApiKey || '').trim();
     if (!token) throw new Error('未填写魔搭 Access Token');
     const cleanSize = normalizeImageSize(size);
-    const chosenModel = refImg
-      ? 'Qwen/Qwen-Image-2.1'
-      : ((state.settings.imgModel || '').trim() || 'Tongyi-MAI/Z-Image-Turbo');
+    const customModel = (state.settings.msImgCustomModel || '').trim();
+    const presetModel = (state.settings.msImgPreset || state.settings.imgModel || '').trim() || 'Tongyi-MAI/Z-Image-Turbo';
+    const chosenModel = customModel
+      ? customModel
+      : (refImg ? 'Qwen/Qwen-Image-2.1' : presetModel);
 
     const body = {
       model: chosenModel,
@@ -5478,33 +5514,36 @@ ${isModelScope ? '仅当用户明确要求基于上一张图“修改/换装/换
     }
   }
 
-  async function generateImageViaOpenAI({ prompt, size }) {
+  async function imageSrcToBlob(srcUrl) {
+    let safeSrc = String(srcUrl || '').trim();
+    if (safeSrc.startsWith('data:') && safeSrc.length > 2500000) {
+      try { safeSrc = await compressImageSrcToJpeg(safeSrc, 1536, 0.9); } catch {}
+    }
+    const res = await fetch(safeSrc);
+    if (!res.ok) throw new Error('参考图片读取失败');
+    return { blob: await res.blob(), dataOrUrl: safeSrc };
+  }
+
+  async function generateImageViaOpenAI({ prompt, size, refImg }) {
     const key = (state.settings.imgApiKey || state.settings.apiKey || '').trim();
     const base = (state.settings.imgBaseUrl || state.settings.baseUrl || '').trim().replace(/\/+$/, '');
-    const model = (state.settings.imgModel || '').trim();
+    const model = (state.settings.openaiImgModel || state.settings.imgModel || '').trim();
     if (!key || !base || !model) throw new Error('生图接口 Base URL、Key 或模型未填完整');
 
     const deadline = Date.now() + OPENAI_IMG_TIMEOUT_MS;
+    const cleanSize = normalizeOpenAISize(size, model);
     const authHeaders = {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json'
-    };
-    const reqBody = {
-      model,
-      prompt,
-      size: normalizeOpenAISize(size, model),
-      n: 1,
-      response_format: 'b64_json'
+      'Authorization': `Bearer ${key}`
     };
 
-    const postGen = async bodyObj => {
+    const postWithDeadline = async (endpoint, headers, body) => {
       const leftMs = deadline - Date.now();
       if (leftMs <= 1000) throw new Error('生图超时（已等待 200 秒），请稍后再试');
       try {
-        return await fetchWithTimeout(`${base}/images/generations`, {
+        return await fetchWithTimeout(endpoint, {
           method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify(bodyObj)
+          headers,
+          body
         }, leftMs);
       } catch (err) {
         if (err?.name === 'AbortError') throw new Error('生图超时（已等待 200 秒），请稍后再试');
@@ -5512,17 +5551,85 @@ ${isModelScope ? '仅当用户明确要求基于上一张图“修改/换装/换
       }
     };
 
-    let res = await postGen(reqBody);
-    if (!res.ok && (res.status === 400 || res.status === 422)) {
-      const errText = await res.text().catch(() => '');
-      if (/response_format|unknown[_ ]field|extra[_ ]inputs|unrecognized|unsupported/i.test(errText)) {
-        const fallbackBody = { ...reqBody };
-        delete fallbackBody.response_format;
-        res = await postGen(fallbackBody);
-      } else {
-        throw new Error(`生图请求失败 (${res.status}) ${errText.slice(0, 80)}`);
+    let res = null;
+    if (refImg) {
+      let refData = null;
+      try { refData = await imageSrcToBlob(refImg); } catch {}
+      if (refData?.blob) {
+        const buildEditForm = includeFmt => {
+          const fd = new FormData();
+          fd.append('model', model);
+          fd.append('prompt', prompt);
+          fd.append('size', cleanSize);
+          fd.append('n', '1');
+          fd.append('image', refData.blob, 'reference.jpg');
+          if (includeFmt) fd.append('response_format', 'b64_json');
+          return fd;
+        };
+        res = await postWithDeadline(`${base}/images/edits`, authHeaders, buildEditForm(true));
+        if (!res.ok && (res.status === 400 || res.status === 422)) {
+          const errText = await res.text().catch(() => '');
+          if (/response_format|unknown[_ ]field|extra[_ ]inputs|unrecognized|unsupported/i.test(errText)) {
+            res = await postWithDeadline(`${base}/images/edits`, authHeaders, buildEditForm(false));
+          } else if (/not[_ ]supported|not[_ ]implemented|multipart|edit/i.test(errText)) {
+            res = null;
+          } else {
+            throw new Error(`改图请求失败 (${res.status}) ${errText.slice(0, 80)}`);
+          }
+        } else if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 415 || res.status === 501)) {
+          res = null;
+        }
+      }
+      // Fallback: JSON /images/generations with image & image_url for relays supporting edit params there
+      if (!res) {
+        let safeRef = refData?.dataOrUrl || refImg;
+        if (safeRef.startsWith('data:') && safeRef.length > 2500000) {
+          try { safeRef = await compressImageSrcToJpeg(safeRef, 1536, 0.9); } catch {}
+        }
+        const editJsonBody = {
+          model,
+          prompt,
+          size: cleanSize,
+          n: 1,
+          image: safeRef,
+          image_url: safeRef,
+          response_format: 'b64_json'
+        };
+        const jsonHeaders = { ...authHeaders, 'Content-Type': 'application/json' };
+        res = await postWithDeadline(`${base}/images/generations`, jsonHeaders, JSON.stringify(editJsonBody));
+        if (!res.ok && (res.status === 400 || res.status === 422)) {
+          const errText = await res.text().catch(() => '');
+          if (/response_format|unknown[_ ]field|extra[_ ]inputs|unrecognized|unsupported/i.test(errText)) {
+            const fb = { ...editJsonBody };
+            delete fb.response_format;
+            res = await postWithDeadline(`${base}/images/generations`, jsonHeaders, JSON.stringify(fb));
+          } else {
+            throw new Error(`改图请求失败 (${res.status}) ${errText.slice(0, 80)}`);
+          }
+        }
+      }
+    } else {
+      const reqBody = {
+        model,
+        prompt,
+        size: cleanSize,
+        n: 1,
+        response_format: 'b64_json'
+      };
+      const jsonHeaders = { ...authHeaders, 'Content-Type': 'application/json' };
+      res = await postWithDeadline(`${base}/images/generations`, jsonHeaders, JSON.stringify(reqBody));
+      if (!res.ok && (res.status === 400 || res.status === 422)) {
+        const errText = await res.text().catch(() => '');
+        if (/response_format|unknown[_ ]field|extra[_ ]inputs|unrecognized|unsupported/i.test(errText)) {
+          const fallbackBody = { ...reqBody };
+          delete fallbackBody.response_format;
+          res = await postWithDeadline(`${base}/images/generations`, jsonHeaders, JSON.stringify(fallbackBody));
+        } else {
+          throw new Error(`生图请求失败 (${res.status}) ${errText.slice(0, 80)}`);
+        }
       }
     }
+
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
       throw new Error(`生图请求失败 (${res.status}) ${txt.slice(0, 80)}`);
@@ -6978,7 +7085,11 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   const aiPersonaStatus = document.getElementById('aiPersonaStatus');
   const cfgImgBaseUrl = document.getElementById('cfgImgBaseUrl');
   const cfgImgApiKey = document.getElementById('cfgImgApiKey');
+  const cfgMsCustomModel = document.getElementById('cfgMsCustomModel');
   const cfgImgModel = document.getElementById('cfgImgModel');
+  const fetchImgModelsBtn = document.getElementById('fetchImgModelsBtn');
+  const imgModelStatus = document.getElementById('imgModelStatus');
+  const imgModelSuggestions = document.getElementById('imgModelSuggestions');
   const imgConfigFields = document.getElementById('imgConfigFields');
   const imgBaseUrlField = document.getElementById('imgBaseUrlField');
   const imgKeyLabel = document.getElementById('imgKeyLabel');
@@ -6986,6 +7097,9 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
   const imgModelPresets = document.getElementById('imgModelPresets');
   const imgHintText = document.getElementById('imgHintText');
   const msTokenHelpLink = document.getElementById('msTokenHelpLink');
+  let detectedImgModels = [];
+  let detectImgSeq = 0;
+  let draftMsPreset = 'Tongyi-MAI/Z-Image-Turbo';
   const cfgAge = document.getElementById('cfgAge');
   const cfgAppearance = document.getElementById('cfgAppearance');
   const avatarEditBtn = document.getElementById('avatarEditBtn');
@@ -7197,6 +7311,98 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     });
   });
 
+  function setImgModelStatus(text, type = '') {
+    if (!imgModelStatus) return;
+    imgModelStatus.textContent = text;
+    imgModelStatus.className = 'model-status' + (type ? ' ' + type : '');
+  }
+
+  function renderImgModelSuggestions(filterText = '') {
+    if (!imgModelSuggestions) return;
+    if (draftImgProvider !== 'openai' || !detectedImgModels.length) {
+      imgModelSuggestions.classList.remove('show');
+      imgModelSuggestions.innerHTML = '';
+      return;
+    }
+    const q = filterText.trim().toLowerCase();
+    const matched = q
+      ? detectedImgModels.filter(id => id.toLowerCase().includes(q))
+      : detectedImgModels;
+    const list = matched.slice(0, 60);
+    imgModelSuggestions.innerHTML = '';
+    if (!list.length) {
+      imgModelSuggestions.classList.remove('show');
+      return;
+    }
+    const currentVal = cfgImgModel.value.trim();
+    list.forEach(id => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'model-pill' + (id === currentVal ? ' active' : '');
+      btn.textContent = id;
+      btn.onclick = () => {
+        cfgImgModel.value = id;
+        renderImgModelSuggestions('');
+      };
+      imgModelSuggestions.appendChild(btn);
+    });
+    imgModelSuggestions.classList.add('show');
+  }
+
+  async function detectAvailableImgModels() {
+    const base = (cfgImgBaseUrl.value.trim() || cfgBaseUrl.value.trim()).replace(/\/+$/, '');
+    const key = cfgImgApiKey.value.trim() || cfgApiKey.value.trim();
+    if (!base || !key) {
+      setImgModelStatus('请先填好生图或对话的 Base URL 和 API Key', 'err');
+      return;
+    }
+    const mySeq = ++detectImgSeq;
+    fetchImgModelsBtn.disabled = true;
+    fetchImgModelsBtn.textContent = '检测中…';
+    setImgModelStatus('正在查询 /models 接口…');
+    try {
+      const candidates = /\/v\d+$/i.test(base)
+        ? [`${base}/models`]
+        : [`${base}/models`, `${base}/v1/models`];
+      let res = null;
+      for (const ep of candidates) {
+        res = await fetch(ep, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        if (res.ok || (res.status !== 404 && res.status !== 405)) break;
+      }
+      if (mySeq !== detectImgSeq) return;
+      if (!res || !res.ok) {
+        const errText = res ? await res.text().catch(() => '') : '';
+        throw new Error(`HTTP ${res?.status || 'ERR'} ${errText.slice(0, 80)}`);
+      }
+      const json = await res.json();
+      if (mySeq !== detectImgSeq) return;
+      const rawList = Array.isArray(json.data) ? json.data : (Array.isArray(json.models) ? json.models : []);
+      const ids = [...new Set(rawList.map(item => (typeof item === 'string' ? item : item?.id || item?.name)).filter(Boolean))].sort();
+      if (!ids.length) {
+        detectedImgModels = [];
+        renderImgModelSuggestions();
+        setImgModelStatus('接口未返回模型列表，可手动填写模型名称');
+        return;
+      }
+      detectedImgModels = ids;
+      setImgModelStatus(`✓ 已检测到 ${ids.length} 个模型${ids.length > 60 ? '（输入关键词可筛选）' : '，点击下方即可选用'}`, 'ok');
+      renderImgModelSuggestions('');
+    } catch (err) {
+      if (mySeq !== detectImgSeq) return;
+      detectedImgModels = [];
+      renderImgModelSuggestions();
+      setImgModelStatus(`未能获取模型列表（${err.message}），可手动填写`, 'err');
+    } finally {
+      if (mySeq === detectImgSeq) {
+        fetchImgModelsBtn.disabled = false;
+        fetchImgModelsBtn.textContent = '↻ 检测模型';
+      }
+    }
+  }
+
   function syncImgProviderUI(provider, trigger = draftImgTrigger) {
     draftImgProvider = provider || 'off';
     draftImgTrigger = trigger === 'auto' ? 'auto' : 'asked';
@@ -7212,39 +7418,47 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
     const isMs = draftImgProvider === 'modelscope';
     imgBaseUrlField.style.display = isMs ? 'none' : 'block';
     imgModelPresets.style.display = isMs ? 'flex' : 'none';
+    if (cfgMsCustomModel) cfgMsCustomModel.style.display = isMs ? 'block' : 'none';
+    cfgImgModel.style.display = isMs ? 'none' : 'block';
+    if (fetchImgModelsBtn) fetchImgModelsBtn.style.display = isMs ? 'none' : 'inline-flex';
     if (msTokenHelpLink) msTokenHelpLink.style.display = isMs ? 'inline-flex' : 'none';
     imgKeyLabel.textContent = isMs ? '魔搭访问令牌（Access Token）' : '生图 API Key（留空则复用上方对话 Key）';
     cfgImgApiKey.placeholder = isMs ? 'ms-...' : 'sk-...（留空复用）';
-    imgModelLabel.textContent = isMs ? '生图模型（支持粘贴 LoRA 模型 ID）' : '生图模型名称';
-    cfgImgModel.placeholder = isMs ? 'Tongyi-MAI/Z-Image-Turbo' : 'gpt-image-1 / dall-e-3 / flux';
-    if (isMs && !cfgImgModel.value.trim()) cfgImgModel.value = 'Tongyi-MAI/Z-Image-Turbo';
-    const curM = cfgImgModel.value.trim();
-    document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.imgModel === curM);
-    });
+    imgModelLabel.textContent = isMs ? '生图模型（三选一，或下方手填优先）' : '生图模型名称';
+    if (isMs) {
+      const customVal = cfgMsCustomModel.value.trim();
+      const activePreset = customVal ? '' : (draftMsPreset || 'Tongyi-MAI/Z-Image-Turbo');
+      document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.imgModel === activePreset);
+      });
+      imgModelSuggestions.classList.remove('show');
+      setImgModelStatus(customVal ? `当前将优先使用手填模型：${customVal}` : `当前已选固定模型：${activePreset}`);
+    } else {
+      renderImgModelSuggestions(cfgImgModel.value);
+      if (!detectedImgModels.length) setImgModelStatus('');
+    }
     imgHintText.textContent = isMs
-      ? '魔搭每日约 250 魔粒免费额度；提及改图/换装会自动切 Qwen-2.1 异步生成并立刻保存到本地。'
-      : '调用所填地址下的标准 /images/generations 接口；支持慢速直出与 task_id 异步轮询（后台异步不卡聊，超时 200 秒）。';
+      ? '魔搭每日约 250 魔粒免费额度；留空手填框时改图/换装自动切 Qwen-2.1，手填了别的模型名就用填的。'
+      : '支持标准同步、ref="last" 改图与 task_id 异步轮询（后台并发，超时 200 秒）。';
   }
 
+  if (fetchImgModelsBtn) {
+    fetchImgModelsBtn.onclick = () => detectAvailableImgModels();
+  }
   document.querySelectorAll('#imgProviderPicker [data-img-provider]').forEach(btn => {
-    btn.onclick = () => {
-      const next = btn.dataset.imgProvider;
-      if (next === 'modelscope' && (!cfgImgModel.value.trim() || !cfgImgModel.value.includes('/'))) {
-        cfgImgModel.value = 'Tongyi-MAI/Z-Image-Turbo';
-      } else if (next === 'openai' && cfgImgModel.value.includes('/')) {
-        cfgImgModel.value = '';
-      }
-      syncImgProviderUI(next, draftImgTrigger);
-    };
+    btn.onclick = () => syncImgProviderUI(btn.dataset.imgProvider, draftImgTrigger);
   });
   document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
     btn.onclick = () => {
-      cfgImgModel.value = btn.dataset.imgModel;
+      draftMsPreset = btn.dataset.imgModel;
+      if (cfgMsCustomModel) cfgMsCustomModel.value = '';
       syncImgProviderUI(draftImgProvider, draftImgTrigger);
     };
   });
-  cfgImgModel.addEventListener('input', () => syncImgProviderUI(draftImgProvider, draftImgTrigger));
+  if (cfgMsCustomModel) {
+    cfgMsCustomModel.addEventListener('input', () => syncImgProviderUI(draftImgProvider, draftImgTrigger));
+  }
+  cfgImgModel.addEventListener('input', () => renderImgModelSuggestions(cfgImgModel.value));
   document.querySelectorAll('#imgTriggerPicker [data-img-trigger]').forEach(btn => {
     btn.onclick = () => syncImgProviderUI(draftImgProvider, btn.dataset.imgTrigger);
   });
@@ -7958,7 +8172,10 @@ ${traits}
     cfgModel.value = state.settings.model;
     cfgImgBaseUrl.value = state.settings.imgBaseUrl || '';
     cfgImgApiKey.value = state.settings.imgApiKey || '';
-    cfgImgModel.value = state.settings.imgModel || '';
+    draftMsPreset = state.settings.msImgPreset || 'Tongyi-MAI/Z-Image-Turbo';
+    if (cfgMsCustomModel) cfgMsCustomModel.value = state.settings.msImgCustomModel || '';
+    cfgImgModel.value = state.settings.openaiImgModel || (state.settings.imgProvider === 'openai' ? (state.settings.imgModel || '') : '');
+    detectedImgModels = [];
     syncImgProviderUI(state.settings.imgProvider || 'off', state.settings.imgTrigger || 'asked');
     draftImgSize = state.settings.imgDefaultSize || '1152x1536';
     syncImgSizePickerUI();
@@ -8086,7 +8303,12 @@ ${traits}
     state.settings.imgProvider = draftImgProvider;
     state.settings.imgBaseUrl = cfgImgBaseUrl.value.trim();
     state.settings.imgApiKey = cfgImgApiKey.value.trim();
-    state.settings.imgModel = cfgImgModel.value.trim();
+    state.settings.msImgPreset = draftMsPreset || 'Tongyi-MAI/Z-Image-Turbo';
+    state.settings.msImgCustomModel = cfgMsCustomModel ? cfgMsCustomModel.value.trim() : '';
+    state.settings.openaiImgModel = cfgImgModel.value.trim();
+    state.settings.imgModel = draftImgProvider === 'modelscope'
+      ? (state.settings.msImgCustomModel || state.settings.msImgPreset)
+      : (draftImgProvider === 'openai' ? state.settings.openaiImgModel : (state.settings.imgModel || ''));
     state.settings.imgTrigger = draftImgTrigger;
     state.settings.imgDefaultSize = draftImgSize || '1152x1536';
     state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
