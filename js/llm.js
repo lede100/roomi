@@ -208,25 +208,39 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   let fullText = '';
+  const FIRST_CHUNK_IDLE_MS = 140000;
   const STREAM_IDLE_MS = 75000;
+  let receivedAnyChunk = false;
+  let idleTimedOut = false;
 
   try {
     while (true) {
       let idleTimer = null;
+      const waitMs = receivedAnyChunk ? STREAM_IDLE_MS : FIRST_CHUNK_IDLE_MS;
       const readRes = await Promise.race([
         reader.read(),
         new Promise((_, reject) => {
           idleTimer = setTimeout(() => {
-            try { reader.cancel(); } catch {}
-            const tErr = new Error('流式响应长时间无新内容（已等待 75 秒），已自动断开，请点击重试');
+            idleTimedOut = true;
+            const secs = Math.round(waitMs / 1000);
+            const tErr = new Error(`流式响应长时间无新内容（已等待 ${secs} 秒），已自动断开，请点击重试`);
             tErr.name = 'TimeoutError';
             tErr.isTimeout = true;
             reject(tErr);
-          }, STREAM_IDLE_MS);
+            try { reader.cancel(); } catch {}
+          }, waitMs);
         })
       ]).finally(() => { if (idleTimer) clearTimeout(idleTimer); });
+      if (idleTimedOut) {
+        const secs = Math.round(waitMs / 1000);
+        const tErr = new Error(`流式响应长时间无新内容（已等待 ${secs} 秒），已自动断开，请点击重试`);
+        tErr.name = 'TimeoutError';
+        tErr.isTimeout = true;
+        throw tErr;
+      }
       const { value, done } = readRes;
       if (done) break;
+      receivedAnyChunk = true;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || '';

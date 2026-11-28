@@ -1,6 +1,6 @@
 import { todayKey } from './utils.js';
 
-export const APP_VERSION = '0.23.5';
+export const APP_VERSION = '0.23.6';
 const PBKDF2_ITERATIONS = 120000;
 
 function bytesToBase64(bytes) {

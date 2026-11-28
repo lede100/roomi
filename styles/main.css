@@ -989,7 +989,7 @@ button:focus-visible { outline: 2px solid var(--blue-border); outline-offset: 1p
 .model-pill:hover { border-color: var(--blue-border); color: var(--blue); }
 .model-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .set-tabs {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  display: grid; grid-template-columns: 1fr 1fr;
   background: var(--surface-muted); padding: 3px; border-radius: 11px;
   margin-bottom: 14px;
 }

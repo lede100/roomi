@@ -308,7 +308,9 @@ export function initSettingsUI() {
     if (memSummaryInput && document.activeElement !== memSummaryInput) {
       memSummaryInput.value = runtime.state.memorySummary || '';
     }
-    refreshMemoryView();
+    renderMemoryModalList();
+    renderSceneStatesList();
+    updateMemStats();
   }
 
   if (memSummaryInput) {
