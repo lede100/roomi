@@ -20,9 +20,10 @@ export function isImageGenReady() {
   return false;
 }
 
-export function getImagePromptSection() {
+export function getImagePromptSection(needImage = true) {
   if (!(runtime.state.settings.apiKey || '').trim() || !isImageGenReady()) return '';
   const isAuto = runtime.state.settings.imgTrigger === 'auto';
+  if (!isAuto && !needImage) return '';
   const isModelScope = runtime.state.settings.imgProvider === 'modelscope';
   const canEdit = isModelScope || runtime.state.settings.imgProvider === 'openai';
   const defSize = normalizeImageSize(getEffectiveImageSize());
@@ -668,7 +669,7 @@ export function enqueueImageTask(task) {
     try {
       const targetChar = runtime.state.characters.find(c => c.id === task.charId);
       if (!targetChar) return;
-      const appearanceAnchor = (targetChar.appearance || runtime.state.settings.appearance || '').trim();
+      const appearanceAnchor = (targetChar.appearance || '').trim();
       const apiPrompt = (!task.refImg && appearanceAnchor && !task.prompt.includes(appearanceAnchor))
         ? `人物固定外貌与穿搭参考：${appearanceAnchor}。画面场景：${task.prompt}`
         : task.prompt;

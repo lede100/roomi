@@ -128,6 +128,7 @@ export const runtime = {
   activeAbortController: null,
   bannerTimer: null,
   saveTimer: null,
+  widgetRenderEpoch: 0,
   keyGuideDismissedSession: false,
   personaShiftPending: false,
   iframeRegistry: new Map(),

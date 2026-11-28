@@ -170,18 +170,21 @@ export function summarizeWidgetBoardForContext(widgets, widgetStates, todayStr =
     }
 
     // 3. Period / body calendar widget
-    if (st.lastStart || Array.isArray(st.logs)) {
+    const isPeriodLogs = Array.isArray(st.logs) && st.logs.some(l => l && (l.type === 'start' || l.type === 'pain'));
+    if (st.lastStart || isPeriodLogs) {
       const parts = [];
       if (st.lastStart) {
         const diffDays = Math.max(1, Math.floor((now - Number(st.lastStart)) / 86400000) + 1);
         if (diffDays <= 45) parts.push(`距上次记录开始第 ${diffDays} 天`);
       }
-      if (Array.isArray(st.logs) && st.logs.length) {
+      if (isPeriodLogs) {
         const recentPain = [...st.logs].reverse().find(l => l && l.type === 'pain' && (now - Number(l.at || 0) <= 36 * 3600 * 1000));
         if (recentPain) parts.push('近36小时内记录过身体不舒服');
       }
-      if (parts.length) lines.push(`- ${title}：${parts.join('，')}`);
-      continue;
+      if (parts.length) {
+        lines.push(`- ${title}：${parts.join('，')}`);
+        continue;
+      }
     }
 
     // 4. Shared todo list

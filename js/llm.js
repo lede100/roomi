@@ -52,7 +52,10 @@ export function isContextLimitError(err) {
 
 export function isVisionUnsupportedError(err) {
   const msg = String(err?.message || '').toLowerCase();
-  return /(vision|image_url|image|multimodal|does not support|not support.*media|content must be a string|expected a string|invalid type.*array|415|422)/.test(msg);
+  if (/(vision|image_url|multimodal|not support.*(image|media|vision)|does not support.*(image|media|vision)|content must be a string|expected a string|invalid type.*array)/.test(msg)) {
+    return true;
+  }
+  return /(415|422)/.test(msg) && /(vision|image|multimodal|media|content|array)/.test(msg);
 }
 
 export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = false, budgetChars = null, hasPendingImg = false) {
@@ -67,7 +70,7 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
 
   const historyMsgs = built.msgs;
   const intents = detectPromptIntents(historyMsgs, promptOverride);
-  const dynNote = buildDynamicContextNote(intents.needWidget, historyMsgs);
+  const dynNote = buildDynamicContextNote(intents.needWidget, historyMsgs, intents.needImage);
 
   // Put <context_memo> directly above the latest user text so ALL relays/proxies preserve it 100% cleanly without mid-array system rejection
   if (dynNote) {
@@ -190,7 +193,26 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
 
   const contentType = res.headers.get('content-type') || '';
   if (!useStream || !res.body || contentType.includes('application/json')) {
-    const rawBody = await res.text();
+    const BODY_READ_TIMEOUT_MS = 140000;
+    let bodyTimer = null;
+    let rawBody = '';
+    try {
+      rawBody = await Promise.race([
+        res.text(),
+        new Promise((_, reject) => {
+          bodyTimer = setTimeout(() => {
+            const tErr = new Error('响应正文读取超时（已等待 140 秒），已自动断开，请点击重试');
+            tErr.name = 'TimeoutError';
+            tErr.isTimeout = true;
+            reject(tErr);
+            try { runtime.activeAbortController?.abort(); } catch {}
+          }, BODY_READ_TIMEOUT_MS);
+        })
+      ]);
+    } finally {
+      if (bodyTimer) clearTimeout(bodyTimer);
+      if (typeof res.__cleanupAbort === 'function') res.__cleanupAbort();
+    }
     let reply = '';
     try {
       const json = JSON.parse(rawBody);
@@ -199,7 +221,6 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
       const sseText = extractSseLines(rawBody.split(/\r?\n/));
       reply = sseText || '刚才走神了，再跟我说一遍？';
     }
-    if (typeof res.__cleanupAbort === 'function') res.__cleanupAbort();
     runtime.personaShiftPending = false;
     return reply;
   }

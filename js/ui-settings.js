@@ -35,6 +35,7 @@ import {
   formatSceneAge,
   maybeCompressHistory
 } from './memory.js';
+import { stripThinkingTags } from './prompt.js';
 import {
   buildBackupPackage,
   saveLocalBackupFile,
@@ -1098,6 +1099,7 @@ export function initSettingsUI() {
     ui.cancelPendingSendBurst?.();
     ui.clearPendingQuote?.();
     flushActiveCharToList();
+    refreshMemoryView();
     scheduleSave();
     applyCardToEditorFields({
       id: runtime.state.activeCharId,
@@ -1209,6 +1211,7 @@ export function initSettingsUI() {
         removeSceneStateByKey(s.key);
         scheduleSave();
         renderSceneStatesList();
+        updateMemStats();
       };
       listEl.appendChild(row);
     });
@@ -1220,6 +1223,7 @@ export function initSettingsUI() {
       runtime.state.sceneStates = [];
       scheduleSave();
       renderSceneStatesList();
+      updateMemStats();
     };
   }
 
@@ -1332,23 +1336,30 @@ export function initSettingsUI() {
         seedText ? `原有/补充设定：${seedText}` : ''
       ].filter(Boolean).join('\n');
 
-      const ask = `请根据下面这些要素，为伴侣聊天 App 捏造一个活灵活现、像真人微信聊天的角色卡。
-  当前名称：${curName && curName !== '新伙伴' ? curName : '未定（请起一个自然好听、有烟火气的中文名）'}
-  ${traits || '温柔体贴、有轻微反差萌的伴侣'}
+      const curAnchors = (document.getElementById('cfgAnchors')?.value || '').trim();
+      const curSample = (document.getElementById('cfgSampleDialogue')?.value || '').trim();
+      const ask = `请基于以下设定，润色并丰满这张角色卡，让 TA 聊起来像真实活人而非客服：
+当前名称：${curName && curName !== '新伙伴' ? curName : '未定（请起一个自然有烟火气的名字）'}
+${traits || '有鲜明性格与反差感的伴侣'}
+${curAnchors ? `已有防飘规则（请优先保留原意再微调）：${curAnchors}` : ''}
+${curSample ? `已有说话示范（请优先保留原有口吻再润色补充）：\n${curSample}` : ''}
 
-  要求：
-  1. persona 用第二人称（“你是…”）写，突出性格反差、具体小习惯、口癖和对用户的偏心互动；
-  2. 强调说话像微信日常聊天口语短句、绝不说教也不用 1.2.3. 列表腔；
-  3. 只输出纯 JSON：{"name":"角色名字","persona":"140~240字完整人设","appearance":"15~35字外貌身材穿搭描摹（用于保持生图一致）","greeting":"1~2句贴合性格的自然微信开场白"}`;
+要求：
+1. 完整保留原有核心设定与关系定位，不篡改用户已定的风格、口癖或称呼；
+2. persona 用第二人称（“你是…”）写，140~240字，把抽象性格改写成具体习惯、互动细节与情绪表达方式；
+3. anchors（35~80字）提炼该角色专属的称呼、标点/句长风格及典型反应习惯；
+4. sampleDialogue 写出 3 组贴合该角色画风的对白示范（每行一组「用户：... → TA：...」，多条短句可用 ||| 分隔）；
+5. 只输出纯 JSON：
+{"name":"角色名字","persona":"140~240字完整人设","anchors":"语言指纹与防飘铁规","sampleDialogue":"三行对话示范","appearance":"15~35字外貌身材穿搭描述","greeting":"1~2句自然开场白"}`;
 
-        const res = await fetchWithTimeout(`${base}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
-        }, 45000);
+      const res = await fetchWithTimeout(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
+      }, 45000);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
+      const raw = stripThinkingTags(json.choices?.[0]?.message?.content || '');
       const m = raw.match(/\{[\s\S]*\}/);
       if (m) {
         const parsed = JSON.parse(m[0]);
@@ -1357,6 +1368,18 @@ export function initSettingsUI() {
         }
         if (parsed.persona) {
           document.getElementById('cfgPersona').value = String(parsed.persona).trim();
+        }
+        if (parsed.anchors) {
+          const anchorsEl = document.getElementById('cfgAnchors');
+          if (anchorsEl) anchorsEl.value = String(parsed.anchors).trim();
+        }
+        if (parsed.sampleDialogue) {
+          const sampleEl = document.getElementById('cfgSampleDialogue');
+          if (sampleEl) {
+            sampleEl.value = Array.isArray(parsed.sampleDialogue)
+              ? parsed.sampleDialogue.join('\n').trim()
+              : String(parsed.sampleDialogue).trim();
+          }
         }
         if (parsed.appearance) {
           cfgAppearance.value = String(parsed.appearance).trim();
@@ -1368,6 +1391,7 @@ export function initSettingsUI() {
         document.getElementById('cfgPersona').value = raw.trim();
       }
       refreshAvatarEditPreview();
+      syncSettingsAccordionBadges();
       statusEl.textContent = '✓ 角色已捏好，点下方「保存并应用」立刻生效';
       statusEl.className = 'model-status ok';
     } catch (err) {
@@ -1397,6 +1421,8 @@ export function initSettingsUI() {
     let genPersona = `你是用户的${relation}「${genName}」${customGender ? '（' + customGender + '）' : ''}${genAge ? '，' + genAge + '岁' : ''}，性格${personality || '温柔体贴又带点黏人撒娇'}。平时有着${habits || '深夜喜欢黏着你聊天的'}习惯。只对用户一个人偏心软萌、绝不端着或说教，说话自然像两个人的亲密微信私聊。`;
     let genAppearance = appearance;
     let genGreeting = buildNaturalStarter(genName);
+    let genAnchors = '';
+    let genSampleDialogue = '';
 
     if (key && base && model) {
       gbGenerateBtn.disabled = true;
@@ -1414,28 +1440,40 @@ export function initSettingsUI() {
           habits ? `喜好与小习惯：${habits}` : ''
         ].filter(Boolean).join('\n');
 
-        const ask = `请根据以下设定为私密伴侣聊天 App 生成一张角色卡：
-  ${traits}
+        const ask = `请根据以下要素，为伴侣聊天 App 生成一张极具“活人感”的角色卡：
+${traits}
 
-  要求：
-  1. 若用户已指定姓名/年龄/性别，必须严格沿用；
-  2. persona 用第二人称（“你是…”）写，140~240字，突出私密亲昵感、只对用户展现的偏爱与反差、说话口癖与小习惯，强调像真人微信私聊口语、能一句话说完绝不硬凑三句、绝不说教也不用列表腔；
-  3. 只输出纯 JSON：{"name":"姓名","age":"年龄数字","persona":"完整人设","appearance":"15~35字身材外貌穿搭描述","greeting":"1句贴合性格的自然开场白"}`;
+要求：
+1. 若用户已指定姓名、年龄、性别，必须严格沿用；
+2. persona 用第二人称（“你是…”）写，140~240字，重点写性格里的真实反差、具体生活习惯、对用户的独特偏心方式与底线，少堆砌空泛形容词；
+3. anchors（35~80字）写该角色专属的“语言指纹”：包含怎么称呼用户、标点与句长习惯（如偏爱短句还是细腻长句、用不用波浪号/句号）、以及遇到“被夸 / 被敷衍 / 吃醋”时的典型本能反应；
+4. sampleDialogue 写 3 组不同情景的真实对话示范（每行一组，格式为「用户：... → TA：...」，气泡停顿可用 ||| 隔开）：
+   - 第 1 组：日常随口闲聊
+   - 第 2 组：用户只发极短或敷衍回复（如“哦哦”“嗯”）时 TA 的反应
+   - 第 3 组：亲密互动、关心或带点小情绪时的反应
+5. 只输出纯 JSON，不要附加解释：
+{"name":"姓名","age":"年龄数字","persona":"完整人设","anchors":"称呼、标点句长习惯与典型反应","sampleDialogue":"三行对话示范","appearance":"15~35字身材外貌穿搭描述","greeting":"1句自然不端着的开场白"}`;
 
-          const res = await fetchWithTimeout(`${base}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-            body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
-          }, 45000);
+        const res = await fetchWithTimeout(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+          body: JSON.stringify({ model, temperature: 0.85, stream: false, messages: [{ role: 'user', content: ask }] })
+        }, 45000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        const raw = String(json.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
+        const raw = stripThinkingTags(json.choices?.[0]?.message?.content || '');
         const m = raw.match(/\{[\s\S]*\}/);
         if (m) {
           const parsed = JSON.parse(m[0]);
           if (!customName && parsed.name) genName = String(parsed.name).trim();
           if (!customAge && parsed.age) genAge = String(parsed.age).trim();
           if (parsed.persona) genPersona = String(parsed.persona).trim();
+          if (parsed.anchors) genAnchors = String(parsed.anchors).trim();
+          if (parsed.sampleDialogue) {
+            genSampleDialogue = Array.isArray(parsed.sampleDialogue)
+              ? parsed.sampleDialogue.join('\n').trim()
+              : String(parsed.sampleDialogue).trim();
+          }
           if (parsed.appearance) genAppearance = String(parsed.appearance).trim();
           if (parsed.greeting) genGreeting = String(parsed.greeting).trim();
         }
@@ -1464,6 +1502,8 @@ export function initSettingsUI() {
       age: genAge,
       gender: customGender,
       persona: genPersona,
+      anchors: genAnchors,
+      sampleDialogue: genSampleDialogue,
       appearance: genAppearance,
       avatarImage: gbDraftAvatarImage,
       avatarColor: palette[runtime.state.characters.length % palette.length],
@@ -1810,12 +1850,14 @@ export function initSettingsUI() {
         runtime.personaShiftPending = false;
         ui.cancelPendingSendBurst?.();
         ui.clearPendingQuote?.();
+        runtime.widgetRenderEpoch = (runtime.widgetRenderEpoch || 0) + 1;
         applyTheme(runtime.state.settings.theme);
         ui.renderHeader?.();
         ui.syncChatModeQuickBtn?.();
         ui.renderChat?.();
         ui.renderWidgets?.();
-        updateMemStats();
+        refreshMemoryView();
+        ui.syncDailyNotifications?.(runtime.state.settings.dailyNotify);
         settingsModal.classList.remove('show');
         showWarn(`✓ 已恢复 ${sum.charCount} 个角色与 ${sum.msgCount} 条聊天记录`, true);
         setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 3200);
@@ -1845,11 +1887,14 @@ export function initSettingsUI() {
     runtime.personaShiftPending = false;
     ui.cancelPendingSendBurst?.();
     ui.clearPendingQuote?.();
+    runtime.widgetRenderEpoch = (runtime.widgetRenderEpoch || 0) + 1;
     applyTheme(runtime.state.settings.theme);
     ui.renderHeader?.();
     ui.syncChatModeQuickBtn?.();
     ui.renderChat?.();
     ui.renderWidgets?.();
+    refreshMemoryView();
+    ui.syncDailyNotifications?.(runtime.state.settings.dailyNotify);
     settingsModal.classList.remove('show');
   };
 

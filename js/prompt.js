@@ -357,7 +357,7 @@ export function detectPromptIntents(historyMsgs, promptOverride = '') {
   const needWidget = /(组件|小窝|家里|工具|打卡|转盘|倒计时|罐子|清单|卡片|日历|面板|做个|做一|改一下|修好|widget)/i.test(recentSlice);
   const needImage = isImageGenReady() && (
     state.settings.imgTrigger === 'auto' ||
-    /(拍照|自拍|照片|图片|画|看你|发张|重拍|换装|换背景|修图|p一下|穿搭|长什么样|image)/i.test(recentSlice)
+    /(拍照|拍一张|拍个|拍给|拍吧|自拍|照片|图片|发一张|发张|来一张|画|看你|看看|发我看|给我看|露个脸|重拍|换装|换背景|修图|p一下|穿搭|长什么样|image)/i.test(recentSlice)
   );
   return { needWidget, needImage };
 }
@@ -397,32 +397,57 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
     ? `\n\n【TA 真实说话示范（${isStory ? '沿用短句、节奏与语气' : '仅沿用口癖、短句节奏与语气；忽略任何旁白或动作格式'}）】\n${promptSample}`
     : '';
 
-  const continuityRule = '【事实与场景连贯铁律（单一事实源，最高优先级）】\n回复前必须核对上文已确立的全部事实、后台【当前实时场景状态】与长期记忆，严禁自相矛盾、吃书或凭空编造未发生的事：\n1. 空间与在场：牢记自己所在房间/地点、谁在场或不在场（例如刚说了他人在客厅，绝不能转头说一个人在家）；\n2. 时间与进度：分清每件事是还没做、正在做还是已做完，尊重刚确立的话题边界；\n3. 穿着、物品与身体状态：保持衣着、手持物品、灯光开关与困倦/身体状态连贯；\n4. 约定与情绪立场：遵守刚答应或拒绝的事，承接当前心情与称呼。';
+  const continuityRule = [
+    '【事实与场景连贯（单一事实源）】',
+    '回复前先核对前文已确立的事实、后台【当前实时场景状态】与长期记忆，保持前后一致：',
+    '1. 空间与在场：记住所在位置与谁在场或不在场；',
+    '2. 进度与边界：分清事情尚未开始、正在进行还是已经完成；',
+    '3. 状态与物品：保持衣着、手持物品、环境细节与身体状态连贯；',
+    '4. 约定与立场：承接已经答应或拒绝的事。'
+  ].join('\n');
+
+  const livingRule = [
+    '【自然对话原则（严格服从上方角色人设）】',
+    '1. 抓重点回应：对方一次说很多事时，挑最能牵动角色注意力的 1~2 个点顺着接话，其余自然略过，不必逐条审题回复。',
+    '2. 独立视角与主体性：站在角色自己的处境、偏好与当下生活状态说话；顺从、反驳、敷衍还是偏心，完全按人设本能反应。',
+    '3. 情绪惯性：情绪与态度会自然延续，前文刚产生的在意、别扭、开心或防备会带着余温过渡，按角色性格慢慢化解或加深。',
+    '4. 自然留白：话说到位即可停住，让对话有呼吸感，无需每轮都主动找新话题、提建议或抛反问句。'
+  ].join('\n');
 
   const modeRule = isStory
-    ? '1. 「小剧场」模式：保持入戏，自然带有 *神态、动作、眼神* 描写推进互动；不用说教与 1.2.3. 列表腔。\n2. 篇幅随场景自然流动，需要换气停顿时再用 ||| 拆成 1~3 条。'
-    : '1. 「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只输出手机聊天里真人发出的纯口语文字；即使前文或档案带有动作/旁白格式，此处也只写纯对话。\n2. 不使用星号动作标记、括号神态旁白或 1.2.3. 列表腔，情绪通过用词与节奏自然流露。\n3. 长短随当下气氛走，短回应可一句话直出，话多时再用 ||| 拆成 1~3 条短气泡。';
+    ? [
+        '1. 「小剧场」模式：保持完全入戏，将 *神态、动作、眼神或环境细节* 自然揉进对话里推进互动。',
+        '2. 篇幅与节奏随当下场景流动，需要换气停顿时再用 ||| 拆成 1~3 条气泡。'
+      ].join('\n')
+    : [
+        '1. 「日常纯文字聊天」模式：只输出角色在手机聊天软件里实际发出的纯对话文字，不带动作旁白与编号列表，情绪与潜台词通过选词、停顿和句长变化自然流露。',
+        '2. 句长随气氛自由起伏，短回应可以一句话甚至几个字直出，话多时再用 ||| 拆成 1~3 条短气泡。'
+      ].join('\n');
 
   const widgetRule = needWidget
     ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})。规范：①禁止写 height:100vh 或 min-height:100vh（按内容自然撑高）；②禁止用 localStorage，读写状态用 CompanionBridge.getState()/saveState(obj)；③每次关键按钮点击或状态变化时，必须同时调 CompanionBridge.saveState(st) 与 CompanionBridge.emit('简短说明用户刚做了什么') 以便伴侣实时看到并回应；④只写片段（<style>+HTML+<script>），不要套 <!DOCTYPE>/<html>/<head>/<body> 外壳，也不要在 JS 字符串里直接写 </script></WIDGET>`
     : '';
-  const imgRule = getImagePromptSection();
+  const imgRule = ((state.settings.apiKey || '').trim() && isImageGenReady())
+    ? '\n- 需发图/拍照时（按用户要求或气氛需要）可在句末附：<IMAGE prompt="正向画面描述" />（详细规格见下方备忘）'
+    : '';
 
-  return `【私密伴侣身份档案（静态锚点，绝不跳脱或反问自己是谁）】
+  return `【角色身份档案（静态锚点，始终保持第一人称入戏）】
 名字：${charName}${genderLine}${ageLine}${appearanceBlock}
 性格与相处方式：
 ${promptPersona}${anchorBlock}${sampleBlock}
 
 ${continuityRule}
 
+${livingRule}
+
 【当前聊天形式与输出格式】
 ${modeRule}
 
-【极简后台暗标（用户不可见，别说破）】
-- 情绪波动时附：<AFFECTION delta="+1" mood="二到四字心情" />
-- 当任何会持续影响后续对话的当前现状确立或变化时（如谁在场/在哪个房间、自己位置、穿着物品、灯光环境、正在做的事、刚答应/拒绝的约定）附：<STATE key="事项名" value="当前状态" />（同 key 自动覆盖旧值，作废用 op="del"）
-- 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
-- 对方明确让你记待办、勾掉待办或换家里便利贴时可附：<BOARD op="todo_add" text="待办内容" />、<BOARD op="todo_done" text="关键词" /> 或 <BOARD op="note" text="便利贴内容" />${widgetRule}${imgRule}`;
+【后台隐藏标签（用户不可见，无需提及）】
+- 情绪变化时附：<AFFECTION delta="+1" mood="二到四字心情" />
+- 影响后续对话的现状确立或变化时（在场人物、位置、衣着物品、环境、正在做的事、新约定）附：<STATE key="事项名" value="当前状态" />（同 key 覆盖旧值，作废用 op="del"）
+- 值得记一月以上的长期个人事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
+- 对方让你记待办、勾掉待办或更新家里便利贴时附：<BOARD op="todo_add" text="待办内容" />、<BOARD op="todo_done" text="关键词" /> 或 <BOARD op="note" text="便利贴内容" />${widgetRule}${imgRule}`;
 }
 
 const TRIVIAL_PHRASES = new Set(['不是的', '怎么了', '有没有', '什么事', '为什么', '不知道', '差不多', '没关系', '的时候', '都可以', '真的吗', '好不好']);
@@ -478,7 +503,7 @@ export function detectRepetitivePhrases(recentAssistantTexts) {
   return hits;
 }
 
-export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
+export function buildDynamicContextNote(needWidget = false, windowMsgs = null, needImage = false) {
   const state = runtime.state;
   const charName = state.settings.name || '林澈';
   const isStory = state.settings.chatMode === 'story';
@@ -514,7 +539,15 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
   }
   if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
   if (memLines) lines.push(`命中长期记忆：\n${memLines}`);
-  if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
+  const hasOutOfWindowHistory = (runtime.lastWindowStartIndex || 0) > 0 || (Array.isArray(state.messages) && state.messages.length <= 2);
+  if (state.memorySummary && hasOutOfWindowHistory) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
+  if (needImage) {
+    const fullImgSec = getImagePromptSection(true).trim();
+    if (fullImgSec) {
+      const appRef = (state.settings.appearance || '').trim();
+      lines.push(appRef ? `${fullImgSec}\n人物外貌与穿搭参考：${appRef}` : fullImgSec);
+    }
+  }
   if (runtime.personaShiftPending) {
     lines.push(isStory
       ? '即时提醒：刚刚开启了小剧场或更新了人设，从本条起立刻按最新设定入戏。'
@@ -537,7 +570,7 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
     .map(m => String(m.text).trim());
   const recentAsstMsgs = recentAsstAll.slice(-2);
   if (recentAsstMsgs.length === 2 && recentAsstMsgs.every(t => /[?？]\s*$/.test(t))) {
-    lines.push('节奏提醒：你已连续两轮以问句结尾，本轮直接自然接话即可，不要再抛反问句收尾。');
+    lines.push('节奏提醒：前两轮已连续以问句结尾，本轮用符合角色性格的陈述、回应或留白自然收尾。');
   }
   const repHits = detectRepetitivePhrases(recentAsstAll);
   if (repHits.length) {
@@ -578,7 +611,7 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
     sampleAnchor ? `口吻示范：${sampleAnchor}` : ''
   ].filter(Boolean).join('；');
   lines.push(
-    `回前自检与口吻校准：回复前先核对前文已确立的全部事实（空间与在场人物、事件进度、穿着物品、约定与情绪）及【当前实时场景状态】，绝不自相矛盾或吃书，现状有变请附 <STATE> 更新；以「${charName}」本人语气接下方这句${anchorSuffix ? `（${anchorSuffix}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语，无星号或括号旁白'}。`
+    `回前校准：核对前文事实与【当前实时场景状态】，现状有变时附 <STATE> 更新；以「${charName}」本人当下视角接下方这句${anchorSuffix ? `（${anchorSuffix}）` : ''}；${isStory ? '保持小剧场入戏感' : '仅输出纯对话文字，不带动作旁白'}。`
   );
   return lines.join('\n');
 }

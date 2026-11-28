@@ -939,7 +939,7 @@ export function initChatUI() {
           visible = stripThinkingTags(visible)
             .replace(/<affection[\s\S]*$/i, '')
             .replace(/<memory[\s\S]*$/i, '')
-            .replace(/<runtime.state[\s\S]*$/i, '')
+            .replace(/<state[\s\S]*$/i, '')
             .replace(/<image[\s\S]*$/i, '')
             .replace(/<board[\s\S]*$/i, '')
             .replace(/<affection\b[^>]*?\/?>(?:<\/affection>)?/gi, '')

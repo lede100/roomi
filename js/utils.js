@@ -297,12 +297,18 @@ export function normalizeImportedCardData(parsed, fallbackAvatar = '') {
   }
   const persona = personaParts.filter(Boolean).join('\n\n').trim();
   if (!persona) throw new Error('角色卡缺少人设描述（persona/description）');
-  const greetingsRaw = [];
-  if (Array.isArray(root.greeting)) greetingsRaw.push(...root.greeting);
-  else if (typeof root.greeting === 'string' && root.greeting) greetingsRaw.push(root.greeting);
-  if (typeof root.first_mes === 'string' && root.first_mes) greetingsRaw.push(root.first_mes);
-  if (Array.isArray(root.alternate_greetings)) greetingsRaw.push(...root.alternate_greetings);
-  const greetings = [...new Set(greetingsRaw.map(g => String(g || '').trim()).filter(Boolean))];
+  let primaryGreeting = '';
+  if (typeof root.first_mes === 'string' && root.first_mes.trim()) {
+    primaryGreeting = root.first_mes.trim();
+  } else if (typeof root.greeting === 'string' && root.greeting.trim()) {
+    primaryGreeting = root.greeting.trim();
+  } else if (Array.isArray(root.greeting)) {
+    primaryGreeting = root.greeting.map(g => String(g || '').trim()).find(Boolean) || '';
+  }
+  const altRaw = [];
+  if (Array.isArray(root.alternate_greetings)) altRaw.push(...root.alternate_greetings);
+  if (Array.isArray(root.greeting) && root.greeting.length > 1) altRaw.push(...root.greeting.slice(1));
+  const alternateGreetings = [...new Set(altRaw.map(g => String(g || '').trim()).filter(g => g && g !== primaryGreeting))];
   return {
     name: root.name,
     age: root.age || '',
@@ -315,6 +321,7 @@ export function normalizeImportedCardData(parsed, fallbackAvatar = '') {
     avatarImage: root.avatarImage || fallbackAvatar || '',
     wallpaper: root.wallpaper || '',
     avatarColor: root.avatarColor || '',
-    greeting: greetings
+    greeting: primaryGreeting ? [primaryGreeting] : [],
+    alternateGreetings
   };
 }

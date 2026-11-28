@@ -1,4 +1,4 @@
-import { runtime, flushActiveCharToList, scheduleSave, showWarn } from './state.js';
+import { runtime, flushActiveCharToList, scheduleSave, showWarn, isModelMarkedNoThinking, markModelFieldUnsupported } from './state.js';
 import { todayKey, escapeHtml, fetchWithTimeout } from './utils.js';
 import { BOARD_PRESET_WIDGETS, buildDailyMoodNotePool } from './presets.js';
 import { buildWidgetSrcdoc, summarizeWidgetBoardForContext } from './widget-context.js';
@@ -68,7 +68,7 @@ export function renderWidgets(forceReloadIds = null) {
   const forceSet = forceReloadIds instanceof Set ? forceReloadIds : new Set();
 
   state.widgets.forEach((w, idx) => {
-    const sig = `${themeKey}::${w.title}::${String(w.html || '').length}::${String(w.html || '').slice(0, 64)}::${String(w.html || '').slice(-64)}`;
+    const sig = `${runtime.state.activeCharId || ''}::${runtime.widgetRenderEpoch || 0}::${themeKey}::${w.title}::${String(w.html || '').length}::${String(w.html || '').slice(0, 64)}::${String(w.html || '').slice(-64)}`;
     let card = existingCards.get(w.id);
     const needRebuild = !card || card.dataset.widgetSig !== sig || forceSet.has(w.id);
 
@@ -101,21 +101,25 @@ export function renderWidgets(forceReloadIds = null) {
       runtime.iframeRegistry.set(w.id, iframe);
 
       card.querySelector('[data-act="up"]').onclick = () => {
-        const curIdx = state.widgets.findIndex(item => item.id === w.id);
+        const st = runtime.state;
+        const curIdx = st.widgets.findIndex(item => item.id === w.id);
         if (curIdx > 0) {
-          const [item] = state.widgets.splice(curIdx, 1);
-          state.widgets.splice(curIdx - 1, 0, item);
+          const [item] = st.widgets.splice(curIdx, 1);
+          st.widgets.splice(curIdx - 1, 0, item);
           scheduleSave();
           renderWidgets();
         }
       };
       card.querySelector('[data-act="code"]').onclick = () => ui.openCodeModal?.(w);
       card.querySelector('[data-act="reload"]').onclick = () => {
-        iframe.srcdoc = buildWidgetSrcdoc(w, state.widgetStates, state.settings.theme || 'claude');
+        const st = runtime.state;
+        card.querySelector('.widget-err-bar')?.remove();
+        iframe.srcdoc = buildWidgetSrcdoc(w, st.widgetStates, st.settings.theme || 'claude');
       };
       card.querySelector('[data-act="del"]').onclick = () => {
-        state.widgets = state.widgets.filter(item => item.id !== w.id);
-        delete state.widgetStates[w.id];
+        const st = runtime.state;
+        st.widgets = st.widgets.filter(item => item.id !== w.id);
+        delete st.widgetStates[w.id];
         scheduleSave();
         renderWidgets();
       };
@@ -156,8 +160,14 @@ export function applyBoardOperations(boardOps) {
   let changed = false;
   const modifiedWidgetIds = new Set();
 
+  const findTodoWidget = () => state.widgets.find(item => {
+    if (!item) return false;
+    if (item.title === BOARD_PRESET_WIDGETS.todo.title) return true;
+    return /清单|todo/i.test(item.title || '') && Array.isArray(state.widgetStates[item.id]?.items);
+  });
+
   const ensureTodoWidget = () => {
-    let w = state.widgets.find(item => item && /清单|todo/i.test(item.title || ''));
+    let w = findTodoWidget();
     if (!w) {
       const tpl = BOARD_PRESET_WIDGETS.todo;
       w = {
@@ -192,7 +202,7 @@ export function applyBoardOperations(boardOps) {
         changed = true;
       }
     } else if (opObj.op === 'todo_done') {
-      const w = state.widgets.find(item => item && /清单|todo/i.test(item.title || ''));
+      const w = findTodoWidget();
       const items = w ? state.widgetStates[w.id]?.items : null;
       if (Array.isArray(items)) {
         const kw = opObj.text.trim().toLowerCase();
@@ -313,31 +323,51 @@ export function initWidgetBoard() {
   const refreshDailyNoteBtn = document.getElementById('refreshDailyNoteBtn');
   if (refreshDailyNoteBtn) {
     refreshDailyNoteBtn.onclick = async () => {
-      const state = runtime.state;
-      const name = state.settings.name || '伴侣';
-      const key = (state.settings.apiKey || '').trim();
-      const base = (state.settings.baseUrl || '').trim().replace(/\/+$/, '');
-      const model = (state.settings.model || '').trim();
+      const targetCharId = runtime.state.activeCharId;
+      const snapshotState = runtime.state;
+      const name = snapshotState.settings.name || '伴侣';
+      const key = (snapshotState.settings.apiKey || '').trim();
+      const base = (snapshotState.settings.baseUrl || '').trim().replace(/\/+$/, '');
+      const model = (snapshotState.settings.model || '').trim();
+      const applyDailyNoteToTarget = (txt) => {
+        const noteObj = { date: todayKey(), text: txt };
+        const destChar = runtime.state.characters.find(c => c.id === targetCharId);
+        if (destChar) destChar.dailyNote = noteObj;
+        if (runtime.state.activeCharId === targetCharId) {
+          runtime.state.dailyNote = noteObj;
+          flushActiveCharToList();
+          syncDailyNoteCard();
+        }
+        scheduleSave();
+      };
       if (key && base && model) {
         refreshDailyNoteBtn.disabled = true;
         refreshDailyNoteBtn.textContent = '写着呢…';
         try {
-          const boardSnap = summarizeWidgetBoardForContext(state.widgets, state.widgetStates);
+          const boardSnap = summarizeWidgetBoardForContext(snapshotState.widgets, snapshotState.widgetStates);
           const boardCue = boardSnap ? `\n你们家看板当前状态：\n${boardSnap}\n（若刚好有值得顺口关心或夸夸的点，可自然带一笔，没有就随便写日常想念。）` : '';
-          const ask = `你是用户的伴侣「${name}」，设定：${(state.settings.persona || '').slice(0, 140)}。现在是 ${getLocalTimeContext()}。${boardCue}请写一句贴在家中看板上的今日心情便利贴（15~34字，真实口语感，不要标签不要动作描写）。`;
-          const res = await fetchWithTimeout(`${base}/chat/completions`, {
+          const ask = `你是用户的伴侣「${name}」，设定：${(snapshotState.settings.persona || '').slice(0, 140)}。现在是 ${getLocalTimeContext()}。${boardCue}请写一句贴在家中看板上的今日心情便利贴（15~34字，真实口语感，不要标签不要动作描写）。`;
+          const bodyObj = { model, temperature: 0.9, stream: false, messages: [{ role: 'user', content: ask }] };
+          if (!isModelMarkedNoThinking(model, base)) bodyObj.thinking = { type: 'disabled' };
+          const postNote = (b) => fetchWithTimeout(`${base}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-            body: JSON.stringify({ model, temperature: 0.9, stream: false, messages: [{ role: 'user', content: ask }] })
-          }, 15000);
+            body: JSON.stringify(b)
+          }, 25000);
+          let res = await postNote(bodyObj);
+          if (!res.ok && (res.status === 400 || res.status === 422) && bodyObj.thinking) {
+            const errTxt = await res.text().catch(() => '');
+            if (/(thinking|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties|not[_ ]allowed)/i.test(errTxt)) {
+              delete bodyObj.thinking;
+              res = await postNote(bodyObj);
+              if (res.ok) markModelFieldUnsupported('nonThinkingModels', model, base);
+            }
+          }
           if (res.ok) {
             const json = await res.json();
             const txt = stripThinkingTags(json.choices?.[0]?.message?.content || '').trim().replace(/^["「]|["」]$/g, '').slice(0, 80);
             if (txt) {
-              state.dailyNote = { date: todayKey(), text: txt };
-              flushActiveCharToList();
-              scheduleSave();
-              syncDailyNoteCard();
+              applyDailyNoteToTarget(txt);
               return;
             }
           }
@@ -346,13 +376,11 @@ export function initWidgetBoard() {
           refreshDailyNoteBtn.textContent = '↻ 换一句';
         }
       }
+      const destChar = runtime.state.characters.find(c => c.id === targetCharId);
       const pool = buildDailyMoodNotePool(name);
-      const cur = state.dailyNote?.text || '';
+      const cur = (destChar?.dailyNote?.text) || (runtime.state.activeCharId === targetCharId ? runtime.state.dailyNote?.text : '') || '';
       const next = pool.find(p => p !== cur) || pool[0];
-      state.dailyNote = { date: todayKey(), text: next };
-      flushActiveCharToList();
-      scheduleSave();
-      syncDailyNoteCard();
+      applyDailyNoteToTarget(next);
     };
   }
 
