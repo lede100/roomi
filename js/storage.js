@@ -64,6 +64,7 @@ export const StorageAdapter = (() => {
         tx.objectStore(IDB_STORE).put(value, key);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(reqErrorOrDefault(tx.error));
+        tx.onabort = () => reject(reqErrorOrDefault(tx.error || new Error('IDB transaction aborted')));
       });
       idbOk = true;
     } catch {}
@@ -84,6 +85,7 @@ export const StorageAdapter = (() => {
         tx.objectStore(IDB_STORE).delete(key);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
       });
     } catch {}
     try { localStorage.removeItem(key); } catch {}
