@@ -1537,3 +1537,63 @@ button:focus-visible { outline: 2px solid var(--blue-border); outline-offset: 1p
 .acc-body textarea {
   background: var(--surface);
 }
+
+/* ---- Home Board Secondary Sub-Tabs (小组件 | 记忆本) ---- */
+.board-subtabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+.board-subtab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.board-subtab.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.board-sub-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.board-subtab.active .board-sub-count {
+  color: var(--accent, var(--blue));
+}
+.board-subpane {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-subpane.active {
+  display: flex;
+}
+.board-mem-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.board-mem-list {
+  max-height: none;
+  overflow: visible;
+}

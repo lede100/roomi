@@ -140,6 +140,7 @@ export const runtime = {
   isDeliveringBubbles: false,
   interruptForNewSend: false,
   pendingInterruptSend: null,
+  isProactiveGreeting: false,
   onVisionCompatChange: null
 };
 
@@ -218,6 +219,7 @@ export function normalizeState(raw) {
   mergedSettings.baseUrl = String(mergedSettings.baseUrl || '');
   mergedSettings.model = String(mergedSettings.model || '');
   const next = Object.assign(base, raw || {}, { settings: mergedSettings });
+  delete next._backupMeta;
 
   // v3 -> v4 migration: promote legacy single companion into first CharacterCard
   if (!Array.isArray(next.characters) || !next.characters.length) {
@@ -244,6 +246,12 @@ export function normalizeState(raw) {
       next.activeCharId = next.characters[0].id;
     }
   }
+  const isLegacyDemoText = t => /(零配置演示模式|离线演示模式|点上方「第一步」填好 API Key|点上方蓝色横条填上对话 Key)/.test(String(t || ''));
+  next.characters.forEach(card => {
+    (card.messages || []).forEach(m => {
+      if (m && m.role === 'assistant' && !m.isDemo && isLegacyDemoText(m.text)) m.isDemo = true;
+    });
+  });
 
   if ((mergedSettings._v || 0) < 3) {
     if ((mergedSettings._v || 0) < 2 && !String(mergedSettings.apiKey || "").trim()) {

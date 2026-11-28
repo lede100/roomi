@@ -1,5 +1,6 @@
 import { todayKey } from './utils.js';
 
+export const APP_VERSION = '0.23.5';
 const PBKDF2_ITERATIONS = 120000;
 
 function bytesToBase64(bytes) {
@@ -15,7 +16,7 @@ function base64ToBytes(b64) {
   return out;
 }
 
-async function deriveAesKey(passphrase, saltBytes) {
+async function deriveAesKey(passphrase, saltBytes, iterations = PBKDF2_ITERATIONS) {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw new Error('当前环境不支持本地加密接口（Web Crypto）');
   const enc = new TextEncoder();
@@ -30,7 +31,7 @@ async function deriveAesKey(passphrase, saltBytes) {
     {
       name: 'PBKDF2',
       salt: saltBytes,
-      iterations: PBKDF2_ITERATIONS,
+      iterations: Math.max(10000, Math.min(1000000, Number(iterations) || PBKDF2_ITERATIONS)),
       hash: 'SHA-256'
     },
     baseKey,
@@ -45,7 +46,7 @@ export async function encryptBackupPayload(plainObj, passphrase) {
   if (!subtle) throw new Error('当前环境不支持本地加密接口（Web Crypto）');
   const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveAesKey(passphrase, salt);
+  const key = await deriveAesKey(passphrase, salt, PBKDF2_ITERATIONS);
   const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
   const cipherBuf = await subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
   return {
@@ -70,7 +71,8 @@ export async function decryptBackupPayload(encObj, passphrase) {
     const salt = base64ToBytes(encObj.salt);
     const iv = base64ToBytes(encObj.iv);
     const cipher = base64ToBytes(encObj.cipher);
-    const key = await deriveAesKey(passphrase, salt);
+    const fileIter = Number(encObj.iter) || PBKDF2_ITERATIONS;
+    const key = await deriveAesKey(passphrase, salt, fileIter);
     const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
     return JSON.parse(new TextDecoder().decode(plainBuf));
   } catch {
@@ -113,13 +115,15 @@ export async function buildBackupPackage(stateSnapshot, { includeKeys = true, pa
   const copy = JSON.parse(JSON.stringify(stateSnapshot));
   copy._backupMeta = {
     app: 'Roomi',
-    version: '0.22.0',
+    version: APP_VERSION,
     exportedAt: Date.now(),
     includesKeys: Boolean(includeKeys)
   };
   if (!includeKeys && copy.settings) {
     copy.settings.apiKey = '';
     copy.settings.imgApiKey = '';
+    copy.settings.privacyPin = '';
+    copy.settings.privacyLock = false;
   }
   const pass = String(passphrase || '').trim();
   const encrypted = Boolean(pass);

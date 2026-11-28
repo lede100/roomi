@@ -16,6 +16,28 @@ const viewport = document.getElementById('viewport');
 const tabBar = document.getElementById('tabBar');
 const boardScroll = document.getElementById('boardScroll');
 const boardDot = document.getElementById('boardDot');
+const boardSubTabs = document.getElementById('boardSubTabs');
+
+function switchBoardSubTab(subKey = 'widgets') {
+  const key = subKey === 'memory' ? 'memory' : 'widgets';
+  if (boardSubTabs) {
+    boardSubTabs.querySelectorAll('.board-subtab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.boardSub === key);
+    });
+  }
+  document.querySelectorAll('#boardScroll .board-subpane').forEach(pane => {
+    pane.classList.toggle('active', pane.dataset.boardPane === key);
+  });
+  if (key === 'memory') {
+    ui.refreshMemoryView?.();
+  }
+}
+
+if (boardSubTabs) {
+  boardSubTabs.querySelectorAll('.board-subtab').forEach(btn => {
+    btn.addEventListener('click', () => switchBoardSubTab(btn.dataset.boardSub));
+  });
+}
 
 // ---- Close Warn Toast & External Links ----
 document.getElementById('closeWarnBtn').onclick = () => {
@@ -64,6 +86,7 @@ function switchPage(page, highlightWidgetId) {
   if (page === 1) {
     boardDot.classList.remove('show');
     if (highlightWidgetId) {
+      switchBoardSubTab('widgets');
       const card = document.querySelector(`[data-widget-card="${highlightWidgetId}"]`);
       if (card) {
         const targetTop = Math.max(0, card.getBoundingClientRect().top - boardScroll.getBoundingClientRect().top + boardScroll.scrollTop - 14);
@@ -71,6 +94,8 @@ function switchPage(page, highlightWidgetId) {
         card.classList.add('highlight');
         setTimeout(() => card.classList.remove('highlight'), 1800);
       }
+    } else if (document.getElementById('boardPaneMemory')?.classList.contains('active')) {
+      ui.refreshMemoryView?.();
     }
   }
 }
@@ -114,6 +139,7 @@ viewport.addEventListener('touchmove', e => {
 
 viewport.addEventListener('touchend', e => {
   if (skipSwipe || !isHorizDragging || !e.changedTouches.length) {
+    isHorizDragging = false;
     track.classList.remove('dragging');
     return;
   }
@@ -123,6 +149,13 @@ viewport.addEventListener('touchend', e => {
   else if (dx > threshold && runtime.currentPage === 1) switchPage(0);
   else switchPage(runtime.currentPage);
   isHorizDragging = false;
+}, { passive: true });
+
+viewport.addEventListener('touchcancel', () => {
+  isHorizDragging = false;
+  skipSwipe = false;
+  track.classList.remove('dragging');
+  switchPage(runtime.currentPage);
 }, { passive: true });
 
 // ---- Privacy PIN Lock, Daily Notifications & Proactive Opening Greeting ----
@@ -271,6 +304,9 @@ async function maybeTriggerProactiveGreeting() {
   proactiveAttemptedSession = true;
   try {
     runtime.isBusy = true;
+    runtime.isProactiveGreeting = true;
+    runtime.replyAbortRequested = false;
+    ui.setBusySendBtn?.(true);
     ui.setTyping?.(true, `${state.settings.name}正想找你…`);
     const boardSnap = summarizeWidgetBoardForContext(state.widgets, state.widgetStates);
     const boardHint = boardSnap ? `（附：家里看板当前动态：${boardSnap.replace(/\n/g, '；')}，合适的话可以自然顺嘴关心一句。）` : '';
@@ -291,11 +327,19 @@ async function maybeTriggerProactiveGreeting() {
   } catch {
     ui.setTyping?.(false);
   } finally {
+    const nextInterrupt = runtime.pendingInterruptSend;
+    runtime.pendingInterruptSend = null;
+    runtime.isProactiveGreeting = false;
+    runtime.interruptForNewSend = false;
     runtime.isBusy = false;
+    ui.setBusySendBtn?.(false);
+    if (nextInterrupt) {
+      queueMicrotask(() => ui.handleSend?.(nextInterrupt.overrideText));
+    }
   }
 }
 
-registerUI({ switchPage, syncDailyNotifications });
+registerUI({ switchPage, switchBoardSubTab, syncDailyNotifications });
 
 // ---- Bootstrap UI Modules ----
 initChatUI();
@@ -318,6 +362,7 @@ initSettingsUI();
   ui.syncChatModeQuickBtn?.();
   ui.renderChat?.();
   ui.renderWidgets?.();
+  ui.refreshMemoryView?.();
   if (window.__roomiCorruptNotice) {
     showWarn('检测到本地存档曾异常损坏，已为你备份到 localStorage（roomi_corrupt_backup_*），建议核对或重新导入备份');
   }

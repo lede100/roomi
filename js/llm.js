@@ -42,8 +42,12 @@ export function extractSseLines(lines, onChunk) {
 }
 
 export function isContextLimitError(err) {
+  if (err?.status === 402 || err?.status === 429) return false;
   const msg = String(err?.message || '').toLowerCase();
-  return /(context|length|token|too long|exceed|maximum|limit|413)/.test(msg);
+  if (/(quota|insufficient|balance|credit|billing|rate[_ ]?limit|too many requests|payment required|\b402\b|\b429\b)/.test(msg)) {
+    return false;
+  }
+  return /(context[_ ]?length|max[_ ]?tokens|too long|token[_ ]?limit|context[_ ]?window|maximum context|\b413\b)/.test(msg);
 }
 
 export function isVisionUnsupportedError(err) {
@@ -195,6 +199,7 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
       const sseText = extractSseLines(rawBody.split(/\r?\n/));
       reply = sseText || '刚才走神了，再跟我说一遍？';
     }
+    if (typeof res.__cleanupAbort === 'function') res.__cleanupAbort();
     runtime.personaShiftPending = false;
     return reply;
   }
@@ -203,18 +208,36 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   let fullText = '';
+  const STREAM_IDLE_MS = 75000;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() || '';
-    fullText += extractSseLines(lines, () => {});
-    if (onStreamProgress && fullText) onStreamProgress(fullText);
-  }
-  if (buffer.trim()) {
-    fullText += extractSseLines([buffer]);
+  try {
+    while (true) {
+      let idleTimer = null;
+      const readRes = await Promise.race([
+        reader.read(),
+        new Promise((_, reject) => {
+          idleTimer = setTimeout(() => {
+            try { reader.cancel(); } catch {}
+            const tErr = new Error('流式响应长时间无新内容（已等待 75 秒），已自动断开，请点击重试');
+            tErr.name = 'TimeoutError';
+            tErr.isTimeout = true;
+            reject(tErr);
+          }, STREAM_IDLE_MS);
+        })
+      ]).finally(() => { if (idleTimer) clearTimeout(idleTimer); });
+      const { value, done } = readRes;
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || '';
+      fullText += extractSseLines(lines, () => {});
+      if (onStreamProgress && fullText) onStreamProgress(fullText);
+    }
+    if (buffer.trim()) {
+      fullText += extractSseLines([buffer]);
+    }
+  } finally {
+    if (typeof res.__cleanupAbort === 'function') res.__cleanupAbort();
   }
 
   runtime.personaShiftPending = false;
@@ -248,9 +271,22 @@ export async function callLiveLLMWithRetry(promptOverride, onStreamProgress, isE
         throw vErr;
       }
       if (err.name === 'AbortError') throw err;
+      if (runtime.replyAbortRequested || runtime.activeAbortController?.signal?.aborted) {
+        const abErr = new Error('已取消请求');
+        abErr.name = 'AbortError';
+        throw abErr;
+      }
       if (isRetryableTransientError(err) && transientRetries < 2) {
         transientRetries++;
-        await sleep(transientRetries * 1400);
+        const waitEnd = Date.now() + transientRetries * 1400;
+        while (Date.now() < waitEnd) {
+          if (runtime.replyAbortRequested || runtime.activeAbortController?.signal?.aborted) {
+            const abErr = new Error('已取消请求');
+            abErr.name = 'AbortError';
+            throw abErr;
+          }
+          await sleep(80);
+        }
         continue;
       }
       if (!isContextLimitError(err) || attempt >= 4) {

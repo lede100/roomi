@@ -256,6 +256,9 @@ export function initChatUI() {
     img.className = 'bubble-img';
     img.src = imageUrl;
     img.alt = '图片';
+    img.onload = () => {
+      if (chatScroll && (chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 280)) scrollChatBottom();
+    };
     img.onclick = e => {
       e.stopPropagation();
       openLightboxWithImage(imageUrl, msgId);
@@ -578,26 +581,24 @@ export function initChatUI() {
     };
     actions.appendChild(multiBtn);
 
-    const idxNow = runtime.state.messages.indexOf(m);
-    if (idxNow >= 0 && idxNow < runtime.state.messages.length - 1) {
-      const cutBtn = document.createElement('button');
-      cutBtn.type = 'button';
-      cutBtn.className = 'msg-act-btn danger';
-      cutBtn.textContent = '删到底';
-      cutBtn.onclick = e => {
-        e.stopPropagation();
-        if (runtime.isBusy) return;
-        const pos = runtime.state.messages.indexOf(m);
-        if (pos < 0) return;
-        const count = runtime.state.messages.length - pos;
-        if (!confirm(`确定把这一条和后面的共 ${count} 条消息全部删掉吗？`)) return;
-        runtime.state.messages.splice(pos);
-        if (runtime.state.summarizedCount > runtime.state.messages.length) runtime.state.summarizedCount = runtime.state.messages.length;
-        scheduleSave();
-        renderChat(true);
-      };
-      actions.appendChild(cutBtn);
-    }
+    const cutBtn = document.createElement('button');
+    cutBtn.type = 'button';
+    cutBtn.className = 'msg-act-btn danger';
+    cutBtn.textContent = '删到底';
+    cutBtn.style.display = 'none';
+    cutBtn.onclick = e => {
+      e.stopPropagation();
+      if (runtime.isBusy) return;
+      const pos = runtime.state.messages.indexOf(m);
+      if (pos < 0) return;
+      const count = runtime.state.messages.length - pos;
+      if (!confirm(`确定把这一条和后面的共 ${count} 条消息全部删掉吗？`)) return;
+      runtime.state.messages.splice(pos);
+      if (runtime.state.summarizedCount > runtime.state.messages.length) runtime.state.summarizedCount = runtime.state.messages.length;
+      scheduleSave();
+      renderChat(true);
+    };
+    actions.appendChild(cutBtn);
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -625,7 +626,11 @@ export function initChatUI() {
       }
       const willShow = !row.classList.contains('show-actions');
       chatScroll.querySelectorAll('.msg-row.show-actions').forEach(r => r.classList.remove('show-actions'));
-      if (willShow) row.classList.add('show-actions');
+      if (willShow) {
+        const posNow = runtime.state.messages.indexOf(m);
+        cutBtn.style.display = (posNow >= 0 && posNow < runtime.state.messages.length - 1) ? 'inline-block' : 'none';
+        row.classList.add('show-actions');
+      }
     });
   }
 
@@ -1026,7 +1031,7 @@ export function initChatUI() {
           if (runtime.replyAbortRequested) break;
         }
         setTyping(false);
-        appendChatMessage({ role: 'assistant', text: finalBubbles[i] });
+        appendChatMessage({ role: 'assistant', text: finalBubbles[i], ...(hasKey ? {} : { isDemo: true }) });
         scheduleSave();
         if (i === 0) showFloatingBanner(finalBubbles[i]);
       }
@@ -1064,7 +1069,8 @@ export function initChatUI() {
 
       scheduleSave();
       renderHeader();
-      if (hasKey) maybeCompressHistory(false, () => ui.updateMemStats?.());
+      ui.refreshMemoryView?.();
+      if (hasKey) maybeCompressHistory(false, () => ui.refreshMemoryView?.());
     } catch (err) {
       if (streamPreviewRow) {
         streamPreviewRow.remove();
@@ -1274,6 +1280,11 @@ export function initChatUI() {
       lbMode = 'none';
     }, { passive: true });
 
+    lightboxStage.addEventListener('touchcancel', () => {
+      lbMode = 'none';
+      resetLightboxTransform(true);
+    }, { passive: true });
+
     lightboxStage.addEventListener('dblclick', e => {
       if (e.target.closest('.lightbox-nav')) return;
       e.stopPropagation();
@@ -1414,15 +1425,22 @@ export function initChatUI() {
     triggerCompanionReply(merged, false, hasImg);
   }
 
+  function setBusySendBtn(busy) {
+    sendBtn.innerHTML = busy ? STOP_SVG : SEND_SVG;
+    sendBtn.classList.toggle('stop', Boolean(busy));
+    sendBtn.setAttribute('aria-label', busy ? '停止' : '发送');
+  }
+
   function handleSend(overrideText) {
     const incomingText = (overrideText ?? chatInput.value).trim();
     const incomingImg = overrideText ? '' : pendingImageUrl;
     if (runtime.isBusy) {
-      if (runtime.isDeliveringBubbles && (incomingText || incomingImg)) {
+      if ((runtime.isDeliveringBubbles || runtime.isProactiveGreeting) && (incomingText || incomingImg)) {
         // Seamless WeChat-style interruption: stop remaining queued bubbles quietly and flush new send deterministically in finally()
         runtime.pendingInterruptSend = { overrideText };
         runtime.interruptForNewSend = true;
         runtime.replyAbortRequested = true;
+        if (runtime.isProactiveGreeting && runtime.activeAbortController) runtime.activeAbortController.abort();
         return;
       }
       runtime.replyAbortRequested = true;
@@ -1820,6 +1838,7 @@ export function initChatUI() {
     createMsgRowElement,
     renderHeader,
     renderChat,
+    scrollChatBottom,
     showFloatingBanner
   });
 
@@ -1830,6 +1849,7 @@ export function initChatUI() {
     appendChatMessage,
     scrollChatBottom,
     setTyping,
+    setBusySendBtn,
     showFloatingBanner,
     triggerCompanionReply,
     handleSend,

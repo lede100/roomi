@@ -395,10 +395,14 @@ export function replaceImagePlaceholder(charId, placeholderId, finalDataUrl, img
     const chatScroll = document.getElementById('chatScroll');
       const row = chatScroll?.querySelector(`[data-pending-id="${placeholderId}"]`);
     if (row) {
+      const nearBottom = chatScroll ? (chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 260) : false;
       if (finalDataUrl) {
         const miniChar = escapeHtml((runtime.state.settings.name || '林澈').slice(-1));
         const fresh = _hooks.createMsgRowElement?.(finalMsg || { id: placeholderId, role: 'assistant', image: finalDataUrl, text: '' }, miniChar);
-        if (fresh) row.replaceWith(fresh);
+        if (fresh) {
+          row.replaceWith(fresh);
+          if (nearBottom) _hooks.scrollChatBottom?.();
+        }
       } else {
         row.remove();
       }
@@ -661,9 +665,9 @@ export function enqueueImageTask(task) {
   if (runtime.state.activeCharId === task.charId) _hooks.renderHeader?.();
   const provider = runtime.state.settings.imgProvider;
   const runTask = async () => {
-    const targetChar = runtime.state.characters.find(c => c.id === task.charId);
-    if (!targetChar) return;
     try {
+      const targetChar = runtime.state.characters.find(c => c.id === task.charId);
+      if (!targetChar) return;
       const appearanceAnchor = (targetChar.appearance || runtime.state.settings.appearance || '').trim();
       const apiPrompt = (!task.refImg && appearanceAnchor && !task.prompt.includes(appearanceAnchor))
         ? `人物固定外貌与穿搭参考：${appearanceAnchor}。画面场景：${task.prompt}`

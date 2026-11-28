@@ -279,13 +279,14 @@ export function initSettingsUI() {
   }
 
   function switchSettingsTab(tabKey) {
+    const safeKey = tabKey === 'model' ? 'model' : 'companion';
     document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.setTab === tabKey);
+      btn.classList.toggle('active', btn.dataset.setTab === safeKey);
     });
     document.querySelectorAll('#settingsModal .set-pane').forEach(pane => {
-      pane.classList.toggle('active', pane.dataset.setPane === tabKey);
+      pane.classList.toggle('active', pane.dataset.setPane === safeKey);
     });
-    syncSaveRowVisibility(tabKey);
+    syncSaveRowVisibility(safeKey);
   }
 
   document.querySelectorAll('#setTabBar .set-tab').forEach(btn => {
@@ -294,11 +295,32 @@ export function initSettingsUI() {
 
   function updateMemStats() {
     const memCount = Array.isArray(runtime.state.memories) ? runtime.state.memories.length : 0;
-    if (memTabCount) memTabCount.textContent = memCount ? `(${memCount})` : '';
+    const stateCount = Array.isArray(runtime.state.sceneStates) ? runtime.state.sceneStates.length : 0;
+    const totalCount = memCount + stateCount;
+    if (memTabCount) memTabCount.textContent = totalCount ? String(totalCount) : '';
     if (modelCfgDot) {
       const missingCfg = !String(runtime.state.settings.apiKey || "").trim() || !String(runtime.state.settings.model || "").trim();
       modelCfgDot.classList.toggle('show', missingCfg);
     }
+  }
+
+  function refreshMemoryView() {
+    if (memSummaryInput && document.activeElement !== memSummaryInput) {
+      memSummaryInput.value = runtime.state.memorySummary || '';
+    }
+    refreshMemoryView();
+  }
+
+  if (memSummaryInput) {
+    const commitSummary = () => {
+      const val = memSummaryInput.value.trim().slice(0, 1200);
+      if (val !== (runtime.state.memorySummary || '')) {
+        runtime.state.memorySummary = val;
+        scheduleSave();
+      }
+    };
+    memSummaryInput.addEventListener('input', commitSummary);
+    memSummaryInput.addEventListener('blur', commitSummary);
   }
 
   function renderMemoryModalList(editingIdx = -1) {
@@ -813,8 +835,10 @@ export function initSettingsUI() {
     fetchImgModelsBtn.onclick = () => detectAvailableImgModels();
   }
   document.querySelectorAll('#imgProviderPicker [data-img-provider]').forEach(btn => {
-    btn.onclick = () => syncImgProviderUI(btn.dataset.imgProvider, draftImgTrigger);
+    btn.onclick = () => {
+      syncImgProviderUI(btn.dataset.imgProvider, draftImgTrigger);
       syncSettingsAccordionBadges();
+    };
   });
   document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
     btn.onclick = () => {
@@ -978,11 +1002,10 @@ export function initSettingsUI() {
     loadCharacterIntoRuntime(target);
     if (settingsModal.classList.contains('show')) {
       applyCardToEditorFields(target);
-      renderMemoryModalList();
-        renderSceneStatesList();
     } else {
       draftAvatarImage = target.avatarImage || '';
     }
+    refreshMemoryView();
     renderCharacterBar();
     ui.renderHeader?.();
     ui.syncChatModeQuickBtn?.();
@@ -1123,7 +1146,7 @@ export function initSettingsUI() {
     a.href = URL.createObjectURL(blob);
     a.download = fileName;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   };
 
   document.getElementById('exportCharBtn').onclick = () => {
@@ -1153,7 +1176,7 @@ export function initSettingsUI() {
     a.href = URL.createObjectURL(blob);
     a.download = `roomi-card-${active.name}-${todayKey()}.json`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   };
 
 
@@ -1736,6 +1759,9 @@ export function initSettingsUI() {
       return;
     }
     try {
+      if (file.size > 80 * 1024 * 1024) {
+        throw new Error('备份文件超过 80 MB，请确认是否选错了文件');
+      }
       const text = await file.text();
       let parsed = JSON.parse(text);
       if (isEncryptedBackup(parsed)) {
@@ -1762,12 +1788,20 @@ export function initSettingsUI() {
       const rollbackSnapshot = runtime.state;
       const prevKey = runtime.state.settings.apiKey;
       const prevImgKey = runtime.state.settings.imgApiKey;
+      const prevPin = runtime.state.settings.privacyPin;
+      const prevLock = runtime.state.settings.privacyLock;
       try {
         const nextState = normalizeState(parsed);
         if (!nextState.settings.apiKey && prevKey) nextState.settings.apiKey = prevKey;
         if (!nextState.settings.imgApiKey && prevImgKey) nextState.settings.imgApiKey = prevImgKey;
-        await StorageAdapter.set(STORE_KEY, nextState);
+        if (!nextState.settings.privacyPin && prevPin) {
+          nextState.settings.privacyPin = prevPin;
+          nextState.settings.privacyLock = prevLock;
+        }
+        // Swap memory BEFORE awaiting IDB so concurrent background flushSaveNow() never overwrites with old state (B2)
+        clearTimeout(runtime.saveTimer);
         runtime.state = nextState;
+        await StorageAdapter.set(STORE_KEY, runtime.state);
         runtime.visibleChatStart = -1;
         runtime.lastWindowStartIndex = 0;
         runtime.pendingEventQueue = [];
@@ -1889,6 +1923,7 @@ export function initSettingsUI() {
     renderCharacterBar,
     syncChatModePickerUI,
     updateMemStats,
+    refreshMemoryView,
     openCodeModal,
     setDraftAvatarImage: val => { draftAvatarImage = val; },
     setDraftChatMode: val => { draftChatMode = val; },

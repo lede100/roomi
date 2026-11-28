@@ -173,11 +173,20 @@ export function selectRelevantMemories() {
   candidates.sort((a, b) => b.score - a.score);
 
   const picked = [];
+  const pickedSet = new Set();
   let chars = 0;
-  for (const item of [...pinned.slice(0, 8), ...candidates.slice(0, 8)]) {
+  const recentNonPinned = list
+    .filter(m => m && !m.pinned)
+    .slice()
+    .sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0))
+    .slice(0, 3)
+    .map(m => ({ m }));
+  for (const item of [...pinned.slice(0, 8), ...candidates.slice(0, 8), ...recentNonPinned]) {
+    if (pickedSet.has(item.m)) continue;
     const lineLen = (item.m.key?.length || 0) + (item.m.value?.length || 0) + 8;
-    if (picked.length >= 3 && chars + lineLen > 1400) break;
+    if (picked.length >= 3 && chars + lineLen > 1500) break;
     picked.push(item.m);
+    pickedSet.add(item.m);
     chars += lineLen;
   }
   return picked;
@@ -274,7 +283,7 @@ export async function maybeCompressHistory(force = false, onStatsUpdated = null)
     : Math.max(0, msgsRef.length - 24);
 
   const pendingCount = safeEnd - curSummarized;
-  if (!force && pendingCount < 20) return { ok: false, reason: 'few' };
+  if (!force && pendingCount < 12) return { ok: false, reason: 'few' };
   if (pendingCount < 3) return { ok: false, reason: 'few' };
 
   const maxBatchEnd = Math.min(safeEnd, curSummarized + 36);

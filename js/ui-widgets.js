@@ -27,16 +27,17 @@ export function syncDailyNoteCard() {
   bodyEl.textContent = state.dailyNote.text;
 }
 
-export function renderWidgets() {
+export function renderWidgets(forceReloadIds = null) {
   const state = runtime.state;
   const widgetList = document.getElementById('widgetList');
   const widgetCount = document.getElementById('widgetCount');
   syncDailyNoteCard();
-  runtime.iframeRegistry.clear();
-  widgetList.innerHTML = '';
   widgetCount.textContent = String(state.widgets.length);
+  const subCountEl = document.getElementById('boardWidgetSubCount');
+  if (subCountEl) subCountEl.textContent = state.widgets.length ? String(state.widgets.length) : '';
 
   if (!state.widgets.length) {
+    runtime.iframeRegistry.clear();
     const homeName = `${state.settings.name || '伴侣'}的家`;
     widgetList.innerHTML = `
       <div class="empty-board">
@@ -47,35 +48,59 @@ export function renderWidgets() {
     return;
   }
 
+  const themeKey = state.settings.theme || 'claude';
+  const existingCards = new Map();
+  widgetList.querySelectorAll('.widget-card[data-widget-card]').forEach(el => {
+    existingCards.set(el.dataset.widgetCard, el);
+  });
+  const emptyEl = widgetList.querySelector('.empty-board');
+  if (emptyEl) emptyEl.remove();
+
+  const activeIds = new Set(state.widgets.map(w => w.id));
+  for (const [oldId, el] of existingCards.entries()) {
+    if (!activeIds.has(oldId)) {
+      el.remove();
+      runtime.iframeRegistry.delete(oldId);
+      existingCards.delete(oldId);
+    }
+  }
+
+  const forceSet = forceReloadIds instanceof Set ? forceReloadIds : new Set();
+
   state.widgets.forEach((w, idx) => {
-    const card = document.createElement('div');
-    card.className = 'widget-card';
-    card.dataset.widgetCard = w.id;
-    card.innerHTML = `
-      <div class="widget-head">
-        <div class="widget-title-wrap">
-          <span class="widget-dot"></span>
-          <span class="widget-title">${escapeHtml(w.title)}</span>
-        </div>
-        <div class="widget-actions">
-          ${idx > 0 ? '<button class="mini-btn" data-act="up" title="上移">↑</button>' : ''}
-          <button class="mini-btn" data-act="code" title="查看源码">&lt;/&gt;</button>
-          <button class="mini-btn" data-act="reload" title="刷新">↻</button>
-          <button class="mini-btn danger" data-act="del" title="移除">✕</button>
-        </div>
-      </div>`;
+    const sig = `${themeKey}::${w.title}::${String(w.html || '').length}::${String(w.html || '').slice(0, 64)}::${String(w.html || '').slice(-64)}`;
+    let card = existingCards.get(w.id);
+    const needRebuild = !card || card.dataset.widgetSig !== sig || forceSet.has(w.id);
 
-    const iframe = document.createElement('iframe');
-    iframe.className = 'widget-frame';
-    iframe.setAttribute('sandbox', 'allow-scripts');
-    iframe.style.height = (w.height || 200) + 'px';
-    iframe.srcdoc = buildWidgetSrcdoc(w, state.widgetStates, state.settings.theme || 'claude');
-    card.appendChild(iframe);
-    runtime.iframeRegistry.set(w.id, iframe);
+    if (needRebuild) {
+      if (card) card.remove();
+      card = document.createElement('div');
+      card.className = 'widget-card';
+      card.dataset.widgetCard = w.id;
+      card.dataset.widgetSig = sig;
+      card.innerHTML = `
+        <div class="widget-head">
+          <div class="widget-title-wrap">
+            <span class="widget-dot"></span>
+            <span class="widget-title">${escapeHtml(w.title)}</span>
+          </div>
+          <div class="widget-actions">
+            <button class="mini-btn" data-act="up" title="上移" style="display:${idx > 0 ? 'inline-block' : 'none'}">↑</button>
+            <button class="mini-btn" data-act="code" title="查看源码">&lt;/&gt;</button>
+            <button class="mini-btn" data-act="reload" title="刷新">↻</button>
+            <button class="mini-btn danger" data-act="del" title="移除">✕</button>
+          </div>
+        </div>`;
 
-    const upBtn = card.querySelector('[data-act="up"]');
-    if (upBtn) {
-      upBtn.onclick = () => {
+      const iframe = document.createElement('iframe');
+      iframe.className = 'widget-frame';
+      iframe.setAttribute('sandbox', 'allow-scripts');
+      iframe.style.height = (w.height || 200) + 'px';
+      iframe.srcdoc = buildWidgetSrcdoc(w, state.widgetStates, themeKey);
+      card.appendChild(iframe);
+      runtime.iframeRegistry.set(w.id, iframe);
+
+      card.querySelector('[data-act="up"]').onclick = () => {
         const curIdx = state.widgets.findIndex(item => item.id === w.id);
         if (curIdx > 0) {
           const [item] = state.widgets.splice(curIdx, 1);
@@ -84,19 +109,25 @@ export function renderWidgets() {
           renderWidgets();
         }
       };
+      card.querySelector('[data-act="code"]').onclick = () => ui.openCodeModal?.(w);
+      card.querySelector('[data-act="reload"]').onclick = () => {
+        iframe.srcdoc = buildWidgetSrcdoc(w, state.widgetStates, state.settings.theme || 'claude');
+      };
+      card.querySelector('[data-act="del"]').onclick = () => {
+        state.widgets = state.widgets.filter(item => item.id !== w.id);
+        delete state.widgetStates[w.id];
+        scheduleSave();
+        renderWidgets();
+      };
+    } else {
+      const upBtn = card.querySelector('[data-act="up"]');
+      if (upBtn) upBtn.style.display = idx > 0 ? 'inline-block' : 'none';
     }
-    card.querySelector('[data-act="code"]').onclick = () => ui.openCodeModal?.(w);
-    card.querySelector('[data-act="reload"]').onclick = () => {
-      iframe.srcdoc = buildWidgetSrcdoc(w, state.widgetStates, state.settings.theme || 'claude');
-    };
-    card.querySelector('[data-act="del"]').onclick = () => {
-      state.widgets = state.widgets.filter(item => item.id !== w.id);
-      delete state.widgetStates[w.id];
-      scheduleSave();
-      renderWidgets();
-    };
 
-    widgetList.appendChild(card);
+    const currentAtPos = widgetList.children[idx];
+    if (currentAtPos !== card) {
+      widgetList.insertBefore(card, currentAtPos || null);
+    }
   });
 }
 
@@ -123,6 +154,7 @@ export function applyBoardOperations(boardOps) {
   if (!Array.isArray(boardOps) || !boardOps.length) return false;
   const state = runtime.state;
   let changed = false;
+  const modifiedWidgetIds = new Set();
 
   const ensureTodoWidget = () => {
     let w = state.widgets.find(item => item && /清单|todo/i.test(item.title || ''));
@@ -151,11 +183,12 @@ export function applyBoardOperations(boardOps) {
   for (const opObj of boardOps) {
     if (!opObj || !opObj.op || !opObj.text) continue;
     if (opObj.op === 'todo_add') {
-      const { items } = ensureTodoWidget();
+      const { w, items } = ensureTodoWidget();
       const clean = opObj.text.trim().slice(0, 48);
       if (clean && !items.some(it => it && String(it.t || '').trim() === clean)) {
         items.unshift({ t: clean, d: false });
         if (items.length > 40) items.length = 40;
+        modifiedWidgetIds.add(w.id);
         changed = true;
       }
     } else if (opObj.op === 'todo_done') {
@@ -166,6 +199,7 @@ export function applyBoardOperations(boardOps) {
         const hit = items.find(it => it && !it.d && String(it.t || '').toLowerCase().includes(kw));
         if (hit) {
           hit.d = true;
+          modifiedWidgetIds.add(w.id);
           changed = true;
         }
       }
@@ -180,7 +214,7 @@ export function applyBoardOperations(boardOps) {
 
   if (changed) {
     flushActiveCharToList();
-    renderWidgets();
+    renderWidgets(modifiedWidgetIds);
     scheduleSave();
   }
   return changed;

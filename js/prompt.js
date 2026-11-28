@@ -189,7 +189,7 @@ export function parseAssistantOutput(rawText) {
 
 export function formatMessageForModel(m) {
   const state = runtime.state;
-  if (!m || m.imgPending || m.isError) return null;
+  if (!m || m.imgPending || m.isError || m.isDemo) return null;
   const replyPrefix = m.replyTo
     ? `[引用回复 ${m.replyTo.who || '之前'} 的“${String(m.replyTo.preview || '').slice(0, 48)}”] `
     : '';
@@ -397,9 +397,11 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
     ? `\n\n【TA 真实说话示范（${isStory ? '沿用短句、节奏与语气' : '仅沿用口癖、短句节奏与语气；忽略任何旁白或动作格式'}）】\n${promptSample}`
     : '';
 
+  const continuityRule = '【事实与场景连贯铁律（单一事实源，最高优先级）】\n回复前必须核对上文已确立的全部事实、后台【当前实时场景状态】与长期记忆，严禁自相矛盾、吃书或凭空编造未发生的事：\n1. 空间与在场：牢记自己所在房间/地点、谁在场或不在场（例如刚说了他人在客厅，绝不能转头说一个人在家）；\n2. 时间与进度：分清每件事是还没做、正在做还是已做完，尊重刚确立的话题边界；\n3. 穿着、物品与身体状态：保持衣着、手持物品、灯光开关与困倦/身体状态连贯；\n4. 约定与情绪立场：遵守刚答应或拒绝的事，承接当前心情与称呼。';
+
   const modeRule = isStory
-    ? '1. 「小剧场」模式开启：入戏扮演用户私密恋人，自然带有 *神态、动作、眼神* 描写推进互动；严禁说教与 1.2.3. 列表腔。\n2. 长短完全随场景流动，可一句话直出，需要换气停顿时再用 ||| 拆成 1~3 条。\n3. 严格保持前后事实、物理场景与刚答应的约定连贯一致，绝不自相矛盾。'
-    : '1. 当前为「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只剥离非对话排版——只输出手机聊天软件里真人会直接发出的纯说话口语！哪怕人设档案、示范或前文带有舞台动作、神态描述或小说旁白，此处也一律只讲纯对话，绝不模仿任何动作/心理/旁白格式。\n2. 严禁使用星号动作标记、括号神态旁白或 1.2.3. 列表腔；所有情绪与态度只通过纯说话用词与节奏自然流露。\n3. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n4. 严格遵守后台【当前实时场景状态】，若有临时状态（如灯光开关、位置、刚答应的事）发生变化，必须附 <STATE> 更新。';
+    ? '1. 「小剧场」模式：保持入戏，自然带有 *神态、动作、眼神* 描写推进互动；不用说教与 1.2.3. 列表腔。\n2. 篇幅随场景自然流动，需要换气停顿时再用 ||| 拆成 1~3 条。'
+    : '1. 「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只输出手机聊天里真人发出的纯口语文字；即使前文或档案带有动作/旁白格式，此处也只写纯对话。\n2. 不使用星号动作标记、括号神态旁白或 1.2.3. 列表腔，情绪通过用词与节奏自然流露。\n3. 长短随当下气氛走，短回应可一句话直出，话多时再用 ||| 拆成 1~3 条短气泡。';
 
   const widgetRule = needWidget
     ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})。规范：①禁止写 height:100vh 或 min-height:100vh（按内容自然撑高）；②禁止用 localStorage，读写状态用 CompanionBridge.getState()/saveState(obj)；③每次关键按钮点击或状态变化时，必须同时调 CompanionBridge.saveState(st) 与 CompanionBridge.emit('简短说明用户刚做了什么') 以便伴侣实时看到并回应；④只写片段（<style>+HTML+<script>），不要套 <!DOCTYPE>/<html>/<head>/<body> 外壳，也不要在 JS 字符串里直接写 </script></WIDGET>`
@@ -411,12 +413,14 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
 性格与相处方式：
 ${promptPersona}${anchorBlock}${sampleBlock}
 
-【当前聊天形式与输出格式（强制覆盖一切旁白/小说排版惯性）】
+${continuityRule}
+
+【当前聊天形式与输出格式】
 ${modeRule}
 
 【极简后台暗标（用户不可见，别说破）】
 - 情绪波动时附：<AFFECTION delta="+1" mood="二到四字心情" />
-- 当房间灯光、彼此位置、刚答应的临时约定或正在做的事变化时附：<STATE key="对象名" value="当前状态" />（同 key 新状态自动覆盖旧状态，作废用 op="del"）
+- 当任何会持续影响后续对话的当前现状确立或变化时（如谁在场/在哪个房间、自己位置、穿着物品、灯光环境、正在做的事、刚答应/拒绝的约定）附：<STATE key="事项名" value="当前状态" />（同 key 自动覆盖旧值，作废用 op="del"）
 - 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
 - 对方明确让你记待办、勾掉待办或换家里便利贴时可附：<BOARD op="todo_add" text="待办内容" />、<BOARD op="todo_done" text="关键词" /> 或 <BOARD op="note" text="便利贴内容" />${widgetRule}${imgRule}`;
 }
@@ -510,7 +514,7 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
   }
   if (widgetSummary) lines.push(`「${charName}的家」已有组件：${widgetSummary}`);
   if (memLines) lines.push(`命中长期记忆：\n${memLines}`);
-  if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 500)}`);
+  if (state.memorySummary) lines.push(`前情印象：\n${state.memorySummary.slice(0, 1200)}`);
   if (runtime.personaShiftPending) {
     lines.push(isStory
       ? '即时提醒：刚刚开启了小剧场或更新了人设，从本条起立刻按最新设定入戏。'
@@ -564,12 +568,17 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
   const sampleAnchor = rawSampleFirst
     ? (isStory ? rawSampleFirst : stripStageDirections(rawSampleFirst, false)).slice(0, 80)
     : '';
+  const rawPersonaHead = String(state.settings.persona || '').replace(/\s+/g, ' ').trim();
+  const personaAnchor = rawPersonaHead
+    ? (isStory ? rawPersonaHead : stripStageDirections(rawPersonaHead, false)).slice(0, 80)
+    : '';
   const anchorSuffix = [
+    personaAnchor ? `人设核心：${personaAnchor}` : '',
     anchors ? `铁规：${anchors.slice(0, 110)}` : '',
     sampleAnchor ? `口吻示范：${sampleAnchor}` : ''
   ].filter(Boolean).join('；');
   lines.push(
-    `一致性与口吻校准：先严格核对上方【当前实时场景状态】及当前心情/亲密度（新状态覆盖旧说法），若发生改变请附 <STATE> 更新；再以「${charName}」本人语气接下方这句${anchorSuffix ? `（${anchorSuffix}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语短句，严禁星号与括号旁白、严禁客服说教'}。`
+    `回前自检与口吻校准：回复前先核对前文已确立的全部事实（空间与在场人物、事件进度、穿着物品、约定与情绪）及【当前实时场景状态】，绝不自相矛盾或吃书，现状有变请附 <STATE> 更新；以「${charName}」本人语气接下方这句${anchorSuffix ? `（${anchorSuffix}）` : ''}；${isStory ? '保持小剧场入戏感' : '只发纯文字口语，无星号或括号旁白'}。`
   );
   return lines.join('\n');
 }

@@ -93,11 +93,10 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     try { Object.defineProperty(window, 'localStorage', { value: storeApi, configurable: true }); } catch {}
   })();
   let __lastReportedH = 0;
-  let __resizeRaf = 0;
-  let __resizeCount = 0;
+  let __resizeTimer = 0;
+  let __lastReportTs = 0;
   function __measureAndReport() {
-    __resizeRaf = 0;
-    if (__resizeCount > 45) return;
+    __resizeTimer = 0;
     const root = document.getElementById('__roomi_root');
     const bs = document.body ? getComputedStyle(document.body) : null;
     const padY = bs ? (parseFloat(bs.paddingTop) || 0) + (parseFloat(bs.paddingBottom) || 0) : 0;
@@ -105,12 +104,13 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     const clamped = Math.max(110, Math.min(rawH + 4, 680));
     if (Math.abs(clamped - __lastReportedH) < 2) return;
     __lastReportedH = clamped;
-    __resizeCount++;
+    __lastReportTs = Date.now();
     parent.postMessage({ type: 'loom:resize', widgetId: window.__WIDGET_ID__, height: clamped }, '*');
   }
   function __reportHeight() {
-    if (__resizeRaf) return;
-    __resizeRaf = requestAnimationFrame(__measureAndReport);
+    if (__resizeTimer) return;
+    const wait = Math.max(16, 120 - (Date.now() - __lastReportTs));
+    __resizeTimer = setTimeout(__measureAndReport, wait);
   }
   window.addEventListener('error', ev => {
     parent.postMessage({ type: 'loom:error', widgetId: window.__WIDGET_ID__, message: String(ev.message || '脚本异常').slice(0, 120) }, '*');

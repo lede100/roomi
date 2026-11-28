@@ -171,36 +171,83 @@
           <div class="board-hero">
             <div>
               <div class="board-hero-title" id="boardHeroTitle">林澈的家</div>
-              <div class="board-hero-sub">聊天里现做的小工具都会摆在家里，点击就能直接互动</div>
+              <div class="board-hero-sub">小工具与 TA 的记忆本都在这里，随时查看互动</div>
             </div>
             <div style="display:flex;gap:5px;flex-shrink:0;">
               <button class="new-widget-btn" id="openGalleryBtn" style="background:var(--surface-muted);color:var(--text-2);">🖼 相册</button>
               <button class="new-widget-btn" id="askNewWidgetBtn">+ 现做一个</button>
             </div>
           </div>
-          <div class="daily-note-card" id="dailyNoteCard">
-            <div class="daily-note-head">
-              <span id="dailyNoteTitle">📌 今日心情便利贴</span>
-              <div class="daily-note-ops">
-                <button type="button" class="mini-btn" id="refreshDailyNoteBtn" title="换一条状态">↻ 换一句</button>
-                <button type="button" class="mini-btn" style="color:var(--blue);font-weight:600;" id="chatDailyNoteBtn">💬 聊聊</button>
+          <div class="board-subtabs" id="boardSubTabs">
+            <button type="button" class="board-subtab active" data-board-sub="widgets">小组件 <span class="board-sub-count" id="boardWidgetSubCount"></span></button>
+            <button type="button" class="board-subtab" data-board-sub="memory">记忆本 <span class="board-sub-count" id="memTabCount"></span></button>
+          </div>
+          <div class="board-subpane active" id="boardPaneWidgets" data-board-pane="widgets">
+            <div class="daily-note-card" id="dailyNoteCard">
+              <div class="daily-note-head">
+                <span id="dailyNoteTitle">📌 今日心情便利贴</span>
+                <div class="daily-note-ops">
+                  <button type="button" class="mini-btn" id="refreshDailyNoteBtn" title="换一条状态">↻ 换一句</button>
+                  <button type="button" class="mini-btn" style="color:var(--blue);font-weight:600;" id="chatDailyNoteBtn">💬 聊聊</button>
+                </div>
+              </div>
+              <div class="daily-note-body" id="dailyNoteBody">今天也在安静等你消息呢。</div>
+            </div>
+            <div class="board-tpl-bar" id="boardTplBar">
+              <button type="button" class="board-tpl-chip" data-board-tpl="period">🌸 贴心小日历</button>
+              <button type="button" class="board-tpl-chip" data-board-tpl="todo">✅ 共享小清单</button>
+              <button type="button" class="board-tpl-chip" data-board-tpl="saving">🪙 存钱小目标</button>
+              <button type="button" class="board-tpl-chip" data-board-tpl="dice">🎲 今天听谁的</button>
+            </div>
+            <div id="widgetList" style="display:flex;flex-direction:column;gap:12px;"></div>
+          </div>
+          <div class="board-subpane" id="boardPaneMemory" data-board-pane="memory">
+            <div class="board-mem-card">
+              <div class="field" style="margin-bottom:0;">
+                <div class="field-label-row">
+                  <label for="memSummaryInput">TA 对近期经历的印象</label>
+                  <button type="button" class="detect-btn" id="compressNowBtn">↻ 帮 TA 整理一下</button>
+                </div>
+                <textarea id="memSummaryInput" rows="4" placeholder="聊得比较多时，这里会自动记录你们之前发生过的事；手动修改会自动保存…"></textarea>
+                <div class="model-status" id="memCompressStatus"></div>
               </div>
             </div>
-            <div class="daily-note-body" id="dailyNoteBody">今天也在安静等你消息呢。</div>
+            <div class="board-mem-card">
+              <div class="field" style="margin-bottom:0;">
+                <div class="field-label-row">
+                  <label>小本本 · 记住的事</label>
+                  <button type="button" class="mini-btn danger" id="clearMemBtn">清空记忆</button>
+                </div>
+                <div class="hint" style="margin-top:0;margin-bottom:8px;">
+                  只会自动记录对长期相处有用的个人习惯、喜好与重要约定；一次性碎事不会乱记。
+                </div>
+                <div class="mem-add-row">
+                  <input id="memNewKey" type="text" placeholder="标签（如：作息）" style="width:34%;" />
+                  <input id="memNewVal" type="text" placeholder="内容（如：凌晨1点睡）" style="flex:1;" />
+                  <button type="button" class="detect-btn" id="memAddBtn">+ 记一条</button>
+                </div>
+                <div class="mem-list board-mem-list" id="memList"></div>
+              </div>
+            </div>
+            <div class="board-mem-card">
+              <div class="field" style="margin-bottom:0;">
+                <div class="field-label-row">
+                  <label>当前实时场景状态 <span id="sceneStateCount" style="font-size:11px;color:var(--text-muted);"></span></label>
+                  <button type="button" class="mini-btn danger" id="clearSceneStatesBtn">清空状态</button>
+                </div>
+                <div class="hint" style="margin-top:0;margin-bottom:8px;">
+                  自动记录人物在场、位置、灯光、临时约定等短时状态，24 小时自动过期；有出入可直接单条删掉。
+                </div>
+                <div class="mem-list board-mem-list" id="sceneStateList"></div>
+              </div>
+            </div>
           </div>
-          <div class="board-tpl-bar" id="boardTplBar">
-            <button type="button" class="board-tpl-chip" data-board-tpl="period">🌸 贴心小日历</button>
-            <button type="button" class="board-tpl-chip" data-board-tpl="todo">✅ 共享小清单</button>
-            <button type="button" class="board-tpl-chip" data-board-tpl="saving">🪙 存钱小目标</button>
-            <button type="button" class="board-tpl-chip" data-board-tpl="dice">🎲 今天听谁的</button>
-          </div>
-          <div id="widgetList" style="display:flex;flex-direction:column;gap:12px;"></div>
         </div>
       </section>
     </div>
   </main>
 
-  <!-- Settings Modal (3 Clean Tabs: 伴侣 / 记忆 / 模型) -->
+  <!-- Settings Modal (2 Clean Tabs: 伴侣 / 模型与数据) -->
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-sheet">
       <div class="settings-sticky-top">
@@ -211,7 +258,6 @@
 
         <div class="set-tabs" id="setTabBar">
           <button type="button" class="set-tab active" data-set-tab="companion">伴侣</button>
-          <button type="button" class="set-tab" data-set-tab="memory">记忆 <span id="memTabCount" style="font-size:11px;color:var(--text-muted);"></span></button>
           <button type="button" class="set-tab" data-set-tab="model">模型与数据 <span class="set-dot" id="modelCfgDot"></span></button>
         </div>
       </div>
@@ -380,44 +426,7 @@
         </div>
       </div>
 
-      <!-- Tab 2: Memory (Human-readable, no jargon) -->
-      <div class="set-pane" data-set-pane="memory">
-        <div class="hint" style="margin-top:0;margin-bottom:10px;">
-          只会自动记录对长期相处有用的个人习惯、喜好与重要约定；一次性碎事不会乱记。
-        </div>
-        <div class="field">
-          <div class="field-label-row">
-            <label for="memSummaryInput">TA 对近期经历的印象</label>
-            <button type="button" class="detect-btn" id="compressNowBtn">↻ 帮 TA 整理一下</button>
-          </div>
-          <textarea id="memSummaryInput" rows="3" placeholder="聊得比较多时，这里会自动记录你们之前发生过的事…"></textarea>
-          <div class="model-status" id="memCompressStatus"></div>
-        </div>
-        <div class="field">
-          <div class="field-label-row">
-            <label>小本本 · 记住的事</label>
-            <button type="button" class="mini-btn danger" id="clearMemBtn">清空记忆</button>
-          </div>
-          <div class="mem-add-row">
-            <input id="memNewKey" type="text" placeholder="标签（如：作息）" style="width:34%;" />
-            <input id="memNewVal" type="text" placeholder="内容（如：凌晨1点睡）" style="flex:1;" />
-            <button type="button" class="detect-btn" id="memAddBtn">+ 记一条</button>
-          </div>
-          <div class="mem-list" id="memList"></div>
-        </div>
-        <div class="field" style="margin-top:12px;">
-          <div class="field-label-row">
-            <label>当前实时场景状态 <span id="sceneStateCount" style="font-size:11px;color:var(--text-muted);"></span></label>
-            <button type="button" class="mini-btn danger" id="clearSceneStatesBtn">清空状态</button>
-          </div>
-          <div class="hint" style="margin-top:0;margin-bottom:6px;">
-            自动记录灯光、位置、临时约定等短时状态，24 小时自动过期；有出入可直接单条删掉。
-          </div>
-          <div class="mem-list" id="sceneStateList" style="max-height:18dvh;"></div>
-        </div>
-      </div>
-
-      <!-- Tab 3: Model & Data -->
+      <!-- Tab 2: Model & Data -->
       <div class="set-pane" data-set-pane="model">
         <div class="section-kicker">第一步 · 对话大模型（必填才能真对话）</div>
         <div class="field">
