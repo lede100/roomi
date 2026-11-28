@@ -183,7 +183,7 @@ export function parseAssistantOutput(rawText) {
 
 export function formatMessageForModel(m) {
   const state = runtime.state;
-  if (!m || m.imgPending) return null;
+  if (!m || m.imgPending || m.isError) return null;
   const replyPrefix = m.replyTo
     ? `[引用回复 ${m.replyTo.who || '之前'} 的“${String(m.replyTo.preview || '').slice(0, 48)}”] `
     : '';
@@ -363,12 +363,12 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
   const sampleDialogue = (state.settings.sampleDialogue || '').trim();
   const isStory = state.settings.chatMode === 'story';
   const themeHint = state.settings.theme === 'glass-dark'
-    ? '深夜玻璃透明底，字 #eef2ff，次级 #94a3b8，主色 #7aa7ff'
+    ? '暖炭夜深底 #252320，字 #efeae1，次级 #938b7f，主色 #e08a69'
     : (state.settings.theme === 'glass-light'
-      ? '浅玻璃透明底，字 #141c2c，次级 #5d6b82，主色 #3b7df6'
+      ? '奶油玫瑰白底 #ffffff，字 #261d1e，次级 #806e70，主色 #c26d7a'
       : (state.settings.theme === 'claude'
         ? '暖纸白底 #ffffff，字 #1f1e1b，主色 #d97757'
-        : '蓝白底 #ffffff，字 #1c2433，主色 #5b8def'));
+        : '清茶绿白底 #ffffff，字 #1c241f，主色 #587d68'));
 
   const ageLine = age ? `\n年龄：${age}` : '';
   const genderLine = gender ? `\n性别：${gender}` : '';
@@ -393,7 +393,7 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
     : '1. 当前为「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只剥离非对话排版——只输出手机聊天软件里真人会直接发出的纯说话口语！哪怕人设档案、示范或前文带有舞台动作、神态描述或小说旁白，此处也一律只讲纯对话，绝不模仿任何动作/心理/旁白格式。\n2. 严禁使用星号动作标记、括号神态旁白或 1.2.3. 列表腔；所有情绪与态度只通过纯说话用词与节奏自然流露。\n3. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n4. 严格遵守后台【当前实时场景状态】，若有临时状态（如灯光开关、位置、刚答应的事）发生变化，必须附 <STATE> 更新。';
 
   const widgetRule = needWidget
-    ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})，用CompanionBridge.getState/saveState/emit</WIDGET>`
+    ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})。规范：①禁止写 height:100vh 或 min-height:100vh（按内容自然撑高）；②禁止用 localStorage，读写状态用 CompanionBridge.getState()/saveState(obj)；③每次关键按钮点击或状态变化时，必须同时调 CompanionBridge.saveState(st) 与 CompanionBridge.emit('简短说明用户刚做了什么') 以便伴侣实时看到并回应</WIDGET>`
     : '';
   const imgRule = getImagePromptSection();
 
@@ -410,6 +410,59 @@ ${modeRule}
 - 当房间灯光、彼此位置、刚答应的临时约定或正在做的事变化时附：<STATE key="对象名" value="当前状态" />（同 key 新状态自动覆盖旧状态，作废用 op="del"）
 - 遇值得记一月以上的事实时附：<MEMORY key="标签" value="事实" />（删旧用 op="del"）
 - 对方明确让你记待办、勾掉待办或换家里便利贴时可附：<BOARD op="todo_add" text="待办内容" />、<BOARD op="todo_done" text="关键词" /> 或 <BOARD op="note" text="便利贴内容" />${widgetRule}${imgRule}`;
+}
+
+const TRIVIAL_PHRASES = new Set(['不是的', '怎么了', '有没有', '什么事', '为什么', '不知道', '差不多', '没关系', '的时候', '都可以', '真的吗', '好不好']);
+
+export function detectRepetitivePhrases(recentAssistantTexts) {
+  if (!Array.isArray(recentAssistantTexts) || recentAssistantTexts.length < 3) return [];
+  const texts = recentAssistantTexts.slice(-5).map(t => String(t || '').trim()).filter(Boolean);
+  if (texts.length < 3) return [];
+
+  const hits = [];
+  // 1. Repeated leading opener (2-5 Chinese chars at start of >=3 replies)
+  const openerCounts = new Map();
+  for (const t of texts) {
+    const m = t.match(/^[\u4e00-\u9fa5]{2,5}/);
+    if (!m) continue;
+    const op = m[0];
+    for (let len = Math.min(4, op.length); len >= 2; len--) {
+      const sub = op.slice(0, len);
+      openerCounts.set(sub, (openerCounts.get(sub) || 0) + 1);
+    }
+  }
+  const repOpeners = [...openerCounts.entries()]
+    .filter(([k, cnt]) => cnt >= 3 && !TRIVIAL_PHRASES.has(k))
+    .sort((a, b) => b[0].length - a[0].length || b[1] - a[1]);
+  if (repOpeners.length) hits.push(repOpeners[0][0]);
+
+  // 2. Repeated 3-6 char Chinese phrase appearing in >=3 distinct recent replies
+  const phraseDocCount = new Map();
+  for (const t of texts) {
+    const segs = t.match(/[\u4e00-\u9fa5]{3,}/g) || [];
+    const seenInDoc = new Set();
+    for (const seg of segs) {
+      const maxLen = Math.min(6, seg.length);
+      for (let len = 3; len <= maxLen; len++) {
+        for (let i = 0; i <= seg.length - len; i++) {
+          const p = seg.slice(i, i + len);
+          if (!TRIVIAL_PHRASES.has(p)) seenInDoc.add(p);
+        }
+      }
+    }
+    for (const p of seenInDoc) {
+      phraseDocCount.set(p, (phraseDocCount.get(p) || 0) + 1);
+    }
+  }
+  const repPhrases = [...phraseDocCount.entries()]
+    .filter(([p, cnt]) => cnt >= 3)
+    .sort((a, b) => b[0].length - a[0].length || b[1] - a[1]);
+  for (const [p] of repPhrases) {
+    if (hits.some(h => h.includes(p) || p.includes(h))) continue;
+    hits.push(p);
+    if (hits.length >= 2) break;
+  }
+  return hits;
 }
 
 export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
@@ -465,12 +518,35 @@ export function buildDynamicContextNote(needWidget = false, windowMsgs = null) {
       lines.push('格式纠偏：上方发送历史里存在旧的旁白/动作习惯，当前是日常纯文字聊天模式，从本条回复起请彻底切回纯说话口语，绝不延续历史里的括号或星号旁白。');
     }
   }
-  const recentAsstMsgs = state.messages
-    .filter(m => m && m.role === 'assistant' && m.text && !m.isStarter)
-    .slice(-2)
+  const recentAsstAll = state.messages
+    .filter(m => m && m.role === 'assistant' && m.text && !m.isStarter && !m.isError)
+    .slice(-5)
     .map(m => String(m.text).trim());
+  const recentAsstMsgs = recentAsstAll.slice(-2);
   if (recentAsstMsgs.length === 2 && recentAsstMsgs.every(t => /[?？]\s*$/.test(t))) {
     lines.push('节奏提醒：你已连续两轮以问句结尾，本轮直接自然接话即可，不要再抛反问句收尾。');
+  }
+  const repHits = detectRepetitivePhrases(recentAsstAll);
+  if (repHits.length) {
+    lines.push(`避重提醒：最近几轮回复已多次出现「${repHits.join('、')}」，本轮请换个自然表达，不要重复这些用词或开头。`);
+  }
+  // Dynamic length pacing following user's latest message length (strictly persona-neutral)
+  let lastUserTxt = '';
+  for (let i = state.messages.length - 1; i >= 0; i--) {
+    const m = state.messages[i];
+    if (!m || m.imgPending || m.isError) continue;
+    if (m.role === 'assistant') break;
+    if (m.role === 'user' && m.text && !m.image) {
+      lastUserTxt = String(m.text).trim();
+      break;
+    }
+  }
+  if (lastUserTxt && !needWidget) {
+    if (lastUserTxt.length <= 5 && !/[?？]/.test(lastUserTxt)) {
+      lines.push('篇幅节奏：对方刚只发了极短的话，本轮随口回一句短话即可，不必硬展开长篇。');
+    } else if (lastUserTxt.length >= 80) {
+      lines.push('篇幅节奏：对方刚发了一大段话，可以顺着对方的细节多回应两句，别太敷衍。');
+    }
   }
   const rawSampleFirst = (state.settings.sampleDialogue || '')
     .split(/\r?\n/)

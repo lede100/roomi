@@ -30,6 +30,8 @@ import {
   aspectRatioFromSize,
   findLastChatImage,
   enqueueImageTask,
+  retryPendingImageTask,
+  discardPendingImageTask,
   bindImageGenHooks
 } from './image-gen.js';
 import { ui, registerUI } from './ui-bridge.js';
@@ -207,6 +209,46 @@ export function initChatUI() {
 
   let currentLightboxSrc = '';
   let currentLightboxMsgId = '';
+  let lightboxItems = [];
+  let lightboxIndex = 0;
+  let lbScale = 1;
+  let lbTx = 0;
+  let lbTy = 0;
+
+  function applyLightboxTransform(animated = false) {
+    const imgEl = document.getElementById('imgLightboxSrc');
+    if (!imgEl) return;
+    imgEl.style.transition = animated ? 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+    imgEl.style.transform = `translate3d(${lbTx}px, ${lbTy}px, 0) scale(${lbScale})`;
+  }
+
+  function resetLightboxTransform(animated = false) {
+    lbScale = 1;
+    lbTx = 0;
+    lbTy = 0;
+    applyLightboxTransform(animated);
+  }
+
+  function renderLightboxAt(idx, animated = false) {
+    if (!lightboxItems.length) return;
+    lightboxIndex = Math.max(0, Math.min(lightboxItems.length - 1, idx));
+    const item = lightboxItems[lightboxIndex];
+    currentLightboxSrc = item.src;
+    currentLightboxMsgId = item.msgId || '';
+    const imgEl = document.getElementById('imgLightboxSrc');
+    if (imgEl) imgEl.src = item.src;
+    resetLightboxTransform(animated);
+    const counter = document.getElementById('lightboxCounter');
+    if (counter) {
+      counter.textContent = lightboxItems.length > 1 ? `${lightboxIndex + 1} / ${lightboxItems.length}` : '1 / 1';
+    }
+    const prevBtn = document.getElementById('lightboxPrevBtn');
+    const nextBtn = document.getElementById('lightboxNextBtn');
+    if (prevBtn) prevBtn.classList.toggle('hidden', lightboxIndex <= 0);
+    if (nextBtn) nextBtn.classList.toggle('hidden', lightboxIndex >= lightboxItems.length - 1);
+    const jBtn = document.getElementById('lightboxJumpBtn');
+    if (jBtn) jBtn.style.display = currentLightboxMsgId ? 'inline-flex' : 'none';
+  }
 
   function fillImageBubble(bubble, imageUrl, text, msgId = '') {
     bubble.className = 'bubble' + (text ? '' : ' img-only');
@@ -228,11 +270,21 @@ export function initChatUI() {
   }
 
   function openLightboxWithImage(imageUrl, msgId = '') {
-    currentLightboxSrc = imageUrl;
-    currentLightboxMsgId = msgId || '';
-    document.getElementById('imgLightboxSrc').src = imageUrl;
-    const jBtn = document.getElementById('lightboxJumpBtn');
-    if (jBtn) jBtn.style.display = currentLightboxMsgId ? 'inline-flex' : 'none';
+    const imgs = [];
+    for (const m of (runtime.state.messages || [])) {
+      if (m && m.image && !m.imgPending) {
+        imgs.push({ src: m.image, msgId: m.id || '' });
+      }
+    }
+    let idx = msgId ? imgs.findIndex(it => it.msgId === msgId) : -1;
+    if (idx < 0) idx = imgs.findIndex(it => it.src === imageUrl);
+    if (idx < 0) {
+      lightboxItems = [{ src: imageUrl, msgId: msgId || '' }];
+      idx = 0;
+    } else {
+      lightboxItems = imgs;
+    }
+    renderLightboxAt(idx, false);
     document.getElementById('imgLightbox').classList.add('show');
   }
 
@@ -681,11 +733,39 @@ export function initChatUI() {
       av.className = 'ai-mini-avatar';
       const ac = getActiveCharacter();
       applyAvatarToEl(av, runtime.state.settings.name || '林澈', runtime.state.settings.avatarImage || ac?.avatarImage);
-      const skel = document.createElement('div');
-      skel.className = 'img-skeleton';
-      skel.style.aspectRatio = ratio;
       wrap.appendChild(av);
-      wrap.appendChild(skel);
+      if (m.imgStalled) {
+        const card = document.createElement('div');
+        card.className = 'img-retry-card';
+        card.innerHTML = `
+          <div class="img-retry-title">📷 图片仍在后台生成中</div>
+          <div class="img-retry-sub">20 分钟内随时可点下面领取，不会丢图</div>
+          <div class="img-retry-ops">
+            <button type="button" class="detect-btn" data-act="retry">↻ 再领一次</button>
+            <button type="button" class="mini-btn danger" data-act="drop" title="放弃这张图">✕</button>
+          </div>`;
+        const retryBtn = card.querySelector('[data-act="retry"]');
+        retryBtn.onclick = async ev => {
+          ev.stopPropagation();
+          retryBtn.disabled = true;
+          retryBtn.textContent = '领取中…';
+          await retryPendingImageTask(runtime.state.activeCharId, m.id, false);
+          if (retryBtn.isConnected) {
+            retryBtn.disabled = false;
+            retryBtn.textContent = '↻ 再领一次';
+          }
+        };
+        card.querySelector('[data-act="drop"]').onclick = ev => {
+          ev.stopPropagation();
+          discardPendingImageTask(runtime.state.activeCharId, m.id);
+        };
+        wrap.appendChild(card);
+      } else {
+        const skel = document.createElement('div');
+        skel.className = 'img-skeleton';
+        skel.style.aspectRatio = ratio;
+        wrap.appendChild(skel);
+      }
       row.appendChild(wrap);
       return row;
     }
@@ -931,11 +1011,18 @@ export function initChatUI() {
         ? bubbles
         : (mountedWidgets.length ? [`好啦，已经帮你摆在「${runtime.state.settings.name || '我'}的家」里咯～`] : (newImages.length ? [] : ['嗯？刚刚走神了，再跟我说一遍？']));
 
+      runtime.isDeliveringBubbles = true;
+      runtime.interruptForNewSend = false;
       for (let i = 0; i < finalBubbles.length; i++) {
         if (runtime.replyAbortRequested) break;
         if (i > 0) {
           setTyping(true, `${runtime.state.settings.name}正在输入`);
-          await sleep(380 + Math.min(460, finalBubbles[i].length * 14));
+          const jitter = Math.round(Math.random() * 240 - 80);
+          const delayMs = Math.max(260, 320 + Math.min(720, finalBubbles[i].length * 18) + jitter);
+          const endAt = Date.now() + delayMs;
+          while (Date.now() < endAt && !runtime.replyAbortRequested) {
+            await sleep(Math.min(60, Math.max(10, endAt - Date.now())));
+          }
           if (runtime.replyAbortRequested) break;
         }
         setTyping(false);
@@ -943,9 +1030,12 @@ export function initChatUI() {
         scheduleSave();
         if (i === 0) showFloatingBanner(finalBubbles[i]);
       }
+      runtime.isDeliveringBubbles = false;
 
       if (runtime.replyAbortRequested) {
-        appendChatMessage({ role: 'event', text: '已停止本次生成' });
+        if (!runtime.interruptForNewSend) {
+          appendChatMessage({ role: 'event', text: '已停止本次生成' });
+        }
       } else if (newImages.length && isImageGenReady()) {
         setTyping(false);
         const lastImg = findLastChatImage(targetCharId);
@@ -984,11 +1074,12 @@ export function initChatUI() {
       if (err.name === 'AbortError') {
         appendChatMessage({ role: 'event', text: '已停止本次生成' });
       } else if (err.isVisionNotice) {
-        appendChatMessage({ role: 'assistant', text: err.message });
+        appendChatMessage({ role: 'assistant', text: err.message, isError: true });
       } else {
         appendChatMessage({
           role: 'assistant',
-          text: `哎呀，接口连不上（${err.message}）。请检查右上角设置里的 Base URL、Model 或 API Key。`
+          text: `哎呀，接口连不上（${err.message}）。请检查右上角设置里的 Base URL、Model 或 API Key。`,
+          isError: true
         });
       }
       scheduleSave();
@@ -996,8 +1087,15 @@ export function initChatUI() {
       clearTimeout(slowHintTimer);
       runtime.activeAbortController = null;
       setTyping(false);
+      const nextInterrupt = runtime.pendingInterruptSend;
+      runtime.pendingInterruptSend = null;
+      runtime.isDeliveringBubbles = false;
+      runtime.interruptForNewSend = false;
       runtime.isBusy = false;
       sendBtn.innerHTML = SEND_SVG;
+      if (nextInterrupt) {
+        queueMicrotask(() => handleSend(nextInterrupt.overrideText));
+      }
       sendBtn.classList.remove('stop');
       sendBtn.setAttribute('aria-label', '发送');
       if (runtime.pendingEventQueue.length && runtime.state.settings.autoReact) {
@@ -1054,8 +1152,155 @@ export function initChatUI() {
     }
   };
   document.getElementById('clearImgBtn').onclick = clearPendingImage;
-  imgLightbox.onclick = () => imgLightbox.classList.remove('show');
+  const lightboxStage = document.getElementById('lightboxStage');
+  const lightboxCloseBtn = document.getElementById('lightboxCloseBtn');
+  const lightboxPrevBtn = document.getElementById('lightboxPrevBtn');
+  const lightboxNextBtn = document.getElementById('lightboxNextBtn');
+  const closeLightbox = () => {
+    resetLightboxTransform(false);
+    imgLightbox.classList.remove('show');
+  };
+  if (lightboxCloseBtn) lightboxCloseBtn.onclick = e => { e.stopPropagation(); closeLightbox(); };
+  document.getElementById('lightboxTop')?.addEventListener('click', e => e.stopPropagation());
   document.getElementById('lightboxActions').onclick = e => e.stopPropagation();
+  if (lightboxPrevBtn) {
+    lightboxPrevBtn.onclick = e => {
+      e.stopPropagation();
+      if (lightboxIndex > 0) renderLightboxAt(lightboxIndex - 1, true);
+    };
+  }
+  if (lightboxNextBtn) {
+    lightboxNextBtn.onclick = e => {
+      e.stopPropagation();
+      if (lightboxIndex < lightboxItems.length - 1) renderLightboxAt(lightboxIndex + 1, true);
+    };
+  }
+
+  // Swipe left/right + Pinch-to-zoom (1x-4x) + Double-tap zoom + Pan when zoomed
+  if (lightboxStage) {
+    let lbMode = 'none'; // 'swipe' | 'pan' | 'pinch'
+    let startX = 0, startY = 0, startTx = 0, startTy = 0;
+    let pinchStartDist = 0, pinchStartScale = 1;
+    let movedDuringTouch = false;
+    let lastTapAt = 0;
+    const touchDist = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    const clampPan = (val, limit) => Math.max(-limit, Math.min(limit, val));
+
+    lightboxStage.addEventListener('touchstart', e => {
+      if (e.target.closest('.lightbox-nav')) return;
+      movedDuringTouch = false;
+      if (e.touches.length === 2) {
+        if (lbScale <= 1.05) { lbTx = 0; lbTy = 0; }
+        lbMode = 'pinch';
+        pinchStartDist = Math.max(10, touchDist(e.touches[0], e.touches[1]));
+        pinchStartScale = lbScale;
+      } else if (e.touches.length === 1) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTx = lbTx;
+        startTy = lbTy;
+        lbMode = lbScale > 1.05 ? 'pan' : 'swipe';
+      }
+    }, { passive: true });
+
+    lightboxStage.addEventListener('touchmove', e => {
+      if (lbMode === 'pinch' && e.touches.length === 2) {
+        movedDuringTouch = true;
+        const ratio = touchDist(e.touches[0], e.touches[1]) / pinchStartDist;
+        lbScale = Math.max(1, Math.min(4, pinchStartScale * ratio));
+        if (lbScale <= 1.02) { lbTx = 0; lbTy = 0; }
+        applyLightboxTransform(false);
+        return;
+      }
+      if (e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) movedDuringTouch = true;
+      if (lbMode === 'pan') {
+        const maxPanX = Math.max(80, (window.innerWidth || 380) * (lbScale - 1) * 0.6);
+        const maxPanY = Math.max(80, (window.innerHeight || 720) * (lbScale - 1) * 0.5);
+        lbTx = clampPan(startTx + dx, maxPanX);
+        lbTy = clampPan(startTy + dy, maxPanY);
+        applyLightboxTransform(false);
+      } else if (lbMode === 'swipe' && lightboxItems.length > 1) {
+        const edgeDamp = ((lightboxIndex === 0 && dx > 0) || (lightboxIndex === lightboxItems.length - 1 && dx < 0)) ? 0.32 : 1;
+        lbTx = dx * edgeDamp;
+        lbTy = 0;
+        applyLightboxTransform(false);
+      }
+    }, { passive: true });
+
+    lightboxStage.addEventListener('touchend', e => {
+      if (e.target.closest('.lightbox-nav')) return;
+      if (lbMode === 'pinch') {
+        if (lbScale < 1.08) resetLightboxTransform(true);
+        lbMode = 'none';
+        return;
+      }
+      if (!movedDuringTouch && e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapAt < 300) {
+          lastTapAt = 0;
+          if (lbScale > 1.1) {
+            resetLightboxTransform(true);
+          } else {
+            lbScale = 2.2;
+            lbTx = 0;
+            lbTy = 0;
+            applyLightboxTransform(true);
+          }
+        } else {
+          lastTapAt = now;
+          const tappedBackdrop = !e.target.closest('#imgLightboxSrc');
+          if (tappedBackdrop) {
+            setTimeout(() => {
+              if (lastTapAt === now) closeLightbox();
+            }, 310);
+          }
+        }
+        lbMode = 'none';
+        return;
+      }
+      if (lbMode === 'swipe') {
+        const dx = lbTx;
+        if (dx < -52 && lightboxIndex < lightboxItems.length - 1) {
+          renderLightboxAt(lightboxIndex + 1, true);
+        } else if (dx > 52 && lightboxIndex > 0) {
+          renderLightboxAt(lightboxIndex - 1, true);
+        } else {
+          resetLightboxTransform(true);
+        }
+      }
+      lbMode = 'none';
+    }, { passive: true });
+
+    lightboxStage.addEventListener('dblclick', e => {
+      if (e.target.closest('.lightbox-nav')) return;
+      e.stopPropagation();
+      if (lbScale > 1.1) resetLightboxTransform(true);
+      else { lbScale = 2.2; lbTx = 0; lbTy = 0; applyLightboxTransform(true); }
+    });
+
+    lightboxStage.addEventListener('wheel', e => {
+      if (!imgLightbox.classList.contains('show')) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.25 : -0.25;
+      lbScale = Math.max(1, Math.min(4, lbScale + delta));
+      if (lbScale <= 1.02) { lbTx = 0; lbTy = 0; }
+      applyLightboxTransform(false);
+    }, { passive: false });
+
+    lightboxStage.addEventListener('click', e => {
+      if (e.target === lightboxStage && lbScale <= 1.05) closeLightbox();
+    });
+  }
+
+  document.addEventListener('keydown', e => {
+    if (!imgLightbox.classList.contains('show')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft' && lightboxIndex > 0) renderLightboxAt(lightboxIndex - 1, true);
+    else if (e.key === 'ArrowRight' && lightboxIndex < lightboxItems.length - 1) renderLightboxAt(lightboxIndex + 1, true);
+  });
 
   document.getElementById('lightboxSaveBtn').onclick = async e => {
     e.stopPropagation();
@@ -1170,7 +1415,16 @@ export function initChatUI() {
   }
 
   function handleSend(overrideText) {
+    const incomingText = (overrideText ?? chatInput.value).trim();
+    const incomingImg = overrideText ? '' : pendingImageUrl;
     if (runtime.isBusy) {
+      if (runtime.isDeliveringBubbles && (incomingText || incomingImg)) {
+        // Seamless WeChat-style interruption: stop remaining queued bubbles quietly and flush new send deterministically in finally()
+        runtime.pendingInterruptSend = { overrideText };
+        runtime.interruptForNewSend = true;
+        runtime.replyAbortRequested = true;
+        return;
+      }
       runtime.replyAbortRequested = true;
       if (runtime.activeAbortController) runtime.activeAbortController.abort();
       cancelPendingSendBurst();
@@ -1565,6 +1819,7 @@ export function initChatUI() {
   bindImageGenHooks({
     createMsgRowElement,
     renderHeader,
+    renderChat,
     showFloatingBanner
   });
 

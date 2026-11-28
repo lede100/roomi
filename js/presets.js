@@ -240,9 +240,9 @@ go.onclick=()=>{const pick=opts[Math.floor(Math.random()*opts.length)];res.textC
 export const THEME_ORDER = ['claude', 'deepseek', 'glass-light', 'glass-dark'];
 export const THEME_LABELS = {
   claude: '暖纸张',
-  deepseek: '晴蓝白',
-  'glass-light': '液态白玻璃',
-  'glass-dark': '深夜玻璃'
+  deepseek: '清茶绿',
+  'glass-light': '奶油玫瑰',
+  'glass-dark': '暖炭夜'
 };
 
 export function buildDailyMoodNotePool(charName) {

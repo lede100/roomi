@@ -76,6 +76,7 @@ export function initSettingsUI() {
       const next = btn.dataset.themeChoice || 'claude';
       runtime.state.settings.theme = next;
       applyTheme(next);
+      syncSettingsAccordionBadges();
       ui.renderWidgets?.();
       scheduleSave();
     };
@@ -468,6 +469,7 @@ export function initSettingsUI() {
     btn.onclick = () => {
       draftTempMode = btn.dataset.temp || 'balanced';
       syncTempPickerUI();
+      syncSettingsAccordionBadges();
     };
   });
 
@@ -478,6 +480,9 @@ export function initSettingsUI() {
   }
   const cfgDailyNotifyEl = document.getElementById('cfgDailyNotify');
   if (cfgDailyNotifyEl) cfgDailyNotifyEl.onchange = syncNotifyTimesRowUI;
+  document.getElementById('cfgPrivacyLock')?.addEventListener('change', syncSettingsAccordionBadges);
+  document.getElementById('cfgAnchors')?.addEventListener('input', syncSettingsAccordionBadges);
+  document.getElementById('cfgSampleDialogue')?.addEventListener('input', syncSettingsAccordionBadges);
 
   function syncChatModePickerUI() {
     const el = document.getElementById('cfgStoryMode');
@@ -488,6 +493,39 @@ export function initSettingsUI() {
     cfgStoryModeEl.onchange = () => {
       draftChatMode = cfgStoryModeEl.checked ? 'story' : 'wechat';
     };
+  }
+
+
+  function syncSettingsAccordionBadges() {
+    const thinkMap = { auto: '默认思考', off: '关思考', low: '轻量思考', high: '深度思考' };
+    const ctxMap = { short: '省流', long: '超长', ultra: '1M' };
+    const tempMap = { calm: '0.65', balanced: '0.85', vivid: '1.0' };
+    const tuningBadge = document.getElementById('accModelTuningBadge');
+    if (tuningBadge) {
+      tuningBadge.textContent = `${thinkMap[draftThinkingMode] || '默认思考'} · ${ctxMap[draftContextMode] || '超长'} · ${tempMap[draftTempMode] || '0.85'}`;
+    }
+    const imgBadge = document.getElementById('accImgGenBadge');
+    if (imgBadge) {
+      const imgLabel = draftImgProvider === 'modelscope' ? '魔搭已开' : (draftImgProvider === 'openai' ? 'OpenAI 已开' : '已关闭');
+      imgBadge.textContent = imgLabel;
+      imgBadge.classList.toggle('on', draftImgProvider !== 'off');
+    }
+    const appBadge = document.getElementById('accAppearanceBadge');
+    if (appBadge) {
+      const tName = THEME_LABELS[runtime.state.settings.theme] || '暖纸张';
+      const lockOn = document.getElementById('cfgPrivacyLock')?.checked;
+      appBadge.textContent = lockOn ? `${tName} · 隐私锁开` : tName;
+      appBadge.classList.toggle('on', Boolean(lockOn));
+    }
+    const charAdvBadge = document.getElementById('accCharAdvancedBadge');
+    if (charAdvBadge) {
+      const tags = [];
+      if ((document.getElementById('cfgAnchors')?.value || '').trim()) tags.push('防飘');
+      if ((document.getElementById('cfgSampleDialogue')?.value || '').trim()) tags.push('示范');
+      if (draftWallpaper) tags.push('壁纸');
+      charAdvBadge.textContent = tags.length ? `已设：${tags.join(' / ')}` : '外貌 / 防飘 / 壁纸';
+      charAdvBadge.classList.toggle('on', tags.length > 0);
+    }
   }
 
   function syncPrivacyPinStatusUI() {
@@ -530,12 +568,14 @@ export function initSettingsUI() {
     btn.onclick = () => {
       draftThinkingMode = btn.dataset.thinking || 'auto';
       syncModelTuningPickersUI();
+      syncSettingsAccordionBadges();
     };
   });
   document.querySelectorAll('#contextPicker [data-context]').forEach(btn => {
     btn.onclick = () => {
       draftContextMode = btn.dataset.context || 'long';
       syncModelTuningPickersUI();
+      syncSettingsAccordionBadges();
     };
   });
 
@@ -763,6 +803,7 @@ export function initSettingsUI() {
   }
   document.querySelectorAll('#imgProviderPicker [data-img-provider]').forEach(btn => {
     btn.onclick = () => syncImgProviderUI(btn.dataset.imgProvider, draftImgTrigger);
+      syncSettingsAccordionBadges();
   });
   document.querySelectorAll('#imgModelPresets [data-img-model]').forEach(btn => {
     btn.onclick = () => {
@@ -814,6 +855,7 @@ export function initSettingsUI() {
     const clearBtn = document.getElementById('cfgWallpaperClearBtn');
     if (wpBtn) wpBtn.textContent = draftWallpaper ? '🖼 换一张壁纸' : '🖼 聊天壁纸';
     if (clearBtn) clearBtn.style.display = draftWallpaper ? 'inline-flex' : 'none';
+    syncSettingsAccordionBadges();
   }
 
   const wallpaperFileInput = document.getElementById('wallpaperFileInput');
@@ -898,6 +940,7 @@ export function initSettingsUI() {
     syncChatModePickerUI();
     refreshAvatarEditPreview();
     syncWallpaperBtnsUI();
+    syncSettingsAccordionBadges();
   }
 
   function switchCharacter(charId) {
@@ -1451,6 +1494,7 @@ export function initSettingsUI() {
     draftTempMode = runtime.state.settings.temperatureMode || 'balanced';
     syncModelTuningPickersUI();
     syncTempPickerUI();
+    syncSettingsAccordionBadges();
     draftPrivacyPin = runtime.state.settings.privacyPin || '';
     document.getElementById('cfgDebounceSend').checked = Boolean(runtime.state.settings.debounceSend);
     document.getElementById('cfgAutoGreet').checked = runtime.state.settings.autoGreetOnOpen !== false;
@@ -1701,27 +1745,38 @@ export function initSettingsUI() {
       );
       if (!ok) return;
 
+      const rollbackSnapshot = runtime.state;
       const prevKey = runtime.state.settings.apiKey;
       const prevImgKey = runtime.state.settings.imgApiKey;
-      runtime.state = normalizeState(parsed);
-      if (!runtime.state.settings.apiKey && prevKey) runtime.state.settings.apiKey = prevKey;
-      if (!runtime.state.settings.imgApiKey && prevImgKey) runtime.state.settings.imgApiKey = prevImgKey;
-      runtime.visibleChatStart = -1;
-      runtime.lastWindowStartIndex = 0;
-      runtime.pendingEventQueue = [];
-      runtime.personaShiftPending = false;
-      ui.cancelPendingSendBurst?.();
-      ui.clearPendingQuote?.();
-      scheduleSave();
-      applyTheme(runtime.state.settings.theme);
-      ui.renderHeader?.();
-      ui.syncChatModeQuickBtn?.();
-      ui.renderChat?.();
-      ui.renderWidgets?.();
-      updateMemStats();
-      settingsModal.classList.remove('show');
-      showWarn(`✓ 已恢复 ${sum.charCount} 个角色与 ${sum.msgCount} 条聊天记录`, true);
-      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 3200);
+      try {
+        const nextState = normalizeState(parsed);
+        if (!nextState.settings.apiKey && prevKey) nextState.settings.apiKey = prevKey;
+        if (!nextState.settings.imgApiKey && prevImgKey) nextState.settings.imgApiKey = prevImgKey;
+        await StorageAdapter.set(STORE_KEY, nextState);
+        runtime.state = nextState;
+        runtime.visibleChatStart = -1;
+        runtime.lastWindowStartIndex = 0;
+        runtime.pendingEventQueue = [];
+        runtime.personaShiftPending = false;
+        ui.cancelPendingSendBurst?.();
+        ui.clearPendingQuote?.();
+        applyTheme(runtime.state.settings.theme);
+        ui.renderHeader?.();
+        ui.syncChatModeQuickBtn?.();
+        ui.renderChat?.();
+        ui.renderWidgets?.();
+        updateMemStats();
+        settingsModal.classList.remove('show');
+        showWarn(`✓ 已恢复 ${sum.charCount} 个角色与 ${sum.msgCount} 条聊天记录`, true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 3200);
+      } catch (restoreErr) {
+        runtime.state = rollbackSnapshot;
+        applyTheme(runtime.state.settings.theme);
+        ui.renderHeader?.();
+        ui.renderChat?.();
+        ui.renderWidgets?.();
+        throw new Error(`恢复写入异常，已自动回滚原数据（${restoreErr.message || '未知错误'}）`);
+      }
     } catch (err) {
       showWarn(`导入失败：${err.message}`);
     } finally {

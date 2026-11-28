@@ -1,4 +1,4 @@
-import { runtime, scheduleSave, showWarn } from './state.js';
+import { runtime, scheduleSave, flushSaveNow, showWarn } from './state.js';
 import { sleep, escapeHtml, fetchWithTimeout, compressImageSrcToJpeg } from './utils.js';
 
 const _hooks = {};
@@ -101,7 +101,7 @@ export async function fetchWith429Backoff(url, options, maxRetries = 4) {
   }
 }
 
-export async function generateImageViaModelScope({ prompt, size, refImg }) {
+export async function generateImageViaModelScope({ prompt, size, refImg, onTaskCreated = null }) {
   const token = (runtime.state.settings.imgApiKey || '').trim();
   if (!token) throw new Error('未填写魔搭 Access Token');
   const cleanSize = normalizeImageSize(size);
@@ -140,36 +140,9 @@ export async function generateImageViaModelScope({ prompt, size, refImg }) {
   const submitJson = await submitRes.json();
   const taskId = submitJson.task_id;
   if (!taskId) throw new Error('魔搭未返回 task_id');
-
-  const maxPolls = chosenModel.includes('Qwen-Image-2.1') ? 45 : 24;
-  for (let i = 0; i < maxPolls; i++) {
-    await sleep(6000);
-    const pollRes = await fetchWith429Backoff(`https://api-inference.modelscope.cn/v1/tasks/${taskId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-ModelScope-Task-Type': 'image_generation'
-      }
-    });
-    if (!pollRes.ok) {
-      const txt = await pollRes.text().catch(() => '');
-      if (pollRes.status === 404 || /task not found/i.test(txt)) {
-        throw new Error('图片未通过审核或任务已过期');
-      }
-      throw new Error(`轮询生图失败 (${pollRes.status})`);
-    }
-    const pollJson = await pollRes.json();
-    const status = String(pollJson.task_status || '').toUpperCase();
-    if (status === 'SUCCEED') {
-      const imgUrl = pollJson.output_images?.[0];
-      if (!imgUrl) throw new Error('生图完成但未返回图片地址');
-      return await downloadAndCompressImage(imgUrl);
-    }
-    if (status === 'FAILED') {
-      throw new Error('画面未通过审核或生成失败，换个自然点的描述试试');
-    }
-  }
-  throw new Error('生图等待超时，请稍后再试');
+  const pollUrl = `https://api-inference.modelscope.cn/v1/tasks/${taskId}`;
+  if (onTaskCreated) onTaskCreated({ taskId, pollUrl, model: chosenModel });
+  return await pollModelScopeTask(taskId, token, OPENAI_IMG_TIMEOUT_MS);
 }
 
 export function normalizeOpenAISize(rawSize, modelName = '') {
@@ -181,7 +154,8 @@ export function normalizeOpenAISize(rawSize, modelName = '') {
   return isGptImage ? '1024x1536' : '1024x1792';
 }
 
-export const OPENAI_IMG_TIMEOUT_MS = 200000;
+export const OPENAI_IMG_TIMEOUT_MS = 300000;
+export const PENDING_IMG_TASK_TTL_MS = 20 * 60 * 1000;
 
 export async function extractOpenAIImageResult(payload) {
   if (!payload || typeof payload !== 'object') return '';
@@ -233,7 +207,7 @@ export async function imageSrcToBlob(srcUrl) {
   return { blob: await res.blob(), dataOrUrl: safeSrc };
 }
 
-export async function generateImageViaOpenAI({ prompt, size, refImg }) {
+export async function generateImageViaOpenAI({ prompt, size, refImg, onTaskCreated = null }) {
   const key = (runtime.state.settings.imgApiKey || runtime.state.settings.apiKey || '').trim();
   const base = (runtime.state.settings.imgBaseUrl || runtime.state.settings.baseUrl || '').trim().replace(/\/+$/, '');
   const model = (runtime.state.settings.openaiImgModel || runtime.state.settings.imgModel || '').trim();
@@ -247,7 +221,7 @@ export async function generateImageViaOpenAI({ prompt, size, refImg }) {
 
   const postWithDeadline = async (endpoint, headers, body) => {
     const leftMs = deadline - Date.now();
-    if (leftMs <= 1000) throw new Error('生图超时（已等待 200 秒），请稍后再试');
+    if (leftMs <= 1000) throw new Error('生图超时（已等待 300 秒），请稍后再试');
     try {
       return await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -255,7 +229,7 @@ export async function generateImageViaOpenAI({ prompt, size, refImg }) {
         body
       }, leftMs);
     } catch (err) {
-      if (err?.name === 'AbortError') throw new Error('生图超时（已等待 200 秒），请稍后再试');
+      if (err?.name === 'AbortError') throw new Error('生图超时（已等待 300 秒），请稍后再试');
       throw err;
     }
   };
@@ -373,60 +347,12 @@ export async function generateImageViaOpenAI({ prompt, size, refImg }) {
     throw new Error('接口未返回图片数据或异步任务 ID');
   }
 
-  let activePollUrl = '';
-  while (Date.now() < deadline) {
-    const waitMs = Math.min(3500, Math.max(200, deadline - Date.now()));
-    await sleep(waitMs);
-    if (Date.now() >= deadline) break;
-
-    const urlsToTry = activePollUrl ? [activePollUrl] : candidateUrls;
-    let pollJson = null;
-    let lastErrMsg = '';
-    for (const pollUrl of urlsToTry) {
-      const leftMs = deadline - Date.now();
-      if (leftMs <= 500) break;
-      let pollRes;
-      try {
-        pollRes = await fetchWithTimeout(pollUrl, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${key}` }
-        }, leftMs);
-      } catch (err) {
-        if (err?.name === 'AbortError') throw new Error('生图超时（已等待 200 秒），请稍后再试');
-        lastErrMsg = err?.message || '网络异常';
-        continue;
-      }
-      if (pollRes.ok) {
-        activePollUrl = pollUrl;
-        pollJson = await pollRes.json().catch(() => null);
-        break;
-      }
-      if (pollRes.status === 404 || pollRes.status === 405 || pollRes.status === 501) {
-        lastErrMsg = `HTTP ${pollRes.status}`;
-        continue;
-      }
-      const txt = await pollRes.text().catch(() => '');
-      throw new Error(`轮询生图失败 (${pollRes.status}) ${txt.slice(0, 80)}`);
-    }
-
-    if (!pollJson) {
-      if (!activePollUrl && lastErrMsg) {
-        // 首次尚未探测到可用查询路径时若全 404 则直接提示，避免空等 200 秒
-        throw new Error(`异步生图状态查询失败 (${lastErrMsg})`);
-      }
-      continue;
-    }
-
-    const polledDataUrl = await extractOpenAIImageResult(pollJson);
-    if (polledDataUrl) return polledDataUrl;
-
-    const status = String(pollJson?.status || pollJson?.task_status || pollJson?.state || pollJson?.data?.status || '').toLowerCase();
-    if (/^(failed|fail|error|cancelled|canceled|rejected)$/.test(status)) {
-      const reason = pollJson?.error?.message || pollJson?.fail_reason || pollJson?.message || status;
-      throw new Error(`生图失败：${String(reason).slice(0, 100)}`);
-    }
+  if (onTaskCreated && (taskId || explicitPoll)) {
+    onTaskCreated({ taskId: taskId || explicitPoll, pollUrl: explicitPoll || candidateUrls[0], candidateUrls, model });
   }
-  throw new Error('生图超时（已等待 200 秒），请稍后再试');
+  return await pollOpenAIImageTask({ candidateUrls, key, timeoutMs: Math.max(15000, deadline - Date.now()), onActiveUrl: u => {
+    if (onTaskCreated && (taskId || u)) onTaskCreated({ taskId: taskId || u, pollUrl: u, candidateUrls: [u], model });
+  }});
 }
 
 let imgTaskChain = Promise.resolve();
@@ -470,6 +396,255 @@ export function replaceImagePlaceholder(charId, placeholderId, finalDataUrl, img
   scheduleSave();
 }
 
+export function upsertPendingImageTask(record) {
+  if (!record || !record.placeholderId || !record.taskId) return;
+  const state = runtime.state;
+  if (!Array.isArray(state.pendingImageTasks)) state.pendingImageTasks = [];
+  const idx = state.pendingImageTasks.findIndex(t => t && t.placeholderId === record.placeholderId);
+  const next = {
+    placeholderId: record.placeholderId,
+    charId: record.charId,
+    provider: record.provider,
+    taskId: record.taskId,
+    pollUrl: record.pollUrl || '',
+    candidateUrls: Array.isArray(record.candidateUrls) ? record.candidateUrls : (record.pollUrl ? [record.pollUrl] : []),
+    prompt: String(record.prompt || '').slice(0, 240),
+    model: record.model || '',
+    createdAt: Number(record.createdAt) || Date.now()
+  };
+  if (idx >= 0) state.pendingImageTasks[idx] = { ...state.pendingImageTasks[idx], ...next };
+  else state.pendingImageTasks.push(next);
+  void flushSaveNow();
+}
+
+export function removePendingImageTask(placeholderId) {
+  const state = runtime.state;
+  if (!Array.isArray(state.pendingImageTasks)) return;
+  const before = state.pendingImageTasks.length;
+  state.pendingImageTasks = state.pendingImageTasks.filter(t => t && t.placeholderId !== placeholderId);
+  if (state.pendingImageTasks.length !== before) scheduleSave();
+}
+
+export function markImagePlaceholderStalled(charId, placeholderId, stalled = true) {
+  const isCurrent = runtime.state.activeCharId === charId;
+  const msgs = isCurrent
+    ? runtime.state.messages
+    : runtime.state.characters.find(c => c.id === charId)?.messages;
+  if (!Array.isArray(msgs)) return;
+  const target = msgs.find(m => m && m.id === placeholderId);
+  if (!target) return;
+  target.imgStalled = Boolean(stalled);
+  if (isCurrent) {
+    const chatScroll = document.getElementById('chatScroll');
+    const row = chatScroll?.querySelector(`[data-pending-id="${placeholderId}"]`);
+    if (row) {
+      const miniChar = escapeHtml((runtime.state.settings.name || '林澈').slice(-1));
+      const fresh = _hooks.createMsgRowElement?.(target, miniChar);
+      if (fresh) row.replaceWith(fresh);
+    }
+  }
+  scheduleSave();
+}
+
+export async function pollModelScopeTask(taskId, token, timeoutMs = OPENAI_IMG_TIMEOUT_MS, singleShot = false) {
+  const startAt = Date.now();
+  const deadline = startAt + timeoutMs;
+  while (true) {
+    if (!singleShot) {
+      const elapsed = Date.now() - startAt;
+      const step = elapsed > 120000 ? 10000 : 6000;
+      const left = deadline - Date.now();
+      if (left <= 500) break;
+      await sleep(Math.min(step, left));
+    }
+    const pollRes = await fetchWith429Backoff(`https://api-inference.modelscope.cn/v1/tasks/${taskId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-ModelScope-Task-Type': 'image_generation'
+      }
+    });
+    if (!pollRes.ok) {
+      const txt = await pollRes.text().catch(() => '');
+      if (pollRes.status === 404 || /task not found/i.test(txt)) {
+        throw new Error('图片未通过审核或任务已过期');
+      }
+      throw new Error(`轮询生图失败 (${pollRes.status})`);
+    }
+    const pollJson = await pollRes.json();
+    const status = String(pollJson.task_status || '').toUpperCase();
+    if (status === 'SUCCEED') {
+      const imgUrl = pollJson.output_images?.[0];
+      if (!imgUrl) throw new Error('生图完成但未返回图片地址');
+      return await downloadAndCompressImage(imgUrl);
+    }
+    if (status === 'FAILED') {
+      throw new Error('画面未通过审核或生成失败，换个自然点的描述试试');
+    }
+    if (singleShot) {
+      const stalledErr = new Error('图片仍在后台生成中，稍后再点一次领取');
+      stalledErr.isStillPending = true;
+      throw stalledErr;
+    }
+  }
+  const err = new Error('图片仍在后台生成中（已等满 300 秒），稍后可点卡片再领一次');
+  err.isStillPending = true;
+  throw err;
+}
+
+export async function pollOpenAIImageTask({ candidateUrls, key, timeoutMs = OPENAI_IMG_TIMEOUT_MS, singleShot = false, onActiveUrl = null }) {
+  const startAt = Date.now();
+  const deadline = startAt + timeoutMs;
+  let activePollUrl = '';
+  while (true) {
+    if (!singleShot) {
+      const elapsed = Date.now() - startAt;
+      const step = elapsed > 120000 ? 10000 : 3500;
+      const left = deadline - Date.now();
+      if (left <= 500) break;
+      await sleep(Math.min(step, left));
+    }
+    const urlsToTry = activePollUrl ? [activePollUrl] : candidateUrls;
+    let pollJson = null;
+    let lastErrMsg = '';
+    for (const pollUrl of urlsToTry) {
+      const leftMs = singleShot ? 25000 : Math.max(1000, deadline - Date.now());
+      let pollRes;
+      try {
+        pollRes = await fetchWithTimeout(pollUrl, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${key}` }
+        }, leftMs);
+      } catch (err) {
+        if (err?.name === 'AbortError') break;
+        lastErrMsg = err?.message || '网络异常';
+        continue;
+      }
+      if (pollRes.ok) {
+        if (!activePollUrl && onActiveUrl) onActiveUrl(pollUrl);
+        activePollUrl = pollUrl;
+        pollJson = await pollRes.json().catch(() => null);
+        break;
+      }
+      if (pollRes.status === 404 || pollRes.status === 405 || pollRes.status === 501) {
+        lastErrMsg = `HTTP ${pollRes.status}`;
+        continue;
+      }
+      const txt = await pollRes.text().catch(() => '');
+      throw new Error(`轮询生图失败 (${pollRes.status}) ${txt.slice(0, 80)}`);
+    }
+    if (!pollJson) {
+      if (!activePollUrl && lastErrMsg) {
+        throw new Error(`异步生图状态查询失败 (${lastErrMsg})`);
+      }
+      if (singleShot) {
+        const stalledErr = new Error('暂未查到成品，稍后再点一次试试');
+        stalledErr.isStillPending = true;
+        throw stalledErr;
+      }
+      continue;
+    }
+    const polledDataUrl = await extractOpenAIImageResult(pollJson);
+    if (polledDataUrl) return polledDataUrl;
+    const status = String(pollJson?.status || pollJson?.task_status || pollJson?.state || pollJson?.data?.status || '').toLowerCase();
+    if (/^(failed|fail|error|cancelled|canceled|rejected)$/.test(status)) {
+      const reason = pollJson?.error?.message || pollJson?.fail_reason || pollJson?.message || status;
+      throw new Error(`生图失败：${String(reason).slice(0, 100)}`);
+    }
+    if (singleShot) {
+      const stalledErr = new Error('图片仍在后台生成中，稍后再点一次领取');
+      stalledErr.isStillPending = true;
+      throw stalledErr;
+    }
+  }
+  const err = new Error('图片仍在后台生成中（已等满 300 秒），稍后可点卡片再领一次');
+  err.isStillPending = true;
+  throw err;
+}
+
+export function discardPendingImageTask(charId, placeholderId) {
+  removePendingImageTask(placeholderId);
+  replaceImagePlaceholder(charId, placeholderId, null);
+}
+
+export async function retryPendingImageTask(charId, placeholderId, silentIfStillPending = false) {
+  const list = Array.isArray(runtime.state.pendingImageTasks) ? runtime.state.pendingImageTasks : [];
+  const task = list.find(t => t && t.placeholderId === placeholderId);
+  if (!task || (Date.now() - (Number(task.createdAt) || 0) > PENDING_IMG_TASK_TTL_MS)) {
+    discardPendingImageTask(charId, placeholderId);
+    if (!silentIfStillPending) {
+      showWarn('该生图任务已超过 20 分钟有效期，已自动清理', true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2600);
+    }
+    return false;
+  }
+  try {
+    let dataUrl = '';
+    if (task.provider === 'modelscope') {
+      const token = (runtime.state.settings.imgApiKey || '').trim();
+      if (!token) throw new Error('缺少魔搭 Token');
+      dataUrl = await pollModelScopeTask(task.taskId, token, 25000, true);
+    } else {
+      const key = (runtime.state.settings.imgApiKey || runtime.state.settings.apiKey || '').trim();
+      if (!key) throw new Error('缺少生图 API Key');
+      const urls = Array.isArray(task.candidateUrls) && task.candidateUrls.length ? task.candidateUrls : [task.pollUrl].filter(Boolean);
+      dataUrl = await pollOpenAIImageTask({ candidateUrls: urls, key, timeoutMs: 25000, singleShot: true });
+    }
+    removePendingImageTask(placeholderId);
+    replaceImagePlaceholder(charId, placeholderId, dataUrl, task.prompt);
+    if (runtime.state.activeCharId === charId && runtime.currentPage === 1) {
+      _hooks.showFloatingBanner?.('后台画好的照片已经领回来啦');
+    }
+    return true;
+  } catch (err) {
+    if (err?.isStillPending) {
+      markImagePlaceholderStalled(charId, placeholderId, true);
+      if (!silentIfStillPending) {
+        showWarn(err.message || '图片仍在后台生成中，稍后再点一次领取', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2600);
+      }
+      return false;
+    }
+    discardPendingImageTask(charId, placeholderId);
+    if (!silentIfStillPending) {
+      showWarn(err.message || '图片任务已失效，已自动清理', true);
+      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 3200);
+    }
+    return false;
+  }
+}
+
+export async function resumePendingImageTasks() {
+  const state = runtime.state;
+  const now = Date.now();
+  const validTasks = (Array.isArray(state.pendingImageTasks) ? state.pendingImageTasks : [])
+    .filter(t => t && t.placeholderId && t.taskId && (now - (Number(t.createdAt) || 0) <= PENDING_IMG_TASK_TTL_MS));
+  state.pendingImageTasks = validTasks;
+  const validIds = new Set(validTasks.map(t => t.placeholderId));
+
+  // Clean up any orphaned/sync/expired imgPending placeholders across all characters
+  let cleaned = false;
+  for (const c of (state.characters || [])) {
+    if (!Array.isArray(c.messages)) continue;
+    const before = c.messages.length;
+    c.messages = c.messages.filter(m => !(m && m.imgPending && !validIds.has(m.id)));
+    if (c.messages.length !== before) cleaned = true;
+    c.messages.forEach(m => { if (m && m.imgPending) m.imgStalled = true; });
+  }
+  const activeBefore = state.messages.length;
+  state.messages = state.messages.filter(m => !(m && m.imgPending && !validIds.has(m.id)));
+  if (state.messages.length !== activeBefore) cleaned = true;
+  state.messages.forEach(m => { if (m && m.imgPending) m.imgStalled = true; });
+  if (cleaned) {
+    _hooks.renderChat?.(true);
+    scheduleSave();
+  }
+
+  for (const task of validTasks) {
+    void retryPendingImageTask(task.charId, task.placeholderId, true);
+  }
+}
+
 export function enqueueImageTask(task) {
   runtime.pendingImgCountByChar.set(task.charId, (runtime.pendingImgCountByChar.get(task.charId) || 0) + 1);
   if (runtime.state.activeCharId === task.charId) _hooks.renderHeader?.();
@@ -482,18 +657,42 @@ export function enqueueImageTask(task) {
       const apiPrompt = (!task.refImg && appearanceAnchor && !task.prompt.includes(appearanceAnchor))
         ? `人物固定外貌与穿搭参考：${appearanceAnchor}。画面场景：${task.prompt}`
         : task.prompt;
-      const reqTask = { ...task, prompt: apiPrompt };
+      const reqTask = {
+        ...task,
+        prompt: apiPrompt,
+        onTaskCreated: info => {
+          upsertPendingImageTask({
+            placeholderId: task.placeholderId,
+            charId: task.charId,
+            provider,
+            taskId: info.taskId,
+            pollUrl: info.pollUrl || '',
+            candidateUrls: info.candidateUrls || [],
+            prompt: task.prompt,
+            model: info.model || '',
+            createdAt: Date.now()
+          });
+        }
+      };
       const dataUrl = provider === 'modelscope'
         ? await generateImageViaModelScope(reqTask)
         : await generateImageViaOpenAI(reqTask);
+      removePendingImageTask(task.placeholderId);
       replaceImagePlaceholder(task.charId, task.placeholderId, dataUrl, task.prompt);
       if (runtime.state.activeCharId === task.charId && runtime.currentPage === 1) {
         _hooks.showFloatingBanner?.('刚给你发了一张照片');
       }
     } catch (err) {
-      replaceImagePlaceholder(task.charId, task.placeholderId, null);
-      showWarn(err.message || '图片没发出来，稍后再试试', true);
-      setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4200);
+      if (err?.isStillPending) {
+        markImagePlaceholderStalled(task.charId, task.placeholderId, true);
+        showWarn(err.message || '图片仍在后台生成中，稍后可点卡片再领一次', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4500);
+      } else {
+        removePendingImageTask(task.placeholderId);
+        replaceImagePlaceholder(task.charId, task.placeholderId, null);
+        showWarn(err.message || '图片没发出来，稍后再试试', true);
+        setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 4200);
+      }
     } finally {
       const left = Math.max(0, (runtime.pendingImgCountByChar.get(task.charId) || 1) - 1);
       runtime.pendingImgCountByChar.set(task.charId, left);
@@ -504,7 +703,6 @@ export function enqueueImageTask(task) {
   if (provider === 'modelscope') {
     imgTaskChain = imgTaskChain.then(runTask).catch(() => {});
   } else {
-    // OpenAI 兼容生图直接在后台异步并发执行，不互相卡队列
     void runTask();
   }
 }

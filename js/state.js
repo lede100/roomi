@@ -11,8 +11,10 @@ import {
 export function makeCharacterCard(opts = {}) {
   const id = opts.id || ('char_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
   const name = String(opts.name || '林澈').trim() || '林澈';
+  const pendingTtlMs = 20 * 60 * 1000;
+  const nowTs = Date.now();
   const rawMsgs = Array.isArray(opts.messages)
-    ? opts.messages.filter(m => m && !m.imgPending).map((m, idx) => m.id ? m : { ...m, id: `msg_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 5)}` })
+    ? opts.messages.filter(m => m && (!m.imgPending || (m.createdAt && (nowTs - Number(m.createdAt) <= pendingTtlMs)))).map((m, idx) => m.id ? m : { ...m, id: `msg_${nowTs}_${idx}_${Math.random().toString(36).slice(2, 5)}` })
     : (Array.isArray(opts.greeting)
         ? opts.greeting.map((t, idx) => ({ id: `msg_init_${Date.now()}_${idx}`, role: 'assistant', text: t, isStarter: true, createdAt: Date.now() }))
         : [{ id: `msg_init_${Date.now()}`, role: 'assistant', text: buildNaturalStarter(name), isStarter: true, createdAt: Date.now() }]);
@@ -111,6 +113,7 @@ export function defaultState() {
     nonVisionModels: [],
     nonThinkingModels: [],
     noReasoningModels: [],
+    pendingImageTasks: [],
     messages: firstChar.messages,
     widgets: firstChar.widgets,
     widgetStates: firstChar.widgetStates
@@ -133,6 +136,9 @@ export const runtime = {
   visibleChatStart: -1,
   lastWindowStartIndex: 0,
   replyAbortRequested: false,
+  isDeliveringBubbles: false,
+  interruptForNewSend: false,
+  pendingInterruptSend: null,
   onVisionCompatChange: null
 };
 
@@ -278,6 +284,10 @@ export function normalizeState(raw) {
   if (!Array.isArray(next.nonThinkingModels)) next.nonThinkingModels = [];
   if (!Array.isArray(next.noReasoningModels)) next.noReasoningModels = [];
   if (!Array.isArray(next.stickers)) next.stickers = [];
+  const pendingCutoff = Date.now() - 20 * 60 * 1000;
+  next.pendingImageTasks = Array.isArray(next.pendingImageTasks)
+    ? next.pendingImageTasks.filter(t => t && t.placeholderId && t.taskId && (Number(t.createdAt) || 0) >= pendingCutoff)
+    : [];
   if (typeof mergedSettings.autoGreetOnOpen !== 'boolean') mergedSettings.autoGreetOnOpen = true;
   mergedSettings.debounceSend = Boolean(mergedSettings.debounceSend);
   mergedSettings.dailyNotify = Boolean(mergedSettings.dailyNotify);
@@ -335,25 +345,46 @@ export function normalizeState(raw) {
   return next;
 }
 
-export function showWarn(msg, isInfo = false) {
+export function showWarn(msg, isInfo = false, action = null) {
   const box = document.getElementById('warnToast');
   const txt = document.getElementById('warnToastText');
   if (!box || !txt) return;
+  const oldAct = box.querySelector('.warn-toast-act');
+  if (oldAct) oldAct.remove();
   txt.textContent = msg;
   box.classList.toggle('info', Boolean(isInfo));
+  if (action && action.label && typeof action.onClick === 'function') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'warn-toast-act';
+    btn.textContent = action.label;
+    btn.onclick = () => {
+      box.classList.remove('show');
+      btn.remove();
+      action.onClick();
+    };
+    const closeBtn = document.getElementById('closeWarnBtn');
+    box.insertBefore(btn, closeBtn || null);
+  }
   box.classList.add('show');
+}
+
+export async function flushSaveNow() {
+  clearTimeout(runtime.saveTimer);
+  runtime.saveTimer = null;
+  try {
+    flushActiveCharToList();
+    await StorageAdapter.set(STORE_KEY, runtime.state);
+  } catch (err) {
+    showWarn(`本地存储空间不足或写入失败：${err.message || '请导出备份并清理部分旧组件'}`);
+  }
 }
 
 export function scheduleSave() {
   clearTimeout(runtime.saveTimer);
-  runtime.saveTimer = setTimeout(async () => {
-    try {
-      flushActiveCharToList();
-      await StorageAdapter.set(STORE_KEY, runtime.state);
-    } catch (err) {
-      showWarn(`本地存储空间不足或写入失败：${err.message || '请导出备份并清理部分旧组件'}`);
-    }
-  }, 120);
+  runtime.saveTimer = setTimeout(() => {
+    void flushSaveNow();
+  }, 350);
 }
 
 // ---- Model Compatibility Cache (BaseURL + Model Scoped with TTL) ----

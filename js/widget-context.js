@@ -12,16 +12,16 @@ export function buildWidgetSrcdoc(widget, widgetStates, themeKey = 'claude') {
   const safeTitle = JSON.stringify(widget.title).replace(/</g, '\\u003c');
   const bodyHtml = sanitizeWidgetHtml(widget.html);
   const isDarkGlass = themeKey === 'glass-dark';
-  const isLightGlass = themeKey === 'glass-light';
+  const isRose = themeKey === 'glass-light';
   const isClaude = themeKey === 'claude';
-  const wAccent = isDarkGlass ? '#7aa7ff' : (isLightGlass ? '#3b7df6' : (isClaude ? '#d97757' : '#5b8def'));
-  const wSoft = isDarkGlass ? 'rgba(122,167,255,0.16)' : (isLightGlass ? 'rgba(59,125,246,0.13)' : (isClaude ? '#fdf2ee' : '#eef4fd'));
-  const wMuted = isDarkGlass ? 'rgba(255,255,255,0.08)' : (isClaude ? '#f3f1ea' : '#f5f8fc');
-  const wBorder = isDarkGlass ? 'rgba(255,255,255,0.14)' : (isClaude ? '#e5e0d4' : '#e4ebf5');
-  const wBg = (isDarkGlass || isLightGlass) ? 'transparent' : '#ffffff';
-  const wText = isDarkGlass ? '#eef2ff' : '#111827';
-  const wSub = isDarkGlass ? '#94a3b8' : '#64748b';
-  const wInputBg = isDarkGlass ? 'rgba(255,255,255,0.08)' : '#ffffff';
+  const wAccent = isDarkGlass ? '#e08a69' : (isRose ? '#c26d7a' : (isClaude ? '#d97757' : '#587d68'));
+  const wSoft = isDarkGlass ? 'rgba(224,138,105,0.16)' : (isRose ? '#fdf0f2' : (isClaude ? '#fdf2ee' : '#edf4ef'));
+  const wMuted = isDarkGlass ? '#2d2a26' : (isRose ? '#f4ebe9' : (isClaude ? '#f3f1ea' : '#edf2eb'));
+  const wBorder = isDarkGlass ? '#38342e' : (isRose ? '#e8dada' : (isClaude ? '#e5e0d4' : '#dde5da'));
+  const wBg = isDarkGlass ? '#252320' : '#ffffff';
+  const wText = isDarkGlass ? '#efeae1' : (isRose ? '#261d1e' : (isClaude ? '#1f1e1b' : '#1c241f'));
+  const wSub = isDarkGlass ? '#938b7f' : (isRose ? '#806e70' : (isClaude ? '#767065' : '#6c7a70'));
+  const wInputBg = isDarkGlass ? '#211f1c' : '#ffffff';
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -54,9 +54,55 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
       parent.postMessage({ type: 'loom:emit', widgetId: window.__WIDGET_ID__, title: window.__WIDGET_TITLE__, message: String(message || ''), extra: extra || null }, '*');
     }
   };
+  // Sandbox localStorage polyfill: bridges accidental localStorage usage into CompanionBridge state
+  (function __installLocalStorageShim() {
+    try {
+      const _test = window.localStorage;
+      if (_test) { _test.getItem('__t'); return; }
+    } catch {}
+    const storeApi = {
+      getItem(k) {
+        const ls = window.__INITIAL_STATE__?.__ls;
+        return (ls && Object.prototype.hasOwnProperty.call(ls, k)) ? String(ls[k]) : null;
+      },
+      setItem(k, v) {
+        const st = __clone(window.__INITIAL_STATE__);
+        if (!st.__ls || typeof st.__ls !== 'object') st.__ls = {};
+        st.__ls[String(k)] = String(v);
+        window.CompanionBridge.saveState(st);
+      },
+      removeItem(k) {
+        const st = __clone(window.__INITIAL_STATE__);
+        if (st.__ls && typeof st.__ls === 'object') {
+          delete st.__ls[String(k)];
+          window.CompanionBridge.saveState(st);
+        }
+      },
+      clear() {
+        const st = __clone(window.__INITIAL_STATE__);
+        st.__ls = {};
+        window.CompanionBridge.saveState(st);
+      }
+    };
+    try { Object.defineProperty(window, 'localStorage', { value: storeApi, configurable: true }); } catch {}
+  })();
+  let __lastReportedH = 0;
+  let __resizeRaf = 0;
+  let __resizeCount = 0;
+  function __measureAndReport() {
+    __resizeRaf = 0;
+    if (__resizeCount > 45) return;
+    const root = document.getElementById('__roomi_root');
+    const rawH = root ? Math.ceil(root.getBoundingClientRect().height) : (document.body ? document.body.scrollHeight : 160);
+    const clamped = Math.max(110, Math.min(rawH + 2, 520));
+    if (Math.abs(clamped - __lastReportedH) < 2) return;
+    __lastReportedH = clamped;
+    __resizeCount++;
+    parent.postMessage({ type: 'loom:resize', widgetId: window.__WIDGET_ID__, height: clamped }, '*');
+  }
   function __reportHeight() {
-    const h = Math.max(document.body ? document.body.scrollHeight : 160, 110);
-    parent.postMessage({ type: 'loom:resize', widgetId: window.__WIDGET_ID__, height: Math.min(h + 6, 520) }, '*');
+    if (__resizeRaf) return;
+    __resizeRaf = requestAnimationFrame(__measureAndReport);
   }
   window.addEventListener('error', ev => {
     parent.postMessage({ type: 'loom:error', widgetId: window.__WIDGET_ID__, message: String(ev.message || '脚本异常').slice(0, 120) }, '*');
@@ -65,14 +111,15 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     parent.postMessage({ type: 'loom:error', widgetId: window.__WIDGET_ID__, message: String(ev.reason?.message || ev.reason || '异步错误').slice(0, 120) }, '*');
   });
   window.addEventListener('load', () => {
-    __reportHeight();
-    if (window.ResizeObserver && document.body) {
-      new ResizeObserver(__reportHeight).observe(document.body);
+    __measureAndReport();
+    const root = document.getElementById('__roomi_root');
+    if (window.ResizeObserver && root) {
+      new ResizeObserver(__reportHeight).observe(root);
     }
   });
 <` + `/script>
 </head>
-<body>${bodyHtml}</body>
+<body><div id="__roomi_root" style="display:flow-root;width:100%;">${bodyHtml}</div></body>
 </html>`;
 }
 
@@ -169,9 +216,17 @@ export function summarizeWidgetBoardForContext(widgets, widgetStates, todayStr =
       continue;
     }
 
-    // 9. Generic fallback for any custom AI-generated widget
+    // 9. Generic fallback for any custom AI-generated widget (including bridged __ls keys)
     const kvParts = [];
+    const flatEntries = [];
     for (const [k, v] of Object.entries(st)) {
+      if (k === '__ls' && v && typeof v === 'object') {
+        for (const [lk, lv] of Object.entries(v)) flatEntries.push([lk, lv]);
+      } else {
+        flatEntries.push([k, v]);
+      }
+    }
+    for (const [k, v] of flatEntries) {
       if (v === null || v === undefined || v === '') continue;
       if (typeof v === 'number' || typeof v === 'boolean') {
         kvParts.push(`${k}=${v}`);

@@ -1,10 +1,11 @@
 import { STORE_KEY, StorageAdapter } from './storage.js';
-import { runtime, normalizeState, scheduleSave, showWarn } from './state.js';
+import { runtime, normalizeState, scheduleSave, flushSaveNow, showWarn } from './state.js';
 import { openExternalUrl, parseHourMin } from './utils.js';
 import { getSpecialDateCue } from './memory.js';
 import { getLocalTimeContext, parseAssistantOutput } from './prompt.js';
 import { callLiveLLMWithRetry } from './llm.js';
 import { summarizeWidgetBoardForContext } from './widget-context.js';
+import { resumePendingImageTasks } from './image-gen.js';
 import { ui, registerUI } from './ui-bridge.js';
 import { initChatUI } from './ui-chat.js';
 import { initWidgetBoard } from './ui-widgets.js';
@@ -29,7 +30,10 @@ function syncViewportHeight() {
   if (window.innerWidth >= 520) return;
   const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   document.documentElement.style.setProperty('--app-height', vh + 'px');
-  ui.scrollChatBottom?.();
+  const chatScroll = document.getElementById('chatScroll');
+  if (!chatScroll || (chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 140)) {
+    ui.scrollChatBottom?.();
+  }
 }
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', syncViewportHeight);
@@ -190,6 +194,9 @@ pinForgotBtn.onclick = async () => {
 };
 
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    void flushSaveNow();
+  }
   if (!runtime.state.settings.privacyLock || !runtime.state.settings.privacyPin) return;
   if (document.visibilityState === 'hidden') {
     lastHiddenAt = Date.now();
@@ -200,6 +207,9 @@ document.addEventListener('visibilitychange', () => {
       openPinLock('unlock');
     }
   }
+});
+window.addEventListener('pagehide', () => {
+  void flushSaveNow();
 });
 
 async function syncDailyNotifications(enabled) {
@@ -311,10 +321,30 @@ initSettingsUI();
   if (window.__roomiCorruptNotice) {
     showWarn('检测到本地存档曾异常损坏，已为你备份到 localStorage（roomi_corrupt_backup_*），建议核对或重新导入备份');
   }
+  void resumePendingImageTasks();
+
+  const checkInterruptedReply = () => {
+    const st = runtime.state;
+    if (runtime.isBusy || !st.settings.apiKey.trim() || !st.settings.model.trim()) return;
+    const realMsgs = (st.messages || []).filter(m => m && !m.imgPending && !m.isError);
+    const last = realMsgs[realMsgs.length - 1];
+    if (last && last.role === 'user' && last.createdAt && (Date.now() - Number(last.createdAt) <= 10 * 60 * 1000)) {
+      showWarn('上次退出时 TA 还没来得及回完消息', true, {
+        label: '↻ 一键续回',
+        onClick: () => {
+          if (!runtime.isBusy) ui.triggerCompanionReply?.(last.text || '', false, Boolean(last.image));
+        }
+      });
+    }
+  };
+
   if (runtime.state.settings.privacyLock && runtime.state.settings.privacyPin) {
     openPinLock('unlock');
   } else {
-    setTimeout(maybeTriggerProactiveGreeting, 700);
+    setTimeout(() => {
+      checkInterruptedReply();
+      maybeTriggerProactiveGreeting();
+    }, 700);
   }
 
   // Android hardware/gesture back button handling via @capacitor/app
