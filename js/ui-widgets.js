@@ -197,7 +197,7 @@ export function initWidgetBoard() {
     const state = runtime.state;
 
     if (data.type === 'loom:resize' && typeof data.height === 'number') {
-      registeredIframe.style.height = Math.max(110, Math.min(520, data.height)) + 'px';
+      registeredIframe.style.height = Math.max(110, Math.min(680, data.height)) + 'px';
     } else if (data.type === 'loom:saveState') {
       try {
         const serialized = JSON.stringify(data.state ?? {});

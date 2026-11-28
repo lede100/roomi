@@ -58,6 +58,11 @@ export function initSettingsUI() {
       document.documentElement.setAttribute('data-theme', t);
     }
     syncThemePickerUI(t);
+    const sb = window.Capacitor?.Plugins?.StatusBar;
+    if (sb?.setStyle) {
+      // Capacitor StatusBar: LIGHT = dark text on light bg, DARK = light text on dark bg
+      sb.setStyle({ style: t === 'glass-dark' ? 'DARK' : 'LIGHT' }).catch(() => {});
+    }
   }
 
   document.getElementById('quickThemeBtn').onclick = () => {
@@ -291,7 +296,7 @@ export function initSettingsUI() {
     const memCount = Array.isArray(runtime.state.memories) ? runtime.state.memories.length : 0;
     if (memTabCount) memTabCount.textContent = memCount ? `(${memCount})` : '';
     if (modelCfgDot) {
-      const missingCfg = !runtime.state.settings.apiKey.trim() || !runtime.state.settings.model.trim();
+      const missingCfg = !String(runtime.state.settings.apiKey || "").trim() || !String(runtime.state.settings.model || "").trim();
       modelCfgDot.classList.toggle('show', missingCfg);
     }
   }
@@ -448,17 +453,23 @@ export function initSettingsUI() {
   let draftContextMode = 'long';
   let draftTempMode = 'balanced';
 
+  const cfgImgCustomSize = document.getElementById('cfgImgCustomSize');
   function syncImgSizePickerUI() {
+    const customVal = (cfgImgCustomSize?.value || '').trim();
     document.querySelectorAll('#imgSizePicker [data-img-size]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.imgSize === draftImgSize);
+      btn.classList.toggle('active', !customVal && btn.dataset.imgSize === draftImgSize);
     });
   }
   document.querySelectorAll('#imgSizePicker [data-img-size]').forEach(btn => {
     btn.onclick = () => {
       draftImgSize = btn.dataset.imgSize || '1152x1536';
+      if (cfgImgCustomSize) cfgImgCustomSize.value = '';
       syncImgSizePickerUI();
     };
   });
+  if (cfgImgCustomSize) {
+    cfgImgCustomSize.addEventListener('input', syncImgSizePickerUI);
+  }
 
   function syncTempPickerUI() {
     document.querySelectorAll('#tempPicker [data-temp]').forEach(btn => {
@@ -1488,6 +1499,7 @@ export function initSettingsUI() {
     detectedImgModels = [];
     syncImgProviderUI(runtime.state.settings.imgProvider || 'off', runtime.state.settings.imgTrigger || 'asked');
     draftImgSize = runtime.state.settings.imgDefaultSize || '1152x1536';
+    if (cfgImgCustomSize) cfgImgCustomSize.value = runtime.state.settings.imgCustomSize || '';
     syncImgSizePickerUI();
     draftThinkingMode = runtime.state.settings.thinkingMode || 'auto';
     draftContextMode = runtime.state.settings.contextMode || 'long';
@@ -1539,7 +1551,7 @@ export function initSettingsUI() {
     renderMemoryModalList();
       renderSceneStatesList();
     updateMemStats();
-    const chosenTab = defaultTab || (runtime.state.settings.apiKey.trim() ? 'companion' : 'model');
+    const chosenTab = defaultTab || (String(runtime.state.settings.apiKey || "").trim() ? 'companion' : 'model');
     setCompanionSubView('edit');
     switchSettingsTab(chosenTab);
     settingsModal.classList.add('show');
@@ -1549,10 +1561,10 @@ export function initSettingsUI() {
   }
 
   document.getElementById('openSettingsBtn').onclick = () => {
-    openSettingsTo(null, !runtime.state.settings.apiKey.trim());
+    openSettingsTo(null, !String(runtime.state.settings.apiKey || "").trim());
   };
   document.getElementById('modeBadge').onclick = () => {
-    openSettingsTo('model', !runtime.state.settings.apiKey.trim());
+    openSettingsTo('model', !String(runtime.state.settings.apiKey || "").trim());
   };
   document.getElementById('keyGuideGoBtn').onclick = () => {
     openSettingsTo('model', true);
@@ -1623,6 +1635,8 @@ export function initSettingsUI() {
       : (draftImgProvider === 'openai' ? runtime.state.settings.openaiImgModel : (runtime.state.settings.imgModel || ''));
     runtime.state.settings.imgTrigger = draftImgTrigger;
     runtime.state.settings.imgDefaultSize = draftImgSize || '1152x1536';
+    const rawCustomSz = String(cfgImgCustomSize?.value || '').toLowerCase().replace(/\*/g, 'x').replace(/\s+/g, '').trim();
+    runtime.state.settings.imgCustomSize = /^\d{3,4}x\d{3,4}$/.test(rawCustomSz) ? rawCustomSz : '';
     runtime.state.settings.name = document.getElementById('cfgName').value.trim() || '林澈';
     runtime.state.settings.age = cfgAge.value.trim();
     runtime.state.settings.gender = draftGender;

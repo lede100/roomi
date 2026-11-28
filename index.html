@@ -547,13 +547,14 @@
                   <button type="button" class="preset-btn active" data-img-trigger="asked">仅我要求时生图</button>
                   <button type="button" class="preset-btn" data-img-trigger="auto">允许 TA 主动配图</button>
                 </div>
-                <label>默认画幅比例</label>
-                <div class="presets" id="imgSizePicker" style="margin-bottom:0;">
+                <label>默认画幅比例（或下方手填精确分辨率）</label>
+                <div class="presets" id="imgSizePicker" style="margin-bottom:6px;">
                   <button type="button" class="preset-btn active" data-img-size="1152x1536">3:4 竖图</button>
                   <button type="button" class="preset-btn" data-img-size="1024x1024">1:1 方图</button>
                   <button type="button" class="preset-btn" data-img-size="1536x864">16:9 横图</button>
                   <button type="button" class="preset-btn" data-img-size="864x1536">9:16 壁纸</button>
                 </div>
+                <input id="cfgImgCustomSize" type="text" placeholder="可选：手填精确分辨率，如 1280x720（填了优先用填的）" autocomplete="off" />
               </div>
               <div class="hint" id="imgHintText" style="margin-top:6px;">
                 魔搭每日约 250 魔粒免费额度；提及改图/换装会自动切 Qwen-2.1 异步生成并立刻保存到本地。

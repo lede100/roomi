@@ -7,7 +7,7 @@ import {
   markModelFieldUnsupported
 } from './state.js';
 import { CONTEXT_TIERS } from './presets.js';
-import { sleep } from './utils.js';
+import { sleep, fetchWithTimeout } from './utils.js';
 import {
   buildConversationHistory,
   detectPromptIntents,
@@ -112,7 +112,7 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
     if (allowReasoningField) reqBody.reasoning_effort = thinkingMode;
   }
 
-  const postOnce = bodyObj => fetch(url, {
+  const postOnce = bodyObj => fetchWithTimeout(url, {
     method: 'POST',
     signal: runtime.activeAbortController.signal,
     headers: {
@@ -120,7 +120,7 @@ export async function callLiveLLM(promptOverride, onStreamProgress, isEvent = fa
       'Authorization': `Bearer ${apiKey.trim()}`
     },
     body: JSON.stringify(bodyObj)
-  });
+  }, 150000);
 
   let res = await postOnce(reqBody);
   const paramUnsupportedRe = /(thinking|reasoning_effort|reasoning|unknown[_ ]field|extra[_ ]inputs|unrecognized[_ ]request|unsupported[_ ]param|additional[_ ]properties|not[_ ]allowed)/i;

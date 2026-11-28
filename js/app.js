@@ -254,7 +254,7 @@ async function maybeTriggerProactiveGreeting() {
   const state = runtime.state;
   if (proactiveAttemptedSession || runtime.isBusy || privacyLockOverlay.classList.contains('show')) return;
   if (state.settings.autoGreetOnOpen === false) return;
-  if (!state.settings.apiKey.trim() || !state.settings.model.trim()) return;
+  if (!String(state.settings.apiKey || "").trim() || !String(state.settings.model || "").trim()) return;
   const msgs = Array.isArray(state.messages) ? state.messages : [];
   const hasUserChat = msgs.some(m => m && m.role === 'user');
   if (!hasUserChat) return;
@@ -325,7 +325,7 @@ initSettingsUI();
 
   const checkInterruptedReply = () => {
     const st = runtime.state;
-    if (runtime.isBusy || !st.settings.apiKey.trim() || !st.settings.model.trim()) return;
+    if (runtime.isBusy || !String(st.settings.apiKey || "").trim() || !String(st.settings.model || "").trim()) return;
     const realMsgs = (st.messages || []).filter(m => m && !m.imgPending && !m.isError);
     const last = realMsgs[realMsgs.length - 1];
     if (last && last.role === 'user' && last.createdAt && (Date.now() - Number(last.createdAt) <= 10 * 60 * 1000)) {

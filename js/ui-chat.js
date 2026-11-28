@@ -171,7 +171,7 @@ export function initChatUI() {
     affectionDisplay.textContent = `♥ ${runtime.state.affection}`;
     const sendingImg = (runtime.pendingImgCountByChar.get(runtime.state.activeCharId) || 0) > 0;
     moodDisplay.textContent = sendingImg ? '正在传照片…' : (runtime.state.mood === '正在传照片…' ? '在线等你' : runtime.state.mood);
-    const isLive = Boolean(runtime.state.settings.apiKey.trim());
+    const isLive = Boolean(String(runtime.state.settings.apiKey || "").trim());
     if (isLive) {
       modeBadge.textContent = runtime.state.settings.model || '已连线 · 未选模型';
       modeBadge.classList.add('live');
@@ -924,7 +924,7 @@ export function initChatUI() {
     }, 3600);
 
     try {
-      const hasKey = Boolean(runtime.state.settings.apiKey.trim());
+      const hasKey = Boolean(String(runtime.state.settings.apiKey || "").trim());
       let raw = '';
 
       if (hasKey) {
@@ -1114,7 +1114,7 @@ export function initChatUI() {
   let pendingImageUrl = '';
 
   function updateVisionBtnState() {
-    const blocked = Boolean(runtime.state.settings.apiKey.trim()) && isModelMarkedNonVision(runtime.state.settings.model);
+    const blocked = Boolean(String(runtime.state.settings.apiKey || "").trim()) && isModelMarkedNonVision(runtime.state.settings.model);
     pickImgBtn.classList.toggle('unsupported', blocked);
     pickImgBtn.title = blocked ? `当前模型「${runtime.state.settings.model}」不支持识图` : '发送图片';
   }
@@ -1128,7 +1128,7 @@ export function initChatUI() {
 
   pickImgBtn.onclick = () => {
     if (runtime.isBusy) return;
-    if (runtime.state.settings.apiKey.trim() && isModelMarkedNonVision(runtime.state.settings.model)) {
+    if (String(runtime.state.settings.apiKey || "").trim() && isModelMarkedNonVision(runtime.state.settings.model)) {
       showWarn(`当前模型「${runtime.state.settings.model}」暂不支持识图，请在右上角设置更换支持视觉的模型`, true);
       setTimeout(() => document.getElementById('warnToast').classList.remove('show'), 2800);
       return;

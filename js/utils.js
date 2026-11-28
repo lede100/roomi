@@ -42,14 +42,41 @@ export async function copyText(str) {
   return ok;
 }
 
-export async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+export function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+  const externalSignal = options.signal || null;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, val) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
+      fn(val);
+    };
+    const onExternalAbort = () => {
+      try { controller.abort(); } catch {}
+      const err = new Error('已取消请求');
+      err.name = 'AbortError';
+      finish(reject, err);
+    };
+    if (externalSignal?.aborted) {
+      onExternalAbort();
+      return;
+    }
+    if (externalSignal) externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    const timer = setTimeout(() => {
+      try { controller.abort(); } catch {}
+      const err = new Error(`请求超时（已等待 ${Math.round(timeoutMs / 1000)} 秒），请重试`);
+      err.name = 'TimeoutError';
+      err.isTimeout = true;
+      finish(reject, err);
+    }, timeoutMs);
+    fetch(url, { ...options, signal: controller.signal }).then(
+      res => finish(resolve, res),
+      err => finish(reject, err)
+    );
+  });
 }
 
 export function formatShortDateTime(ts) {

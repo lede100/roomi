@@ -11,7 +11,7 @@ import {
   selectRelevantMemories,
   getSpecialDateCue
 } from './memory.js';
-import { isImageGenReady, getImagePromptSection } from './image-gen.js';
+import { isImageGenReady, getImagePromptSection, getEffectiveImageSize } from './image-gen.js';
 import { summarizeWidgetBoardForContext } from './widget-context.js';
 
 export function parseTagAttrs(attrStr) {
@@ -100,9 +100,15 @@ export function parseAssistantOutput(rawText) {
     const attrs = parseTagAttrs(attrStr);
     const prompt = String(attrs.prompt || '').trim();
     if (prompt && newImages.length < 2) {
+      const configuredSize = getEffectiveImageSize();
+      const hasCustomSize = Boolean(String(state.settings.imgCustomSize || '').trim());
+      const lastUserMsg = [...(state.messages || [])].reverse().find(m => m && m.role === 'user' && m.text);
+      const userExplicitOrient = /(横图|横屏|宽屏|竖图|竖屏|方图|正方形|壁纸|16[:：]9|9[:：]16|3[:：]4|1[:：]1|\d{3,4}\s*[xX*]\s*\d{3,4})/.test(lastUserMsg?.text || '');
+      const attrSize = String(attrs.size || '').trim();
+      const chosenSize = (hasCustomSize || !userExplicitOrient || !attrSize) ? configuredSize : attrSize;
       newImages.push({
         prompt,
-        size: String(attrs.size || '1152x1536').trim(),
+        size: chosenSize,
         ref: String(attrs.ref || '').trim().toLowerCase()
       });
     }
@@ -295,7 +301,10 @@ export function buildConversationHistory(promptOverride, isEvent = false, budget
   if (promptOverride) {
     const prev = msgs[msgs.length - 1];
     if (isEvent && prev && prev.role === 'user' && typeof prev.content === 'string' && prev.content.includes('在桌面小组件点了互动：')) {
-      prev.content += '\n（用自然亲昵的口吻随口接一句即可，别刻意报次数或重复做组件。）';
+      const isPhotoWidgetEvent = isImageGenReady() && /(拍照|姿势|照片|自拍|穿搭|画一张|出图|摆好)/.test(prev.content);
+      prev.content += isPhotoWidgetEvent
+        ? '\n（用户刚通过拍照/姿势小组件点了具体动作，请先用自然口语回应，并必须附带 <IMAGE prompt="..." /> 标签真实生成对应的照片，严禁只用文字假装已拍完！）'
+        : '\n（用自然亲昵的口吻随口接一句即可，别刻意报次数或重复做组件。）';
     } else if (prev && prev.role === 'user' && typeof prev.content === 'string') {
       prev.content += '\n' + promptOverride;
     } else {
@@ -393,7 +402,7 @@ export function buildSystemPrompt({ needWidget = false, needImage = false } = {}
     : '1. 当前为「日常微信纯文字聊天」模式：完整保留上方人物性格、称呼与口癖语气，只剥离非对话排版——只输出手机聊天软件里真人会直接发出的纯说话口语！哪怕人设档案、示范或前文带有舞台动作、神态描述或小说旁白，此处也一律只讲纯对话，绝不模仿任何动作/心理/旁白格式。\n2. 严禁使用星号动作标记、括号神态旁白或 1.2.3. 列表腔；所有情绪与态度只通过纯说话用词与节奏自然流露。\n3. 长短完全随当下气氛走，不硬凑两句！对方只发简短词句时，可只回几个字或一句短话；话多或要逗一下才用 ||| 拆 1~3 条短气泡。\n4. 严格遵守后台【当前实时场景状态】，若有临时状态（如灯光开关、位置、刚答应的事）发生变化，必须附 <STATE> 更新。';
 
   const widgetRule = needWidget
-    ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})。规范：①禁止写 height:100vh 或 min-height:100vh（按内容自然撑高）；②禁止用 localStorage，读写状态用 CompanionBridge.getState()/saveState(obj)；③每次关键按钮点击或状态变化时，必须同时调 CompanionBridge.saveState(st) 与 CompanionBridge.emit('简短说明用户刚做了什么') 以便伴侣实时看到并回应</WIDGET>`
+    ? `\n- 做/改家中小组件（仅明确要求时附）：<WIDGET title="名称" replace="改旧填原名" height="240">断网HTML/JS，配色(${themeHint})。规范：①禁止写 height:100vh 或 min-height:100vh（按内容自然撑高）；②禁止用 localStorage，读写状态用 CompanionBridge.getState()/saveState(obj)；③每次关键按钮点击或状态变化时，必须同时调 CompanionBridge.saveState(st) 与 CompanionBridge.emit('简短说明用户刚做了什么') 以便伴侣实时看到并回应；④只写片段（<style>+HTML+<script>），不要套 <!DOCTYPE>/<html>/<head>/<body> 外壳，也不要在 JS 字符串里直接写 </script></WIDGET>`
     : '';
   const imgRule = getImagePromptSection();
 

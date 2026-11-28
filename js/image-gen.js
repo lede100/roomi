@@ -21,11 +21,11 @@ export function isImageGenReady() {
 }
 
 export function getImagePromptSection() {
-  if (!runtime.state.settings.apiKey.trim() || !isImageGenReady()) return '';
+  if (!(runtime.state.settings.apiKey || '').trim() || !isImageGenReady()) return '';
   const isAuto = runtime.state.settings.imgTrigger === 'auto';
   const isModelScope = runtime.state.settings.imgProvider === 'modelscope';
   const canEdit = isModelScope || runtime.state.settings.imgProvider === 'openai';
-  const defSize = normalizeImageSize(runtime.state.settings.imgDefaultSize || '1152x1536');
+  const defSize = normalizeImageSize(getEffectiveImageSize());
   const promptPolicy = isModelScope
     ? 'prompt 避开露骨敏感词。'
     : '当前接入用户自配 OpenAI 兼容生图接口，客户端不做任何尺度或题材限制，请严格按用户要求的画面构图、服饰、姿态与细节如实完整写入 prompt，勿自行回避或删改。';
@@ -43,12 +43,19 @@ prompt 写法铁律（非常重要）：
 - 严禁在正文里自己写“[已发送一张照片]”或“正在画图中/正在为你生成图片”假装发图，每次要发图必须真实输出 <IMAGE .../> 标签；${promptPolicy}`;
 }
 
+export function getEffectiveImageSize() {
+  const custom = String(runtime.state?.settings?.imgCustomSize || '').toLowerCase().replace(/\*/g, 'x').replace(/\s+/g, '').trim();
+  if (/^\d{3,4}x\d{3,4}$/.test(custom)) return custom;
+  const def = String(runtime.state?.settings?.imgDefaultSize || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
+  return /^\d{3,4}x\d{3,4}$/.test(def) ? def : '1152x1536';
+}
+
 export function normalizeImageSize(rawSize) {
-  const fallback = String(runtime.state?.settings?.imgDefaultSize || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
-  const clean = String(rawSize || fallback || '1152x1536').toLowerCase().replace(/\*/g, 'x').trim();
-  const m = clean.match(/^(\d{2,4})x(\d{2,4})$/);
-  if (!m) return /^\d{2,4}x\d{2,4}$/.test(fallback) ? fallback : '1152x1536';
-  const clamp = n => Math.max(512, Math.min(2048, Math.round(n / 32) * 32));
+  const fallback = getEffectiveImageSize();
+  const clean = String(rawSize || fallback || '1152x1536').toLowerCase().replace(/\*/g, 'x').replace(/\s+/g, '').trim();
+  const m = clean.match(/^(\d{3,4})x(\d{3,4})$/);
+  if (!m) return fallback;
+  const clamp = n => Math.max(256, Math.min(4096, Math.round(n / 8) * 8));
   return `${clamp(Number(m[1]))}x${clamp(Number(m[2]))}`;
 }
 
@@ -147,11 +154,15 @@ export async function generateImageViaModelScope({ prompt, size, refImg, onTaskC
 
 export function normalizeOpenAISize(rawSize, modelName = '') {
   const clean = normalizeImageSize(rawSize);
-  const [w, h] = clean.split('x').map(Number);
-  if (w === h) return '1024x1024';
-  const isGptImage = /gpt-image/i.test(modelName);
-  if (w > h) return isGptImage ? '1536x1024' : '1792x1024';
-  return isGptImage ? '1024x1536' : '1024x1792';
+  const hasCustom = Boolean(String(runtime.state?.settings?.imgCustomSize || '').trim());
+  if (hasCustom) return clean;
+  // Only map to DALL-E 3 fixed buckets for official dall-e-3; custom relays & modern models receive exact WxH
+  if (/dall-e-3/i.test(modelName)) {
+    const [w, h] = clean.split('x').map(Number);
+    if (w === h) return '1024x1024';
+    return w > h ? '1792x1024' : '1024x1792';
+  }
+  return clean;
 }
 
 export const OPENAI_IMG_TIMEOUT_MS = 300000;
@@ -229,7 +240,7 @@ export async function generateImageViaOpenAI({ prompt, size, refImg, onTaskCreat
         body
       }, leftMs);
     } catch (err) {
-      if (err?.name === 'AbortError') throw new Error('生图超时（已等待 300 秒），请稍后再试');
+      if (err?.name === 'AbortError' || err?.isTimeout) throw new Error('生图超时（已等待 300 秒），请稍后再试');
       throw err;
     }
   };
@@ -516,7 +527,7 @@ export async function pollOpenAIImageTask({ candidateUrls, key, timeoutMs = OPEN
           headers: { 'Authorization': `Bearer ${key}` }
         }, leftMs);
       } catch (err) {
-        if (err?.name === 'AbortError') break;
+        if (err?.name === 'AbortError' || err?.isTimeout) break;
         lastErrMsg = err?.message || '网络异常';
         continue;
       }

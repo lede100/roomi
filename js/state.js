@@ -97,7 +97,8 @@ export function defaultState() {
       msImgCustomModel: '',
       openaiImgModel: '',
       imgTrigger: 'asked',
-      imgDefaultSize: '1152x1536'
+      imgDefaultSize: '1152x1536',
+      imgCustomSize: ''
     },
     activeCharId: firstChar.id,
     characters: [firstChar],
@@ -213,6 +214,9 @@ export function loadCharacterIntoRuntime(char) {
 export function normalizeState(raw) {
   const base = defaultState();
   const mergedSettings = Object.assign(base.settings, raw?.settings || {});
+  mergedSettings.apiKey = String(mergedSettings.apiKey || '');
+  mergedSettings.baseUrl = String(mergedSettings.baseUrl || '');
+  mergedSettings.model = String(mergedSettings.model || '');
   const next = Object.assign(base, raw || {}, { settings: mergedSettings });
 
   // v3 -> v4 migration: promote legacy single companion into first CharacterCard
@@ -242,7 +246,7 @@ export function normalizeState(raw) {
   }
 
   if ((mergedSettings._v || 0) < 3) {
-    if ((mergedSettings._v || 0) < 2 && !mergedSettings.apiKey.trim()) {
+    if ((mergedSettings._v || 0) < 2 && !String(mergedSettings.apiKey || "").trim()) {
       mergedSettings.baseUrl = '';
       mergedSettings.model = '';
     }
@@ -294,6 +298,8 @@ export function normalizeState(raw) {
   if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyMorning || '')) mergedSettings.notifyMorning = '08:30';
   if (!/^\d{2}:\d{2}$/.test(mergedSettings.notifyNight || '')) mergedSettings.notifyNight = '23:30';
   if (!/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgDefaultSize || '')) mergedSettings.imgDefaultSize = '1152x1536';
+  mergedSettings.imgCustomSize = String(mergedSettings.imgCustomSize || '').toLowerCase().replace(/\*/g, 'x').replace(/\s+/g, '').trim();
+  if (mergedSettings.imgCustomSize && !/^\d{3,4}x\d{3,4}$/.test(mergedSettings.imgCustomSize)) mergedSettings.imgCustomSize = '';
   const msFixedModels = ['Tongyi-MAI/Z-Image-Turbo', 'krea/Krea-2-Turbo', 'Qwen/Qwen-Image-2.1'];
   if (!mergedSettings.msImgPreset && !mergedSettings.msImgCustomModel) {
     if (mergedSettings.imgProvider === 'modelscope' && mergedSettings.imgModel) {

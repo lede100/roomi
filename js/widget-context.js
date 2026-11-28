@@ -2,8 +2,14 @@ import { todayKey } from './utils.js';
 
 export function sanitizeWidgetHtml(rawHtml) {
   return String(rawHtml || '')
-    .replace(/<\/body\s*>/gi, '<!-- /body -->')
-    .replace(/<\/html\s*>/gi, '<!-- /html -->');
+    .replace(/<!DOCTYPE\b[^>]*>/gi, '')
+    .replace(/<\/?html\b[^>]*>/gi, '')
+    .replace(/<\/?head\b[^>]*>/gi, '')
+    .replace(/<meta\b[^>]*>/gi, '')
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
+    .replace(/<body\b[^>]*>/gi, '')
+    .replace(/<\/body\s*>/gi, '')
+    .trim();
 }
 
 export function buildWidgetSrcdoc(widget, widgetStates, themeKey = 'claude') {
@@ -93,8 +99,10 @@ ${isDarkGlass ? `<style>body { background: transparent !important; color: ${wTex
     __resizeRaf = 0;
     if (__resizeCount > 45) return;
     const root = document.getElementById('__roomi_root');
-    const rawH = root ? Math.ceil(root.getBoundingClientRect().height) : (document.body ? document.body.scrollHeight : 160);
-    const clamped = Math.max(110, Math.min(rawH + 2, 520));
+    const bs = document.body ? getComputedStyle(document.body) : null;
+    const padY = bs ? (parseFloat(bs.paddingTop) || 0) + (parseFloat(bs.paddingBottom) || 0) : 0;
+    const rawH = root ? Math.ceil(root.getBoundingClientRect().height + padY) : (document.body ? document.body.scrollHeight : 160);
+    const clamped = Math.max(110, Math.min(rawH + 4, 680));
     if (Math.abs(clamped - __lastReportedH) < 2) return;
     __lastReportedH = clamped;
     __resizeCount++;
